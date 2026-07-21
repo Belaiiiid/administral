@@ -1,0 +1,300 @@
+<!DOCTYPE html><html class="light" lang="fr"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Documentation | APL à l'Aide</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {"primary-fixed": "#dbe1ff", "surface-tint": "#3559b6", "tertiary-container": "#1b222f", "on-primary-fixed-variant": "#15409d", "surface-container": "#eeeeee", "on-secondary-container": "#76153e", outline: "#757680", "inverse-primary": "#b4c5ff", "tertiary-fixed-dim": "#bfc6d8", "surface-card": "#FFFFFF", "surface-bright": "#f9f9f9", "border-subtle": "#E5E7EB", error: "#ba1a1a", "surface-container-highest": "#e2e2e2", "primary-container": "#001d59", "on-error": "#ffffff", "status-error": "#C00327", "on-tertiary-fixed": "#141c28", "inverse-on-surface": "#f0f1f1", "error-container": "#ffdad6", "text-main": "#1F2937", "surface-variant": "#e2e2e2", "on-secondary-fixed-variant": "#821f47", background: "#f9f9f9", "on-tertiary-container": "#828999", "text-muted": "#6B7280", surface: "#f9f9f9", "secondary-fixed-dim": "#ffb1c6", "surface-container-high": "#e8e8e8", secondary: "#a1385f", tertiary: "#050c18", "inverse-surface": "#2f3131", "surface-container-low": "#f3f3f4", "on-tertiary": "#ffffff", "on-surface": "#1a1c1c", "on-primary": "#ffffff", "on-primary-container": "#6485e5", primary: "#000929", "surface-container-lowest": "#ffffff", "on-tertiary-fixed-variant": "#404755", "surface-dim": "#dadada", "primary-fixed-dim": "#b4c5ff", "on-surface-variant": "#45464f", "secondary-fixed": "#ffd9e1", "on-background": "#1a1c1c", "on-secondary": "#ffffff", "on-error-container": "#93000a", "secondary-container": "#fd81a9", "outline-variant": "#c5c6d0", "tertiary-fixed": "#dbe2f4", "on-secondary-fixed": "#3f001c", "on-primary-fixed": "#00174b"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, spacing: {gutter: "24px", "margin-desktop": "32px", "margin-mobile": "16px", unit: "8px", "container-max": "1200px"}, fontFamily: {"headline-lg-mobile": ["Inter"], "label-md": ["Inter"], "body-md": ["Inter"], "body-lg": ["Inter"], display: ["Inter"], "headline-lg": ["Inter"], "body-sm": ["Inter"], "headline-md": ["Inter"], mono: ["Inter"], "label-sm": ["Inter"], headline: ["Inter"], body: ["Inter"], label: ["Inter"]}, fontSize: {"headline-lg-mobile": ["24px", {lineHeight: "32px", fontWeight: "600"}], "label-md": ["14px", {lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600"}], "body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}], "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}], display: ["36px", {lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "700"}], "headline-lg": ["28px", {lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600"}], "body-sm": ["14px", {lineHeight: "20px", fontWeight: "400"}], "headline-md": ["20px", {lineHeight: "28px", fontWeight: "600"}], mono: ["14px", {lineHeight: "20px", fontWeight: "400"}], "label-sm": ["12px", {lineHeight: "16px", fontWeight: "500"}]}}}};</script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fb; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="text-on-surface bg-background">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low dark:bg-inverse-surface border-r border-border-subtle dark:border-outline-variant flex flex-col py-6 px-4 z-50">
+<div class="mb-10 px-2">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined">account_balance</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">APL à l'Aide</h1>
+<p class="text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">Service Public</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="">Tableau de bord</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="">Mes demandes</span>
+</a>
+<!-- Active State: Documents (closest to Documentation Portal intent) -->
+<a class="flex items-center gap-3 px-4 py-3 text-primary dark:text-primary-fixed-dim bg-primary-fixed dark:bg-primary-container rounded-lg font-bold font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="">Documents</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">calculate</span>
+<span class="">Simulateur APL</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="">Aide IA</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-border-subtle dark:border-outline-variant space-y-2">
+<button class="w-full bg-primary text-white py-3 rounded-xl font-label-md text-label-md font-bold mb-4 active:scale-[0.98] transition-transform duration-200">
+                Nouvelle demande
+            </button>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="">Paramètres</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="">Déconnexion</span>
+</a>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 left-64 right-0 h-16 bg-surface dark:bg-surface-dim border-b border-border-subtle dark:border-outline-variant flex justify-between items-center px-gutter z-40 shadow-sm">
+<div class="flex-1 max-w-xl">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-full py-2 pl-10 pr-4 text-body-sm font-body-sm focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Rechercher une aide, un guide..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-6 ml-6">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="flex items-center gap-3 cursor-pointer group">
+<div class="text-right">
+<p class="font-label-md text-label-md text-primary">Profil</p>
+<p class="text-[10px] text-on-surface-variant">Jean Dupont</p>
+</div>
+<img class="w-10 h-10 rounded-full border-2 border-primary-fixed" data-alt="A professional close-up portrait of a user for a government portal profile. The user has a neutral, friendly expression. The lighting is bright and clean, typical of a high-end corporate directory. The background is a soft, solid light grey, following a minimalist and official French administrative visual style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4uM9FGMsFp5LkxRkybat7kZQW3OlSDpP1LZ5krptwACFxelh4mzY3sZpaxONf-F8feaLL3dVa4h-M9-vLBa7L_qc3h_DBC_JlTQmfif9kl728OXXeb-EFFg7yJxhO3uWWeqr0AOj4SxFm-uMtos9VNLqbeekR1CxVViuHM1Mc6priSQwSesokPS_aPseANWGtYHr02EyJf5kr266BdrJRXJYhzBKNzf1pWmiNneCaTCUfVDjPC8H1Pw">
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 pt-16 min-h-screen">
+<div class="max-w-[1200px] mx-auto p-gutter pb-24">
+<!-- Hero Section -->
+<section class="mb-12 relative overflow-hidden rounded-2xl bg-primary-container p-12 text-on-primary-container">
+<div class="relative z-10 max-w-2xl">
+<h2 class="font-display text-display mb-4">Centre de documentation</h2>
+<p class="font-body-lg text-body-lg opacity-90 mb-8">Trouvez toutes les réponses à vos questions concernant les aides au logement, les procédures de la CAF et les calculs de droits.</p>
+<div class="flex flex-wrap gap-4">
+
+
+
+</div>
+</div>
+</section>
+<!-- Categorized Sections (Bento-ish Grid) -->
+<div class="grid grid-cols-12 gap-6 mb-12">
+<!-- Primary Category: Première Demande -->
+<div class="col-span-12 lg:col-span-8 bg-surface-container-lowest rounded-xl border border-border-subtle p-8 shadow-sm group hover:shadow-md transition-shadow">
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-primary font-bold text-[10px] uppercase tracking-widest block mb-2">Guide Essentiel</span>
+<h3 class="font-headline-lg text-headline-lg text-primary">Première demande d'APL</h3>
+</div>
+<span class="material-symbols-outlined text-primary text-3xl">assignment_ind</span>
+</div>
+<div class="grid md:grid-cols-2 gap-4">
+<a class="p-4 rounded-lg bg-surface-container-low hover:bg-primary-fixed transition-colors border border-transparent hover:border-primary-fixed-dim" href="#">
+<p class="font-label-md text-label-md text-primary mb-1">Pièces justificatives</p>
+<p class="text-body-sm text-on-surface-variant">La liste complète des documents à préparer pour votre dossier.</p>
+</a>
+<a class="p-4 rounded-lg bg-surface-container-low hover:bg-primary-fixed transition-colors border border-transparent hover:border-primary-fixed-dim" href="#">
+<p class="font-label-md text-label-md text-primary mb-1">Conditions d'éligibilité</p>
+<p class="text-body-sm text-on-surface-variant">Vérifiez si votre situation vous permet de bénéficier des aides.</p>
+</a>
+<a class="p-4 rounded-lg bg-surface-container-low hover:bg-primary-fixed transition-colors border border-transparent hover:border-primary-fixed-dim" href="#">
+<p class="font-label-md text-label-md text-primary mb-1">Le parcours numérique</p>
+<p class="text-body-sm text-on-surface-variant">Tutoriel pas à pas pour remplir votre demande en ligne.</p>
+</a>
+<a class="p-4 rounded-lg bg-surface-container-low hover:bg-primary-fixed transition-colors border border-transparent hover:border-primary-fixed-dim" href="#">
+<p class="font-label-md text-label-md text-primary mb-1">Délais de traitement</p>
+<p class="text-body-sm text-on-surface-variant">Comprendre quand vous recevrez votre premier versement.</p>
+</a>
+</div>
+</div>
+<!-- Secondary Category: Calcul -->
+<div class="col-span-12 lg:col-span-4 bg-surface-container-lowest rounded-xl border border-border-subtle p-8 shadow-sm flex flex-col justify-between">
+<div>
+<div class="w-12 h-12 bg-secondary-fixed rounded-xl flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined">calculate</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-4">Calcul des aides</h3>
+<ul class="space-y-4">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-sm mt-1">check_circle</span>
+<span class="text-body-sm text-on-surface-variant">Calcul des ressources (N-2)</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-sm mt-1">check_circle</span>
+<span class="text-body-sm text-on-surface-variant">Plafonds par zone géographique</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-sm mt-1">check_circle</span>
+<span class="text-body-sm text-on-surface-variant">Impact de la colocation</span>
+</li>
+</ul>
+</div>
+<button class="mt-8 w-full border-2 border-primary text-primary font-bold py-3 rounded-lg hover:bg-primary-fixed transition-colors">
+                        Ouvrir le simulateur
+                    </button>
+</div>
+<!-- Third Category: Changement de situation -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container-lowest rounded-xl border border-border-subtle p-8 shadow-sm flex gap-6">
+<div class="hidden md:block w-32 shrink-0 h-full rounded-lg bg-surface-container-low overflow-hidden">
+<div class="w-full h-full bg-cover bg-center" data-alt="A minimalist architectural photograph of modern residential buildings in France, with clean lines, blue sky, and bright natural lighting. The visual style is crisp and professional, emphasizing urban clarity and organized living spaces. Soft shadows and high-key exposure contribute to a calming, administrative aesthetic." style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuAD8fs1PJMqoCLrSfQxqVUh93A42UpV5fTQSgJ9I3W9ojSFg6a3p16dnfr3obwglj3BbCO8WztE8uRAqmoBHXNmrrRKwStEQZKqA72sRaPewDXi0d9o-oOPW04gWSB0b4TQfqiKxCAHUcUrwGeLgEu3QmGaV5ROuteQm_s8w9tfDMA1_f87ErK0loiPKGCylaBq-wJ_aGQBT5xYeaHQ5pVPMZi4uHG1VnoFuabwwt1OEpqUxyHK2-WTCA&quot;);"></div>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Changement de situation</h3>
+<p class="text-body-sm text-on-surface-variant mb-4">Déménagement, mariage, perte d'emploi : apprenez comment mettre à jour votre dossier pour éviter les indus.</p>
+<div class="space-y-2">
+<a class="text-primary font-label-md text-label-md flex items-center gap-2 hover:underline" href="#">
+                                Déclarer un changement <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+<a class="text-primary font-label-md text-label-md flex items-center gap-2 hover:underline" href="#">
+                                Calendrier des déclarations <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Fourth Category: AI Recommendation Card style -->
+<div class="col-span-12 lg:col-span-6 bg-[#F0F7FF] rounded-xl border-l-4 border-primary-container p-8 shadow-sm relative overflow-hidden">
+<div class="relative z-10">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary-container">smart_toy</span>
+<span class="text-primary-container font-bold text-label-sm uppercase">Assistance IA</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Besoin d'une réponse rapide ?</h3>
+<p class="text-body-sm text-on-surface-variant mb-6">Notre intelligence artificielle a analysé 500+ cas réels pour vous répondre instantanément sur vos droits spécifiques.</p>
+<div class="flex gap-4">
+<input class="flex-1 rounded-lg border-border-subtle focus:ring-primary-container focus:border-primary-container text-body-sm" placeholder="Posez votre question..." type="text">
+<button class="bg-primary-container text-white px-6 py-2 rounded-lg font-bold">Poser</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Featured Article Section -->
+<section class="bg-surface-container-lowest rounded-2xl border border-border-subtle overflow-hidden shadow-sm mb-12">
+<div class="p-10 max-w-4xl mx-auto">
+<nav class="flex gap-2 text-body-sm text-on-surface-variant mb-8">
+<a class="hover:text-primary" href="#">Accueil</a>
+<span class="">/</span>
+<a class="hover:text-primary" href="#">Guides</a>
+<span class="">/</span>
+<span class="text-on-surface font-bold">Calcul des ressources</span>
+</nav>
+<article>
+<h2 class="font-display text-display text-primary mb-6 leading-tight">Comprendre le calcul des ressources N-2 pour l'APL</h2>
+<div class="flex items-center gap-4 mb-10 pb-6 border-b border-border-subtle">
+<img class="w-12 h-12 rounded-full" data-alt="Close-up of a French civil servant's ID photo, professional and minimalist. The subject is wearing a formal dark suit against a plain light gray background. Bright, even lighting. The style is strictly official and corporate, matching a government service identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDObZHALq2YQA-20WuMozFitL1p5grG5fB56IEN-TNpDTEpnoUU9rcSkLjRnvvjBY-aIN6HPizipwijlVBSL3O8B8f0sXr7NCMO-KuKUm7LeKXhQwT6sock6rBqhWWe0dWHT94BV-t5igmElCnwv5e7DzypApa2OeeD097__w9_pAeIODkpmwxcchwwGM1mji516PfJoSQWJ717euq5JElNYHnL7UEeIVQnFi-LOAr_xDK2qrPzkClAQg">
+<div>
+<p class="font-label-md text-label-md">Rédigé par Sophie M.</p>
+<p class="text-body-sm text-on-surface-variant">Mis à jour le 12 Mars 2024 • 6 min de lecture</p>
+</div>
+</div>
+<div class="space-y-6 text-body-lg text-on-surface-variant leading-relaxed">
+<p class="">Depuis la réforme de 2021, les ressources prises en compte pour le calcul de vos aides au logement sont celles des 12 derniers mois glissants. Cependant, de nombreux usagers s'interrogent encore sur la persistance de certaines règles liées à l'année N-2.</p>
+<h4 class="font-headline-md text-headline-md text-primary mt-8">1. Le principe du prélèvement à la source</h4>
+<p class="">La CAF récupère désormais automatiquement vos revenus auprès des impôts et de Pôle Emploi. Cette automatisation permet d'ajuster le montant de votre APL tous les trimestres en fonction de l'évolution réelle de votre pouvoir d'achat.</p>
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-secondary my-8">
+<p class="font-bold text-primary mb-2">À noter :</p>
+<p class="text-body-md italic">L'actualisation se fait en janvier, avril, juillet et octobre. Vous recevez une notification par email dès que votre nouveau montant est calculé.</p>
+</div>
+<h4 class="font-headline-md text-headline-md text-primary mt-8">2. Ce qui ne change pas</h4>
+<p class="">Malgré l'automatisation, la composition du foyer et la zone géographique de votre logement restent les piliers du calcul. Les zones A, Abis, B1, B2 et C déterminent les plafonds de loyer pris en compte.</p>
+</div>
+</article>
+<!-- Feedback Component -->
+<div class="mt-16 pt-8 border-t border-border-subtle flex flex-col md:flex-row justify-between items-center gap-6">
+<p class="font-label-md text-label-md text-primary">Cet article vous a-t-il aidé dans vos démarches ?</p>
+<div class="flex gap-4">
+<button class="flex items-center gap-2 px-6 py-2 rounded-full border border-border-subtle hover:bg-primary-fixed transition-all text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">thumb_up</span>
+<span class="font-bold">Oui</span>
+</button>
+<button class="flex items-center gap-2 px-6 py-2 rounded-full border border-border-subtle hover:bg-error-container transition-all text-on-surface-variant hover:text-error">
+<span class="material-symbols-outlined">thumb_down</span>
+<span class="font-bold">Non</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ Summary Table -->
+<section class="bg-surface-container-lowest rounded-xl border border-border-subtle p-8 shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<h3 class="font-headline-md text-headline-md text-primary uppercase text-sm tracking-widest">Questions Fréquentes</h3>
+<a class="text-primary font-bold hover:underline" href="#">Voir toutes les FAQ</a>
+</div>
+<div class="divide-y divide-border-subtle">
+<div class="py-4 flex justify-between items-center group cursor-pointer">
+<span class="text-body-md font-medium group-hover:text-primary transition-colors">Puis-je cumuler APL et chômage ?</span>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="py-4 flex justify-between items-center group cursor-pointer">
+<span class="text-body-md font-medium group-hover:text-primary transition-colors">Quel est le délai de réponse après un dépôt de dossier ?</span>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+<div class="py-4 flex justify-between items-center group cursor-pointer">
+<span class="text-body-md font-medium group-hover:text-primary transition-colors">Ma banque peut-elle prélever mon APL ?</span>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">chevron_right</span>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="ml-64 bg-surface-container-lowest dark:bg-inverse-surface border-t border-border-subtle dark:border-outline-variant py-8 px-gutter">
+<div class="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm font-bold uppercase text-on-surface-variant">RÉPUBLIQUE FRANÇAISE</span>
+<p class="text-body-sm text-on-surface-variant opacity-70">© 2024 République Française - Direction de l'information légale et administrative</p>
+</div>
+<div class="flex flex-wrap gap-x-8 gap-y-2 justify-center">
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-all" href="#">Accessibilité: totalement conforme</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-all" href="#">Mentions légales</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-all" href="#">Données personnelles</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-all" href="#">Gestion des cookies</a>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions for feedback buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.innerText.includes('Oui') || this.innerText.includes('Non')) {
+                    const originalContent = this.innerHTML;
+                    this.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span><span>Merci !</span>';
+                    this.disabled = true;
+                    setTimeout(() => {
+                        this.innerHTML = '<span>Soumis</span>';
+                        this.classList.add('bg-primary-fixed', 'border-primary');
+                    }, 800);
+                }
+            });
+        });
+    </script>
+
+
+</body></html>

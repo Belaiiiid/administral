@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mise à jour de ma situation - APL à l'Aide</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config Verbatim -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#050c18",
+                    "secondary-fixed-dim": "#ffb1c6",
+                    "surface-container-highest": "#e2e2e2",
+                    "secondary-container": "#fd81a9",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "on-primary-fixed-variant": "#15409d",
+                    "primary-container": "#001d59",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-fixed": "#00174b",
+                    "on-primary-container": "#6485e5",
+                    "inverse-primary": "#b4c5ff",
+                    "on-secondary-fixed": "#3f001c",
+                    "surface-container-high": "#e8e8e8",
+                    "primary-fixed": "#dbe1ff",
+                    "outline": "#757680",
+                    "background": "#f9f9f9",
+                    "on-secondary-container": "#76153e",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed-dim": "#bfc6d8",
+                    "surface-tint": "#3559b6",
+                    "on-surface": "#1a1c1c",
+                    "tertiary-fixed": "#dbe2f4",
+                    "tertiary-container": "#1b222f",
+                    "surface-dim": "#dadada",
+                    "error-container": "#ffdad6",
+                    "on-primary": "#ffffff",
+                    "inverse-on-surface": "#f0f1f1",
+                    "surface-variant": "#e2e2e2",
+                    "secondary": "#a1385f",
+                    "outline-variant": "#c5c6d0",
+                    "surface-container": "#eeeeee",
+                    "surface-bright": "#f9f9f9",
+                    "surface": "#f9f9f9",
+                    "primary": "#000929",
+                    "on-secondary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#141c28",
+                    "on-background": "#1a1c1c",
+                    "on-surface-variant": "#45464f",
+                    "on-secondary-fixed-variant": "#821f47",
+                    "error": "#ba1a1a",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#ffd9e1",
+                    "inverse-surface": "#2f3131",
+                    "on-tertiary-container": "#828999",
+                    "surface-container-low": "#f3f3f4",
+                    "on-tertiary-fixed-variant": "#404755"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1200px",
+                    "unit": "8px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "mono": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "display": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "mono": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .soft-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+        .ai-accent-border {
+            border-left: 4px solid #003593;
+        }
+        .input-focus-ring:focus {
+            outline: none;
+            border-color: #003593;
+            box-shadow: 0 0 0 2px rgba(0, 53, 147, 0.2);
+        }
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex">
+<!-- SideNavBar (Hidden on Mobile) -->
+<aside class="fixed left-0 h-full w-64 bg-surface-container-low border-r border-outline-variant flex flex-col py-6 px-4 hidden md:flex z-50">
+<div class="mb-10 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">APL à l'Aide</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Service Public</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Tableau de bord
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary bg-primary-fixed rounded-lg font-bold font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">description</span>
+                Mes demandes
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+                Documents
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">calculate</span>
+                Simulateur APL
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+                Aide IA
+            </a>
+</nav>
+<div class="mt-auto space-y-1 pt-6 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Paramètres
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined">logout</span>
+                Déconnexion
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="h-16 bg-surface border-b border-outline-variant flex items-center justify-between px-gutter sticky top-0 z-40 shadow-sm">
+<div class="flex items-center gap-4">
+<button class="md:hidden p-2 text-on-surface-variant">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 class="font-headline-md text-headline-md font-bold text-primary">Mise à jour de ma situation</h2>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="flex items-center gap-2 pl-4 border-l border-outline-variant">
+<span class="font-label-md text-label-md hidden sm:inline">Jean Dupont</span>
+<div class="w-8 h-8 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold">JD</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="flex-1 flex flex-col items-center py-12 px-margin-mobile md:px-margin-desktop">
+<div class="w-full max-w-[800px]">
+<!-- Stepper -->
+<div class="mb-12">
+<div class="flex items-center justify-between relative">
+<!-- Line Background -->
+<div class="absolute top-1/2 left-0 w-full h-[2px] bg-outline-variant -translate-y-1/2 z-0"></div>
+<!-- Step 1 (Active) -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">1</div>
+<span class="font-label-md text-label-md text-primary">Logement</span>
+</div>
+<!-- Step 2 -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-outline-variant text-on-surface-variant flex items-center justify-center font-bold">2</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Revenus</span>
+</div>
+<!-- Step 3 -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-outline-variant text-on-surface-variant flex items-center justify-center font-bold">3</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Foyer</span>
+</div>
+<!-- Step 4 -->
+<div class="relative z-10 flex flex-col items-center gap-2">
+<div class="w-10 h-10 rounded-full bg-white border-2 border-outline-variant text-on-surface-variant flex items-center justify-center font-bold">4</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Récapitulatif</span>
+</div>
+</div>
+</div>
+<!-- Form Section -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 soft-shadow animate-fade-in">
+<header class="mb-8">
+<h3 class="font-headline-lg text-headline-lg text-on-surface mb-2">Informations sur votre logement</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Veuillez vérifier et mettre à jour les détails de votre résidence actuelle.</p>
+</header>
+<form class="space-y-8">
+<!-- Address Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="md:col-span-2">
+<label class="block font-label-md text-label-md text-on-surface mb-2">Adresse de résidence actuelle</label>
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" placeholder="Numéro et nom de rue" type="text" value="12 Rue de la Paix"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Code Postal</label>
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" type="text" value="75002"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Ville</label>
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" type="text" value="Paris"/>
+</div>
+</div>
+<!-- Rent & Landlord -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-outline-variant">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Montant du loyer mensuel (€)</label>
+<div class="relative">
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" type="number" value="850"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-label-md">EUR</span>
+</div>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Type de bail</label>
+<select class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md appearance-none">
+<option>Location meublée</option>
+<option selected="">Location non meublée</option>
+<option>Colocation</option>
+</select>
+</div>
+</div>
+<div class="md:col-span-2 space-y-4">
+<label class="block font-label-md text-label-md text-on-surface">Coordonnées du bailleur</label>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" placeholder="Nom du bailleur ou organisme" type="text"/>
+<input class="w-full h-12 px-4 rounded-lg border border-outline-variant bg-white input-focus-ring font-body-md text-body-md" placeholder="Email du bailleur" type="email"/>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center justify-between pt-8">
+<button class="px-6 py-3 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined">arrow_back</span>
+                                Retour
+                            </button>
+<button class="bg-[#003593] hover:bg-[#002a75] text-white px-8 py-3 rounded-lg font-label-md text-label-md flex items-center gap-2 shadow-sm transition-all transform active:scale-95" type="submit">
+                                Continuer
+                                <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Footer -->
+<footer class="mt-16 py-8 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="font-body-sm text-body-sm text-on-surface-variant text-center md:text-left">
+                        © 2024 République Française - Direction de l'information légale et administrative
+                    </p>
+<div class="flex gap-4">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline transition-colors" href="#">Mentions légales</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary underline transition-colors" href="#">Confidentialité</a>
+</div>
+</footer>
+</div>
+</div>
+<!-- AI Assistant Sidebar Panel -->
+<div class="fixed right-8 bottom-24 w-80 bg-white border border-outline-variant rounded-xl soft-shadow overflow-hidden hidden md:flex flex-col z-50 transform translate-y-0 transition-all duration-300" id="ai-panel">
+<div class="bg-primary p-4 text-white flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Assistant AI</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+</div>
+<div class="p-6 space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+<div class="ai-accent-border bg-[#DCE3F5] bg-opacity-30 p-4 rounded-r-lg">
+<p class="font-body-md text-body-md text-on-tertiary-container">
+                        Je peux vous aider à vérifier ces informations. Avez-vous votre nouvelle quittance de loyer ?
+                    </p>
+<div class="mt-3 flex gap-2">
+<button class="px-3 py-1.5 bg-white border border-outline-variant rounded-full font-label-sm text-label-sm hover:bg-surface-container-high transition-colors">
+                            Oui, l'analyser
+                        </button>
+<button class="px-3 py-1.5 bg-white border border-outline-variant rounded-full font-label-sm text-label-sm hover:bg-surface-container-high transition-colors">
+                            Plus tard
+                        </button>
+</div>
+</div>
+<div class="text-center pt-4">
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">Est-ce utile ?</p>
+<div class="flex justify-center gap-4">
+<button class="p-2 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">thumb_up</span>
+</button>
+<button class="p-2 rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating AI Toggle -->
+<button class="fixed right-8 bottom-8 w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform z-50" onclick="toggleAI()">
+<span class="material-symbols-outlined text-[28px]">smart_toy</span>
+</button>
+</main>
+<script>
+        function toggleAI() {
+            const panel = document.getElementById('ai-panel');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
+        }
+
+        // Add a subtle entrance animation for form elements
+        document.addEventListener('DOMContentLoaded', () => {
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(10px)';
+                el.style.transition = 'all 0.4s ease-out';
+                setTimeout(() => {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, 100 + (index * 50));
+            });
+        });
+    </script>
+</body></html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Créer un compte - APL à l'Aide</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {"primary-fixed": "#dbe1ff", "surface-tint": "#3559b6", "tertiary-container": "#1b222f", "on-primary-fixed-variant": "#15409d", "surface-container": "#eeeeee", "on-secondary-container": "#76153e", outline: "#757680", "inverse-primary": "#b4c5ff", "tertiary-fixed-dim": "#bfc6d8", "surface-card": "#FFFFFF", "surface-bright": "#f9f9f9", "border-subtle": "#E5E7EB", error: "#ba1a1a", "surface-container-highest": "#e2e2e2", "primary-container": "#001d59", "on-error": "#ffffff", "status-error": "#C00327", "on-tertiary-fixed": "#141c28", "inverse-on-surface": "#f0f1f1", "error-container": "#ffdad6", "text-main": "#1F2937", "surface-variant": "#e2e2e2", "on-secondary-fixed-variant": "#821f47", background: "#f9f9f9", "on-tertiary-container": "#828999", "text-muted": "#6B7280", surface: "#f9f9f9", "secondary-fixed-dim": "#ffb1c6", "surface-container-high": "#e8e8e8", secondary: "#a1385f", tertiary: "#050c18", "inverse-surface": "#2f3131", "surface-container-low": "#f3f3f4", "on-tertiary": "#ffffff", "on-surface": "#1a1c1c", "on-primary": "#ffffff", "on-primary-container": "#6485e5", primary: "#000929", "surface-container-lowest": "#ffffff", "on-tertiary-fixed-variant": "#404755", "surface-dim": "#dadada", "primary-fixed-dim": "#b4c5ff", "on-surface-variant": "#45464f", "secondary-fixed": "#ffd9e1", "on-background": "#1a1c1c", "on-secondary": "#ffffff", "on-error-container": "#93000a", "secondary-container": "#fd81a9", "outline-variant": "#c5c6d0", "tertiary-fixed": "#dbe2f4", "on-secondary-fixed": "#3f001c", "on-primary-fixed": "#00174b"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, spacing: {gutter: "24px", "margin-desktop": "32px", "margin-mobile": "16px", unit: "8px", "container-max": "1200px"}, fontFamily: {"headline-lg-mobile": ["Inter"], "label-md": ["Inter"], "body-md": ["Inter"], "body-lg": ["Inter"], display: ["Inter"], "headline-lg": ["Inter"], "body-sm": ["Inter"], "headline-md": ["Inter"], mono: ["Inter"], "label-sm": ["Inter"], headline: ["Inter"], body: ["Inter"], label: ["Inter"]}, fontSize: {"headline-lg-mobile": ["24px", {lineHeight: "32px", fontWeight: "600"}], "label-md": ["14px", {lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600"}], "body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}], "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}], display: ["36px", {lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "700"}], "headline-lg": ["28px", {lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600"}], "body-sm": ["14px", {lineHeight: "20px", fontWeight: "400"}], "headline-md": ["20px", {lineHeight: "28px", fontWeight: "600"}], mono: ["14px", {lineHeight: "20px", fontWeight: "400"}], "label-sm": ["12px", {lineHeight: "16px", fontWeight: "500"}]}}}};</script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        display: inline-block;
+        vertical-align: middle;
+        line-height: 1;
+      }
+      
+      .soft-shadow {
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      .step-active {
+        color: #0f4c81;
+        font-weight: 700;
+      }
+
+      .ai-accent-card {
+        border-left: 4px solid #0f4c81;
+        background-color: #F0F7FF;
+      }
+      
+      /* Animation for step transitions */
+      .step-pane {
+        transition: all 0.3s ease-in-out;
+      }
+      
+      input:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(15, 76, 129, 0.2);
+      }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col">
+<!-- Simple Top Bar (No Nav for Transactional Flow) -->
+<header class="h-16 flex items-center px-gutter bg-surface border-b border-border-subtle fixed top-0 w-full z-50">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xl">account_balance</span>
+</div>
+<span class="font-headline-md text-headline-md text-primary font-bold">APL à l'Aide</span>
+</div>
+</header>
+<main class="flex-grow pt-24 pb-12 flex items-center justify-center px-4">
+<div class="w-full max-w-[600px]">
+<!-- Progress Stepper -->
+<div class="mb-10">
+<div class="flex justify-between items-center relative mb-4">
+<!-- Progress Line Background -->
+<div class="absolute top-1/2 left-0 w-full h-0.5 bg-surface-container-highest -translate-y-1/2 z-0"></div>
+<!-- Active Progress Line -->
+<div class="absolute top-1/2 left-0 w-1/3 h-0.5 bg-primary-container -translate-y-1/2 z-0 transition-all duration-500" id="progress-bar"></div>
+<!-- Steps -->
+<div class="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(1)">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary-container text-white border-4 border-surface transition-colors" id="step-circle-1">
+<span class="material-symbols-outlined text-base">person</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary" id="step-label-1">Identité</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(2)">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-highest text-on-surface-variant border-4 border-surface transition-colors" id="step-circle-2">
+<span class="material-symbols-outlined text-base">mail</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="step-label-2">Contact</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(3)">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-highest text-on-surface-variant border-4 border-surface transition-colors" id="step-circle-3">
+<span class="material-symbols-outlined text-base">security</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="step-label-3">Sécurité</span>
+</div>
+</div>
+</div>
+<!-- Form Container -->
+<div class="bg-white p-8 rounded-xl soft-shadow border border-border-subtle">
+<!-- Step 1: Personal Info -->
+<div class="step-pane" id="step-1-content">
+<div class="mb-8">
+<h1 class="font-headline-lg text-headline-lg text-primary mb-2">Informations personnelles</h1>
+<p class="text-on-surface-variant font-body-sm text-body-sm">Commencez par nous dire qui vous êtes pour personnaliser votre accompagnement.</p>
+</div>
+<div class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Prénom</label>
+<input class="w-full px-4 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" placeholder="Ex: Jean" type="text"/>
+</div>
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Nom de famille</label>
+<input class="w-full px-4 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" placeholder="Ex: Dupont" type="text"/>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Date de naissance</label>
+<div class="relative">
+<input class="w-full px-4 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" type="date"/>
+</div>
+</div>
+<div class="ai-accent-card p-4 rounded-lg flex gap-3">
+<span class="material-symbols-outlined text-primary-container shrink-0">info</span>
+<div class="space-y-1">
+<p class="font-label-md text-label-md text-primary">Pourquoi ces données ?</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Votre date de naissance permet à notre IA d'identifier immédiatement les aides spécifiques aux jeunes actifs ou aux seniors.</p>
+</div>
+</div>
+<button class="w-full bg-primary-container text-white py-4 rounded-xl font-label-md text-label-md hover:bg-primary transition-colors flex items-center justify-center gap-2 mt-4" onclick="goToStep(2)">
+                            Continuer
+                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Step 2: Contact Info (Hidden initially) -->
+<div class="step-pane hidden" id="step-2-content">
+<div class="mb-8">
+<h1 class="font-headline-lg text-headline-lg text-primary mb-2">Vos coordonnées</h1>
+<p class="text-on-surface-variant font-body-sm text-body-sm">Ces informations nous permettent de vous envoyer les notifications sur vos dossiers.</p>
+</div>
+<div class="space-y-6">
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Adresse e-mail</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">mail</span>
+<input class="w-full pl-12 pr-4 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" placeholder="jean.dupont@email.fr" type="email"/>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Numéro de téléphone</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">phone_iphone</span>
+<input class="w-full pl-12 pr-4 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" placeholder="06 12 34 56 78" type="tel"/>
+</div>
+</div>
+<div class="flex gap-4 pt-4">
+<button class="flex-1 border border-border-subtle text-on-surface-variant py-4 rounded-xl font-label-md text-label-md hover:bg-surface-container-low transition-colors" onclick="goToStep(1)">
+                                Retour
+                            </button>
+<button class="flex-[2] bg-primary-container text-white py-4 rounded-xl font-label-md text-label-md hover:bg-primary transition-colors flex items-center justify-center gap-2" onclick="goToStep(3)">
+                                Étape suivante
+                                <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Step 3: Security (Hidden initially) -->
+<div class="step-pane hidden" id="step-3-content">
+<div class="mb-8">
+<h1 class="font-headline-lg text-headline-lg text-primary mb-2">Sécurité du compte</h1>
+<p class="text-on-surface-variant font-body-sm text-body-sm">Choisissez un mot de passe robuste pour protéger vos documents administratifs.</p>
+</div>
+<div class="space-y-6">
+<div class="space-y-1.5">
+<label class="font-label-md text-label-md text-on-surface-variant">Mot de passe</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">lock</span>
+<input class="w-full pl-12 pr-12 py-3 rounded-lg border border-border-subtle font-body-md text-body-md focus:border-primary transition-all" placeholder="••••••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined">visibility</span>
+</button>
+</div>
+</div>
+<!-- Password Strength Indicator -->
+<div class="space-y-3">
+<div class="flex gap-1 h-1.5">
+<div class="flex-1 rounded-full bg-primary-container"></div>
+<div class="flex-1 rounded-full bg-primary-container"></div>
+<div class="flex-1 rounded-full bg-surface-container-highest"></div>
+<div class="flex-1 rounded-full bg-surface-container-highest"></div>
+</div>
+<ul class="grid grid-cols-1 md:grid-cols-2 gap-2">
+<li class="flex items-center gap-2 text-primary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">check_circle</span> 8 caractères minimum
+                                </li>
+<li class="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">circle</span> Un caractère spécial
+                                </li>
+<li class="flex items-center gap-2 text-primary font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">check_circle</span> Une majuscule
+                                </li>
+<li class="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">circle</span> Un chiffre
+                                </li>
+</ul>
+</div>
+<div class="pt-2">
+<label class="flex gap-3 cursor-pointer group">
+<div class="relative flex items-center justify-center mt-1">
+<input class="peer h-5 w-5 border-border-subtle rounded text-primary focus:ring-primary/20 cursor-pointer" type="checkbox"/>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-hover:text-on-surface transition-colors">
+                                    J'accepte les <a class="text-primary underline font-label-sm" href="#">Conditions Générales d'Utilisation</a> et la politique de protection des données.
+                                </span>
+</label>
+</div>
+<div class="flex gap-4 pt-4">
+<button class="flex-1 border border-border-subtle text-on-surface-variant py-4 rounded-xl font-label-md text-label-md hover:bg-surface-container-low transition-colors" onclick="goToStep(2)">
+                                Retour
+                            </button>
+<button class="flex-[2] bg-primary-container text-white py-4 rounded-xl font-label-md text-label-md hover:bg-primary transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20" onclick="completeRegistration()">
+                                Créer mon compte
+                                <span class="material-symbols-outlined text-sm">how_to_reg</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Links -->
+<div class="mt-8 text-center space-y-4">
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Vous avez déjà un compte ? 
+                    <a class="text-primary font-label-md hover:underline" href="#">Se connecter</a>
+</p>
+<div class="flex justify-center items-center gap-6 text-on-surface-variant/60 font-label-sm text-label-sm uppercase tracking-wider">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">verified_user</span> Sécurisé par l'État</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">gavel</span> RGPD Conforme</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Component as requested -->
+<footer class="mt-auto bg-surface-container-lowest border-t border-border-subtle py-6 px-gutter">
+<div class="flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="text-center md:text-left">
+<p class="font-label-sm text-label-sm font-bold uppercase text-on-surface-variant">APL à l'Aide</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">© 2024 République Française - Direction de l'information légale et administrative</p>
+</div>
+<nav class="flex flex-wrap justify-center gap-x-6 gap-y-2">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Accessibilité: totalement conforme</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Mentions légales</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Données personnelles</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Gestion des cookies</a>
+</nav>
+</div>
+</footer>
+<!-- Micro-interactions Script -->
+<script>
+        let currentStep = 1;
+
+        function goToStep(step) {
+            if (step < 1 || step > 3) return;
+            
+            // Hide all contents
+            document.querySelectorAll('.step-pane').forEach(el => el.classList.add('hidden'));
+            
+            // Show target step content
+            document.getElementById(`step-${step}-content`).classList.remove('hidden');
+            
+            // Update Stepper Visuals
+            updateStepper(step);
+            
+            currentStep = step;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateStepper(step) {
+            const progressBar = document.getElementById('progress-bar');
+            
+            // Progress Bar Width
+            if (step === 1) progressBar.style.width = '33.33%';
+            else if (step === 2) progressBar.style.width = '66.66%';
+            else progressBar.style.width = '100%';
+
+            // Circles and Labels
+            for (let i = 1; i <= 3; i++) {
+                const circle = document.getElementById(`step-circle-${i}`);
+                const label = document.getElementById(`step-label-${i}`);
+                
+                if (i < step) {
+                    // Completed
+                    circle.className = 'w-10 h-10 rounded-full flex items-center justify-center bg-primary text-white border-4 border-surface transition-colors';
+                    circle.innerHTML = '<span class="material-symbols-outlined text-base">check</span>';
+                    label.className = 'font-label-sm text-label-sm text-primary';
+                } else if (i === step) {
+                    // Active
+                    circle.className = 'w-10 h-10 rounded-full flex items-center justify-center bg-primary-container text-white border-4 border-surface transition-colors';
+                    const icons = ['person', 'mail', 'security'];
+                    circle.innerHTML = `<span class="material-symbols-outlined text-base">${icons[i-1]}</span>`;
+                    label.className = 'font-label-sm text-label-sm text-primary font-bold';
+                } else {
+                    // Future
+                    circle.className = 'w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-highest text-on-surface-variant border-4 border-surface transition-colors';
+                    const icons = ['person', 'mail', 'security'];
+                    circle.innerHTML = `<span class="material-symbols-outlined text-base">${icons[i-1]}</span>`;
+                    label.className = 'font-label-sm text-label-sm text-on-surface-variant';
+                }
+            }
+        }
+
+        function completeRegistration() {
+            // Animation for completion
+            const btn = event.currentTarget;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> Création en cours...';
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            
+            setTimeout(() => {
+                window.location.reload(); // Simulate redirect or success
+            }, 1500);
+        }
+    </script>
+</body></html>

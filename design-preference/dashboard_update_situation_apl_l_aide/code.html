@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>APL à l'Aide - Tableau de Bord</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fb;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid #E5E7EB;
+        }
+        .custom-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {"primary-fixed": "#dbe1ff", "surface-tint": "#3559b6", "tertiary-container": "#1b222f", "on-primary-fixed-variant": "#15409d", "surface-container": "#eeeeee", "on-secondary-container": "#76153e", outline: "#757680", "inverse-primary": "#b4c5ff", "tertiary-fixed-dim": "#bfc6d8", "surface-card": "#FFFFFF", "surface-bright": "#f9f9f9", "border-subtle": "#E5E7EB", error: "#ba1a1a", "surface-container-highest": "#e2e2e2", "primary-container": "#001d59", "on-error": "#ffffff", "status-error": "#C00327", "on-tertiary-fixed": "#141c28", "inverse-on-surface": "#f0f1f1", "error-container": "#ffdad6", "text-main": "#1F2937", "surface-variant": "#e2e2e2", "on-secondary-fixed-variant": "#821f47", background: "#f9f9f9", "on-tertiary-container": "#828999", "text-muted": "#6B7280", surface: "#f9f9f9", "secondary-fixed-dim": "#ffb1c6", "surface-container-high": "#e8e8e8", secondary: "#a1385f", tertiary: "#050c18", "inverse-surface": "#2f3131", "surface-container-low": "#f3f3f4", "on-tertiary": "#ffffff", "on-surface": "#1a1c1c", "on-primary": "#ffffff", "on-primary-container": "#6485e5", primary: "#000929", "surface-container-lowest": "#ffffff", "on-tertiary-fixed-variant": "#404755", "surface-dim": "#dadada", "primary-fixed-dim": "#b4c5ff", "on-surface-variant": "#45464f", "secondary-fixed": "#ffd9e1", "on-background": "#1a1c1c", "on-secondary": "#ffffff", "on-error-container": "#93000a", "secondary-container": "#fd81a9", "outline-variant": "#c5c6d0", "tertiary-fixed": "#dbe2f4", "on-secondary-fixed": "#3f001c", "on-primary-fixed": "#00174b"}, borderRadius: {DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"}, spacing: {gutter: "24px", "margin-desktop": "32px", "margin-mobile": "16px", unit: "8px", "container-max": "1200px"}, fontFamily: {"headline-lg-mobile": ["Inter"], "label-md": ["Inter"], "body-md": ["Inter"], "body-lg": ["Inter"], display: ["Inter"], "headline-lg": ["Inter"], "body-sm": ["Inter"], "headline-md": ["Inter"], mono: ["Inter"], "label-sm": ["Inter"], headline: ["Inter"], body: ["Inter"], label: ["Inter"]}, fontSize: {"headline-lg-mobile": ["24px", {lineHeight: "32px", fontWeight: "600"}], "label-md": ["14px", {lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "600"}], "body-md": ["16px", {lineHeight: "24px", fontWeight: "400"}], "body-lg": ["18px", {lineHeight: "28px", fontWeight: "400"}], display: ["36px", {lineHeight: "44px", letterSpacing: "-0.02em", fontWeight: "700"}], "headline-lg": ["28px", {lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "600"}], "body-sm": ["14px", {lineHeight: "20px", fontWeight: "400"}], "headline-md": ["20px", {lineHeight: "28px", fontWeight: "600"}], mono: ["14px", {lineHeight: "20px", fontWeight: "400"}], "label-sm": ["12px", {lineHeight: "16px", fontWeight: "500"}]}}}};</script>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- SIDEBAR -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low border-r border-border-subtle flex flex-col px-4 py-6 z-50">
+<div class="mb-10 flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary leading-tight">APL à l'Aide</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-70">Service Public</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-primary bg-primary-fixed rounded-lg font-bold" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Tableau de bord</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-md text-label-md">Mes demandes</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-md text-label-md">Documents</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">calculate</span>
+<span class="font-label-md text-label-md">Simulateur APL</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Aide IA</span>
+</a>
+</nav>
+<button class="mt-6 w-full py-3 px-4 bg-primary text-white font-label-md text-label-md rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 custom-shadow">
+<span class="material-symbols-outlined">add</span>
+            Nouvelle demande
+        </button>
+<div class="mt-auto space-y-1 pt-6 border-t border-border-subtle">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Paramètres</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container/20 transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Déconnexion</span>
+</a>
+</div>
+</aside>
+<!-- MAIN CONTENT AREA -->
+<div class="ml-64 flex flex-col min-h-screen">
+<!-- HEADER -->
+<header class="h-16 flex items-center justify-between px-gutter bg-surface border-b border-border-subtle sticky top-0 z-40">
+<div class="flex items-center w-1/2">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg pl-10 pr-4 py-2 text-label-md focus:ring-2 focus:ring-primary/20" placeholder="Rechercher une demande, un document..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-px bg-border-subtle mx-2"></div>
+<div class="flex items-center gap-3 pl-2">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-label-md text-on-surface leading-none">Marc Lefebvre</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Allocataire</p>
+</div>
+<div class="w-10 h-10 rounded-full border-2 border-primary-fixed overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a middle-aged French man with a kind expression, wearing a minimalist navy blue sweater. The lighting is soft and corporate, set against a pristine white background that aligns with a clean, modern UI aesthetic. High-quality digital photography with sharp focus on the face." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOzyyE1ZFrhbMFHol1aRoVLl5VYnlqeHqS5IIkTfnxg2jHicbjw19uE7dEYgkn2jo0WE1Ks_y3-NsjUXC7eygopmR14J_-FnbQIqP4a1sY7Xq0EomaNmAOahNnWMjqQ3e_WUm-VRT7xaClVhjRVno1HS5FG7-COM7wfsGPYhKeC8fGgReTxWh6xZnra26GEjCvGzFjKGSGqB-8a7hesBUm-cDPxSeC4xs2J9me4AoWHbThQRgJvFU3Kw"/>
+</div>
+</div>
+</div>
+</header>
+<!-- DASHBOARD CANVAS -->
+<main class="p-gutter flex-1">
+<!-- Welcome Header -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-display text-display text-primary">Tableau de bord</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Bienvenue, voici l'état de vos aides au logement en temps réel.</p>
+</div>
+<div class="flex gap-3">
+<div class="flex items-center gap-2 px-4 py-2 bg-primary-fixed rounded-lg border border-primary/10">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">verified</span>
+<span class="font-label-md text-label-md text-primary">Dossier Complet</span>
+</div>
+</div>
+</div>
+<!-- BENTO GRID -->
+<div class="bento-grid"><div class="col-span-12 bg-white rounded-xl border border-border-subtle custom-shadow p-6 flex flex-col md:flex-row gap-6 items-center">
+<div class="w-16 h-16 rounded-full bg-primary-fixed flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div class="flex-1">
+<h3 class="font-headline-md text-headline-md text-primary mb-1">Bonjour Marc, votre Assistant IA est prêt</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">Votre dossier est complété à 75%. J'ai identifié deux actions pour accélérer votre demande.</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg border border-border-subtle hover:bg-surface-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-primary">speed</span>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Gagnez 3 jours</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Ajoutez votre quittance de loyer de Mai.</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 bg-surface-container-low rounded-lg border border-border-subtle hover:bg-surface-container transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Optimisation</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Simulez un changement de situation.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2 w-full md:w-auto">
+<button class="px-6 py-2 bg-primary text-white font-label-md text-label-md rounded-lg hover:opacity-90 transition-all whitespace-nowrap">Consulter l'IA</button>
+<button class="px-6 py-2 bg-white border border-border-subtle text-on-surface-variant font-label-md text-label-md rounded-lg hover:bg-surface-container transition-colors whitespace-nowrap">Plus tard</button>
+</div>
+</div>
+<!-- Main Status Card -->
+<div class="col-span-12 lg:col-span-8 bg-white rounded-xl border border-border-subtle custom-shadow p-6">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-label-md text-label-md text-on-surface uppercase tracking-wider">État de la demande en cours</h3>
+<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-fixed rounded-full font-label-sm text-label-sm">Révision par l'IA</span>
+</div>
+<div class="flex flex-col md:flex-row items-center gap-8">
+<div class="relative w-40 h-40 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-surface-container" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-primary" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" stroke-dasharray="440" stroke-dashoffset="110" stroke-width="12"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="font-display text-headline-lg text-primary">75%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Analysé</span>
+</div>
+</div>
+<div class="flex-1 space-y-4">
+<div class="p-4 bg-surface-container-low rounded-lg border-l-4 border-primary">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary mt-0.5">info</span>
+<div>
+<p class="font-label-md text-label-md text-primary">Analyse IA terminée : Revenus 2023</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">L'algorithme a validé vos justificatifs fiscaux. Il manque une signature sur l'attestation de loyer.</p>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-3 border border-border-subtle rounded-lg">
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1">Date de dépôt</p>
+<p class="font-label-md text-label-md text-on-surface">12 Mai 2024</p>
+</div>
+<div class="p-3 border border-border-subtle rounded-lg">
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1">Montant estimé</p>
+<p class="font-label-md text-label-md text-primary">284,50 € / mois</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Upload AI Card -->
+<div class="col-span-12 lg:col-span-4 bg-primary-container text-white rounded-xl custom-shadow p-6 relative overflow-hidden">
+<div class="relative z-10 flex flex-col h-full">
+<div class="mb-4">
+<span class="material-symbols-outlined text-3xl mb-2" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<h3 class="font-headline-md text-headline-md font-bold mb-2">Upload &amp; Analyse IA</h3>
+<p class="font-body-sm text-body-sm opacity-80 mb-6">Déposez vos documents pour une extraction automatique et immédiate des données.</p>
+</div>
+<div class="mt-auto">
+<div class="border-2 border-dashed border-white/30 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-white/10 transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-4xl mb-2 group-hover:scale-110 transition-transform">cloud_upload</span>
+<p class="font-label-md text-label-md">Glissez vos fichiers ici</p>
+</div>
+</div>
+</div>
+<div class="absolute -right-10 -bottom-10 opacity-10">
+<span class="material-symbols-outlined text-[200px]">description</span>
+</div>
+</div>
+<!-- Summary Widgets -->
+<div class="col-span-12 md:col-span-4 bg-white rounded-xl border border-border-subtle custom-shadow p-6 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<h3 class="font-label-md text-label-md text-on-surface">Ma Situation</h3>
+</div>
+<div class="flex items-center gap-1 px-2 py-1 bg-green-500/10 text-green-600 rounded-full">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-label-sm font-bold">Situation à jour</span>
+</div>
+</div>
+<div class="space-y-2 mb-6">
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Dernière mise à jour</span>
+<span class="font-label-md text-label-md">12 Mai 2024</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Prochaine vérification</span>
+<span class="font-label-md text-label-md">Novembre 2024</span>
+</div>
+</div>
+<button class="mt-auto w-full py-2 bg-primary text-white font-label-md text-label-md rounded-lg hover:opacity-90 transition-all">
+        Vérifier ma situation
+    </button>
+</div><div class="col-span-12 md:col-span-4 bg-white rounded-xl border border-border-subtle custom-shadow p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
+<span class="material-symbols-outlined">family_restroom</span>
+</div>
+<h3 class="font-label-md text-label-md text-on-surface">Composition Foyer</h3>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center py-2 border-b border-border-subtle">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Adultes</span>
+<span class="font-label-md text-label-md">1</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-border-subtle">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Enfants à charge</span>
+<span class="font-label-md text-label-md">2</span>
+</div>
+<p class="font-label-sm text-label-sm text-primary flex items-center gap-1 mt-2 cursor-pointer hover:underline">
+                            Modifier la situation <span class="material-symbols-outlined text-sm">chevron_right</span>
+</p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 bg-white rounded-xl border border-border-subtle custom-shadow p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined">home</span>
+</div>
+<h3 class="font-label-md text-label-md text-on-surface">Données Logement</h3>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center py-2 border-b border-border-subtle">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Loyer HC</span>
+<span class="font-label-md text-label-md">640,00 €</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-border-subtle">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Type de bail</span>
+<span class="font-label-md text-label-md">Meublé</span>
+</div>
+<p class="font-label-sm text-label-sm text-primary flex items-center gap-1 mt-2 cursor-pointer hover:underline">
+                            Voir les détails <span class="material-symbols-outlined text-sm">chevron_right</span>
+</p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 bg-white rounded-xl border border-border-subtle custom-shadow p-6">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">event</span>
+</div>
+<h3 class="font-label-md text-label-md text-on-surface">Prochaines Échéances</h3>
+</div>
+<div class="space-y-4">
+<div class="flex items-start gap-3">
+<div class="mt-1 w-2 h-2 rounded-full bg-status-error"></div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface">Actualisation ressources</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Avant le 05 Juin (8 jours)</p>
+</div>
+</div>
+<div class="flex items-start gap-3 opacity-60">
+<div class="mt-1 w-2 h-2 rounded-full bg-outline"></div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface">Renouvellement bail</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Septembre 2024</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activities & Timeline -->
+<div class="col-span-12 lg:col-span-12 bg-white rounded-xl border border-border-subtle custom-shadow overflow-hidden">
+<div class="px-6 py-4 border-b border-border-subtle flex items-center justify-between">
+<h3 class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Activités Récentes</h3>
+<button class="text-primary font-label-md text-label-md hover:underline">Tout voir</button>
+</div>
+<div class="divide-y divide-border-subtle">
+<div class="p-6 flex items-center gap-6 hover:bg-surface-container-low transition-colors group">
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant">MAI</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">22</span>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-label-md text-on-surface">Justificatif de domicile envoyé</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Facture EDF - Analyse IA terminée : Données conformes.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-500" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-label-sm text-green-600 font-bold">Validé</span>
+</div>
+</div>
+<div class="p-6 flex items-center gap-6 hover:bg-surface-container-low transition-colors group">
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant">MAI</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">18</span>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-label-md text-on-surface">Simulation de droits mise à jour</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Prise en compte de la revalorisation annuelle des barèmes.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant">update</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Traité</span>
+</div>
+</div>
+<div class="p-6 flex items-center gap-6 hover:bg-surface-container-low transition-colors group">
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant">MAI</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">12</span>
+</div>
+<div class="flex-1">
+<p class="font-label-md text-label-md text-on-surface">Ouverture du dossier #APL-2024-882</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Dépôt initial des pièces d'identité et du contrat de location.</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">cloud_done</span>
+<span class="font-label-sm text-label-sm text-primary">Initialisé</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty State Suggestion for another Benefit -->
+<div class="col-span-12 bg-surface-container-low rounded-xl border border-dashed border-border-subtle p-12 flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-full bg-white flex items-center justify-center mb-4 custom-shadow">
+<span class="material-symbols-outlined text-primary text-3xl">add_home</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Besoin d'une Aide à l'Installation ?</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mb-6">L'IA a détecté que vous pourriez être éligible à l'aide au déménagement. Voulez-vous simuler vos droits ?</p>
+<div class="flex gap-4">
+<button class="px-6 py-2 bg-white border border-border-subtle text-primary font-label-md text-label-md rounded-lg hover:bg-surface-container transition-colors">Plus tard</button>
+<button class="px-6 py-2 bg-primary text-white font-label-md text-label-md rounded-lg hover:opacity-90 custom-shadow transition-all">Lancer la simulation</button>
+</div>
+</div>
+</div>
+</main>
+<!-- FOOTER -->
+<footer class="mt-auto border-t border-border-subtle py-8 px-gutter bg-surface-container-lowest">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+<div>
+<h4 class="font-label-sm text-label-sm font-bold uppercase text-on-surface mb-2">APL À L'AIDE</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">© 2024 République Française - Direction de l'information légale et administrative</p>
+</div>
+<div class="flex flex-wrap gap-x-6 gap-y-2">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Accessibilité: totalement conforme</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Mentions légales</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Données personnelles</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Gestion des cookies</a>
+</div>
+</div>
+</footer>
+</div>
+<!-- AI Notification Toast (Floating for micro-interaction) -->
+<div class="fixed bottom-8 right-8 z-[100] transform transition-all duration-500 ease-out translate-y-0 opacity-100" id="ai-toast">
+<div class="bg-primary-container text-white px-6 py-4 rounded-xl custom-shadow flex items-center gap-4 border border-white/20">
+<span class="material-symbols-outlined animate-pulse" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<div>
+<p class="font-label-md text-label-md">Analyse IA complétée</p>
+<p class="font-body-sm text-body-sm opacity-80">Votre nouveau document a été traité.</p>
+</div>
+<button class="ml-4 opacity-50 hover:opacity-100" onclick="hideToast()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<script>
+        // Simple Micro-interaction for the toast
+        function showToast() {
+            const toast = document.getElementById('ai-toast');
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                hideToast();
+            }, 5000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('ai-toast');
+            toast.classList.add('translate-y-20', 'opacity-0');
+            toast.classList.remove('translate-y-0', 'opacity-100');
+        }
+
+        // Trigger toast on load as a "success indicator"
+        window.onload = () => {
+            setTimeout(showToast, 1500);
+        }
+    </script>
+</body></html>

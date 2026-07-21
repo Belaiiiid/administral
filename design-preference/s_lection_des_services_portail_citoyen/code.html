@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9f9;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .service-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .service-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .service-card.active {
+            border-color: #003593;
+            background-color: #f0f4ff;
+        }
+        .french-gradient {
+            background: linear-gradient(90deg, #000091 0%, #000091 33%, #ffffff 33%, #ffffff 66%, #e1000f 66%, #e1000f 100%);
+            height: 4px;
+            width: 100%;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#6485e5",
+                        "surface-dim": "#dadada",
+                        "outline": "#757680",
+                        "on-primary-fixed-variant": "#15409d",
+                        "on-tertiary-container": "#828999",
+                        "on-surface": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "surface-container-low": "#f3f3f4",
+                        "background": "#f9f9f9",
+                        "on-error": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed": "#141c28",
+                        "surface-variant": "#e2e2e2",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-background": "#1a1c1c",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "inverse-on-surface": "#f0f1f1",
+                        "on-primary": "#ffffff",
+                        "surface-container-high": "#e8e8e8",
+                        "surface": "#f9f9f9",
+                        "primary": "#000929",
+                        "surface-bright": "#f9f9f9",
+                        "tertiary-container": "#1b222f",
+                        "primary-fixed": "#dbe1ff",
+                        "outline-variant": "#c5c6d0",
+                        "on-secondary-fixed": "#3f001c",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-secondary-fixed-variant": "#821f47",
+                        "inverse-primary": "#b4c5ff",
+                        "surface-tint": "#3559b6",
+                        "on-secondary-container": "#76153e",
+                        "on-surface-variant": "#45464f",
+                        "primary-container": "#001d59",
+                        "secondary-fixed-dim": "#ffb1c6",
+                        "secondary-container": "#fd81a9",
+                        "on-primary-fixed": "#00174b",
+                        "inverse-surface": "#2f3131",
+                        "secondary-fixed": "#ffd9e1",
+                        "on-tertiary-fixed-variant": "#404755",
+                        "tertiary": "#050c18",
+                        "tertiary-fixed": "#dbe2f4",
+                        "secondary": "#a1385f",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#bfc6d8",
+                        "surface-container": "#eeeeee"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "margin-desktop": "32px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "container-max": "1200px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "mono": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "mono": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col">
+<!-- Top Navigation Bar (Partial Context - No full shell as per focus rules) -->
+<header class="w-full bg-white border-b border-outline-variant h-16 flex items-center px-gutter sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex flex-col justify-center gap-1">
+<div class="w-full h-1 bg-[#000091]"></div>
+<div class="w-full h-1 bg-white border-y border-outline-variant/10"></div>
+<div class="w-full h-1 bg-[#e1000f]"></div>
+</div>
+<div>
+<span class="font-headline-md text-headline-md text-primary block leading-none">APL à l'Aide</span>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Service Public</span>
+</div>
+</div>
+<div class="ml-auto flex items-center gap-4">
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container rounded-full">
+<span class="w-2 h-2 bg-primary rounded-full"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Étape 2 sur 4</span>
+</div>
+</div>
+</header>
+<main class="flex-grow flex flex-col items-center justify-center py-12 px-6">
+<div class="max-w-[800px] w-full">
+<!-- Header Section -->
+<div class="text-center mb-12">
+<h1 class="font-display text-display text-primary mb-4">Quels services souhaitez-vous utiliser?</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Choisissez les administrations qui vous concernent pour personnaliser votre accompagnement.</p>
+</div>
+<!-- Services Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+<!-- Card: CAF -->
+<div class="service-card group cursor-pointer bg-white border border-outline-variant rounded-xl p-6 flex flex-col justify-between" id="card-caf" onclick="toggleService('caf')">
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
+<span class="material-symbols-outlined text-[32px]" data-icon="house">house</span>
+</div>
+<div class="w-6 h-6 border-2 border-outline-variant rounded-full flex items-center justify-center bg-white transition-colors" id="check-caf">
+<span class="material-symbols-outlined text-white text-sm hidden" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">APL à l'Aide (CAF)</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Gestion simplifiée de vos aides au logement et simulations de droits en temps réel.</p>
+</div>
+<button class="w-full py-2 px-4 rounded-lg border border-primary text-primary font-label-md hover:bg-primary-fixed transition-colors active:scale-95 duration-200">Activer</button>
+</div>
+<!-- Card: France Travail -->
+<div class="service-card group cursor-pointer bg-white border border-outline-variant rounded-xl p-6 flex flex-col justify-between" id="card-work" onclick="toggleService('work')">
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[32px]" data-icon="work">work</span>
+</div>
+<div class="w-6 h-6 border-2 border-outline-variant rounded-full flex items-center justify-center bg-white transition-colors" id="check-work">
+<span class="material-symbols-outlined text-white text-sm hidden" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">France Travail</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Suivi de vos allocations chômage et assistance AI pour vos démarches de recherche.</p>
+</div>
+<button class="w-full py-2 px-4 rounded-lg border border-primary text-primary font-label-md hover:bg-primary-fixed transition-colors active:scale-95 duration-200">Activer</button>
+</div>
+<!-- Card: Health -->
+<div class="service-card group cursor-pointer bg-white border border-outline-variant rounded-xl p-6 flex flex-col justify-between" id="card-health" onclick="toggleService('health')">
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[32px]" data-icon="medical_services">medical_services</span>
+</div>
+<div class="w-6 h-6 border-2 border-outline-variant rounded-full flex items-center justify-center bg-white transition-colors" id="check-health">
+<span class="material-symbols-outlined text-white text-sm hidden" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Assurance Maladie</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Centralisation de vos remboursements et documents Ameli pour vos dossiers.</p>
+</div>
+<button class="w-full py-2 px-4 rounded-lg border border-primary text-primary font-label-md hover:bg-primary-fixed transition-colors active:scale-95 duration-200">Activer</button>
+</div>
+<!-- Card: Tax -->
+<div class="service-card group cursor-pointer bg-white border border-outline-variant rounded-xl p-6 flex flex-col justify-between" id="card-tax" onclick="toggleService('tax')">
+<div>
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[32px]" data-icon="account_balance">account_balance</span>
+</div>
+<div class="w-6 h-6 border-2 border-outline-variant rounded-full flex items-center justify-center bg-white transition-colors" id="check-tax">
+<span class="material-symbols-outlined text-white text-sm hidden" data-icon="check" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2">Impôts</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-6">Visualisation de vos avis d'imposition et aide au calcul du revenu fiscal de référence.</p>
+</div>
+<button class="w-full py-2 px-4 rounded-lg border border-primary text-primary font-label-md hover:bg-primary-fixed transition-colors active:scale-95 duration-200">Activer</button>
+</div>
+<!-- Card: Coming Soon -->
+<div class="bg-surface-container-low border border-dashed border-outline-variant rounded-xl p-6 flex flex-col justify-center items-center opacity-70 col-span-1 md:col-span-2 py-10">
+<div class="w-12 h-12 rounded-full border-2 border-outline-variant flex items-center justify-center text-outline mb-4">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface-variant">Autres services publics</h3>
+<p class="font-label-sm text-label-sm uppercase tracking-widest mt-1 text-outline">Coming soon</p>
+</div>
+</div>
+<!-- AI Recommendation Highlight -->
+<div class="mb-12 p-6 bg-[#f0f4ff] border-l-4 border-[#003593] rounded-r-lg shadow-sm">
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[#003593]" data-icon="smart_toy">smart_toy</span>
+<div>
+<p class="font-label-md text-label-md text-[#003593] mb-1">Conseil de l'assistant</p>
+<p class="font-body-sm text-body-sm text-primary">En activant la <strong>CAF</strong> et les <strong>Impôts</strong>, nous pourrons pré-remplir 80% de votre dossier APL automatiquement.</p>
+</div>
+</div>
+</div>
+<!-- Footer CTA -->
+<div class="flex flex-col md:flex-row items-center justify-between gap-6 border-t border-outline-variant pt-8">
+<button class="flex items-center gap-2 text-on-surface-variant font-label-md hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+                    Retour
+                </button>
+<div class="flex items-center gap-6">
+<span class="text-on-surface-variant font-body-sm hidden md:block">Vous pourrez modifier vos choix plus tard.</span>
+<button class="bg-primary text-white py-4 px-12 rounded-lg font-headline-md opacity-50 cursor-not-allowed transition-all active:scale-[0.98]" disabled="" id="continue-btn">
+                        Continuer
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Identity -->
+<footer class="w-full py-8 px-gutter border-t border-outline-variant mt-12 bg-white">
+<div class="max-w-[1200px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-2">
+<div class="w-6 h-4 flex flex-col justify-center gap-0.5">
+<div class="w-full h-[33%] bg-[#000091]"></div>
+<div class="w-full h-[33%] bg-white"></div>
+<div class="w-full h-[33%] bg-[#e1000f]"></div>
+</div>
+<span class="font-label-sm text-label-sm font-bold uppercase tracking-tighter">RÉPUBLIQUE FRANÇAISE</span>
+</div>
+<p class="text-on-surface-variant font-body-sm max-w-sm">© 2024 Direction de l'information légale et administrative. Un service sécurisé via FranceConnect.</p>
+</div>
+<div class="flex flex-wrap gap-4 md:gap-8">
+<a class="text-on-surface-variant font-body-sm hover:underline" href="#">Accessibilité</a>
+<a class="text-on-surface-variant font-body-sm hover:underline" href="#">Mentions légales</a>
+<a class="text-on-surface-variant font-body-sm hover:underline" href="#">Données personnelles</a>
+</div>
+</div>
+</footer>
+<script>
+        const selectedServices = new Set();
+        const continueBtn = document.getElementById('continue-btn');
+
+        function toggleService(id) {
+            const card = document.getElementById(`card-${id}`);
+            const check = document.getElementById(`check-${id}`);
+            const checkIcon = check.querySelector('.material-symbols-outlined');
+            const button = card.querySelector('button');
+
+            if (selectedServices.has(id)) {
+                selectedServices.delete(id);
+                card.classList.remove('active', 'border-primary', 'bg-[#f0f4ff]');
+                card.classList.add('border-outline-variant', 'bg-white');
+                check.classList.remove('bg-primary', 'border-primary');
+                checkIcon.classList.add('hidden');
+                button.textContent = 'Activer';
+                button.classList.remove('bg-primary', 'text-white');
+                button.classList.add('text-primary', 'bg-transparent');
+            } else {
+                selectedServices.add(id);
+                card.classList.add('active', 'border-primary', 'bg-[#f0f4ff]');
+                card.classList.remove('border-outline-variant', 'bg-white');
+                check.classList.add('bg-primary', 'border-primary');
+                checkIcon.classList.remove('hidden');
+                button.textContent = 'Désactiver';
+                button.classList.add('bg-primary', 'text-white');
+                button.classList.remove('text-primary', 'bg-transparent');
+            }
+
+            // Update Primary CTA State
+            if (selectedServices.size > 0) {
+                continueBtn.disabled = false;
+                continueBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                continueBtn.classList.add('hover:bg-[#00174b]', 'shadow-lg');
+            } else {
+                continueBtn.disabled = true;
+                continueBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                continueBtn.classList.remove('hover:bg-[#00174b]', 'shadow-lg');
+            }
+        }
+
+        // Prevent button click from bubbling if we want card-wide click
+        document.querySelectorAll('.service-card button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // e.stopPropagation(); // Removed to allow toggleService via card
+            });
+        });
+    </script>
+</body></html>

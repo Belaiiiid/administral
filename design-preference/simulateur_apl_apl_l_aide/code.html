@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+
+<html class="light" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Simulateur APL - APL à l'Aide</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#001d59",
+                    "primary": "#000929",
+                    "surface-bright": "#f9f9f9",
+                    "on-tertiary-container": "#828999",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#c5c6d0",
+                    "secondary-fixed": "#ffd9e1",
+                    "secondary": "#a1385f",
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#e2e2e2",
+                    "tertiary-fixed": "#dbe2f4",
+                    "primary-fixed": "#dbe1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-variant": "#e2e2e2",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "secondary-container": "#fd81a9",
+                    "on-primary-fixed": "#00174b",
+                    "surface-container": "#eeeeee",
+                    "secondary-fixed-dim": "#ffb1c6",
+                    "tertiary-container": "#1b222f",
+                    "outline": "#757680",
+                    "surface-container-low": "#f3f3f4",
+                    "on-primary-container": "#6485e5",
+                    "on-primary": "#ffffff",
+                    "on-background": "#1a1c1c",
+                    "surface-dim": "#dadada",
+                    "on-error": "#ffffff",
+                    "on-surface": "#1a1c1c",
+                    "on-tertiary-fixed-variant": "#404755",
+                    "on-secondary-fixed-variant": "#821f47",
+                    "on-tertiary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "inverse-surface": "#2f3131",
+                    "on-secondary": "#ffffff",
+                    "surface": "#f9f9f9",
+                    "inverse-on-surface": "#f0f1f1",
+                    "on-surface-variant": "#45464f",
+                    "on-secondary-fixed": "#3f001c",
+                    "on-secondary-container": "#76153e",
+                    "tertiary": "#050c18",
+                    "tertiary-fixed-dim": "#bfc6d8",
+                    "on-primary-fixed-variant": "#15409d",
+                    "surface-tint": "#3559b6",
+                    "surface-container-high": "#e8e8e8",
+                    "on-tertiary-fixed": "#141c28",
+                    "inverse-primary": "#b4c5ff",
+                    "background": "#f9f9f9"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "8px",
+                    "gutter": "24px",
+                    "container-max": "1200px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                    "body-sm": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "display": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "mono": ["Inter"]
+            },
+            "fontSize": {
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "mono": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .custom-shadow {
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        }
+        .step-inactive { opacity: 0.4; pointer-events: none; }
+        .ai-accent-border { border-left: 4px solid #003593; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #003593;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low border-r border-border-subtle flex flex-col py-6 px-4 z-50">
+<div class="mb-10 px-4">
+<div class="flex items-center gap-3 mb-2">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined">account_balance</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">APL à l'Aide</h1>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Service Public</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Tableau de bord</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-md text-label-md">Mes demandes</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="font-label-md text-label-md">Documents</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-primary bg-primary-fixed rounded-lg font-bold" href="#">
+<span class="material-symbols-outlined">calculate</span>
+<span class="font-label-md text-label-md">Simulateur APL</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label-md text-label-md">Aide IA</span>
+</a>
+</nav>
+<div class="mt-auto space-y-2 border-t border-outline-variant pt-6">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Paramètres</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Déconnexion</span>
+</a>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-64 h-16 bg-surface border-b border-border-subtle flex items-center justify-between px-8 z-40 shadow-sm">
+<div class="flex items-center gap-4 bg-surface-container-low px-4 py-2 rounded-full w-96 border border-outline-variant">
+<span class="material-symbols-outlined text-on-surface-variant">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-sm w-full" placeholder="Rechercher une aide..." type="text"/>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container hover:rounded-full">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container hover:rounded-full">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+<div class="h-8 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-3 cursor-pointer hover:bg-surface-container p-1 pr-3 rounded-full transition-all">
+<img class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="A professional headshot of a French government official in a sharp navy suit, looking directly at the camera with a calm and helpful expression. The background is a soft-focus office environment with natural lighting, reflecting a corporate modern and trustworthy atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-cCdapyMQKoLJc3sUOeLAuIUCqi-gjXlC_O1vE6KWVwhpZBJEWKSLdUtLO76pUgVO3zFl3JfIrqApO4gTm3MLIi9ElsYfe0cSfOCOwKi_RfUh10D1P7LIMxZQqqb4J0WJ0WPj02PGU8xw31hXMXlUZdetDLhCowLdOSd_mmWARfsSS4X8FPWOY3EQ7JpGO4aspR0VoVc0wDRbgo0-3RMRembr7by7JGWssnElNuyU6Ang8qj0dtXLzA"/>
+<span class="font-label-md text-label-md text-primary">Profil</span>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-8 min-h-[calc(100vh-64px)] flex flex-col">
+<div class="max-w-6xl mx-auto w-full grid grid-cols-12 gap-8 flex-1">
+<!-- Form Section -->
+<div class="col-span-8 flex flex-col gap-6">
+<div class="mb-2">
+<h2 class="font-headline-lg text-headline-lg text-primary mb-2">Simulateur d'aide au logement</h2>
+<p class="text-body-md text-on-surface-variant">Estimez vos droits en moins de 2 minutes avec notre moteur de calcul certifié.</p>
+</div>
+<!-- Progress Bar -->
+<div class="bg-surface-container-low rounded-full h-2 w-full overflow-hidden mb-4">
+<div class="bg-primary h-full transition-all duration-500 w-1/3" id="progress-bar"></div>
+</div>
+<!-- Steps Navigation -->
+<div class="flex justify-between mb-4">
+<div class="flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(1)">
+<div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold" id="step-indicator-1">1</div>
+<span class="text-label-sm font-label-sm text-primary">Situation</span>
+</div>
+<div class="flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(2)">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold" id="step-indicator-2">2</div>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Logement</span>
+</div>
+<div class="flex flex-col items-center gap-2 group cursor-pointer" onclick="goToStep(3)">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold" id="step-indicator-3">3</div>
+<span class="text-label-sm font-label-sm text-on-surface-variant">Ressources</span>
+</div>
+</div>
+<!-- Form Card -->
+<div class="bg-white rounded-xl border border-outline-variant custom-shadow p-8 min-h-[480px] flex flex-col">
+<!-- Step 1: Situation -->
+<div class="space-y-8 animate-in fade-in duration-500" id="step-1">
+<div>
+<h3 class="font-headline-md text-headline-md mb-4 text-primary">Votre situation familiale</h3>
+<p class="text-body-sm text-on-surface-variant mb-6">Ces informations nous permettent de définir le plafond de ressources applicable.</p>
+<div class="grid grid-cols-2 gap-4 mb-8">
+<label class="border-2 border-primary bg-primary-fixed rounded-lg p-4 cursor-pointer flex items-center gap-4 transition-all">
+<input checked="" class="text-primary focus:ring-primary h-5 w-5" name="familystatus" type="radio"/>
+<div>
+<div class="font-label-md text-label-md">Célibataire</div>
+<div class="text-body-sm opacity-70">Seul(e) sans enfant</div>
+</div>
+</label>
+<label class="border border-outline-variant rounded-lg p-4 cursor-pointer flex items-center gap-4 hover:bg-surface-container-low transition-all">
+<input class="text-primary focus:ring-primary h-5 w-5" name="familystatus" type="radio"/>
+<div>
+<div class="font-label-md text-label-md">En couple</div>
+<div class="text-body-sm text-on-surface-variant">Marié(e), Pacsé(e) ou Concubinage</div>
+</div>
+</label>
+</div>
+<div class="space-y-4">
+<label class="block font-label-md text-label-md text-primary">Nombre d'enfants ou personnes à charge</label>
+<div class="flex items-center gap-4">
+<button class="w-12 h-12 rounded-lg border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors" onclick="decrement('children')">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<input class="w-16 text-center text-headline-md font-bold bg-transparent border-none" id="children-count" readonly="" type="number" value="0"/>
+<button class="w-12 h-12 rounded-lg border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors" onclick="increment('children')">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 2: Logement (Hidden initially) -->
+<div class="hidden space-y-8 animate-in fade-in duration-500" id="step-2">
+<div>
+<h3 class="font-headline-md text-headline-md mb-4 text-primary">Votre futur logement</h3>
+<div class="grid grid-cols-2 gap-6 mb-8">
+<div class="space-y-2">
+<label class="block font-label-md text-label-md text-primary">Code Postal</label>
+<input class="w-full border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" placeholder="Ex: 75001" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="block font-label-md text-label-md text-primary">Type de logement</label>
+<select class="w-full border border-outline-variant rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all appearance-none">
+<option>Appartement / Maison</option>
+<option>Chambre chez l'habitant</option>
+<option>Résidence étudiante</option>
+<option>Foyer</option>
+</select>
+</div>
+</div>
+<div class="space-y-6">
+<div class="flex justify-between items-end">
+<label class="block font-label-md text-label-md text-primary">Montant du loyer mensuel (hors charges)</label>
+<span class="text-headline-md font-bold text-primary" id="rent-value">650 €</span>
+</div>
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer" max="2500" min="100" oninput="updateRent(this.value)" step="10" type="range" value="650"/>
+<div class="flex justify-between text-label-sm text-on-surface-variant">
+<span>100 €</span>
+<span>2 500 €</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3: Ressources (Hidden initially) -->
+<div class="hidden space-y-8 animate-in fade-in duration-500" id="step-3">
+<div>
+<h3 class="font-headline-md text-headline-md mb-4 text-primary">Vos ressources annuelles</h3>
+<p class="text-body-sm text-on-surface-variant mb-6">Indiquez vos revenus imposables cumulés sur l'année N-2.</p>
+<div class="space-y-8">
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<label class="block font-label-md text-label-md text-primary">Revenus de l'année 2022</label>
+<span class="text-headline-md font-bold text-primary" id="income-value">18 200 €</span>
+</div>
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer" max="60000" min="0" oninput="updateIncome(this.value)" step="100" type="range" value="18200"/>
+<div class="flex justify-between text-label-sm text-on-surface-variant">
+<span>0 €</span>
+<span>60 000 €</span>
+</div>
+</div>
+<div class="p-4 bg-tertiary-fixed rounded-lg border border-outline-variant flex items-start gap-4">
+<span class="material-symbols-outlined text-primary">info</span>
+<p class="text-body-sm text-on-tertiary-fixed-variant">
+                                        Le montant pris en compte est votre revenu fiscal de référence figurant sur votre avis d'imposition 2023.
+                                    </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Navigation Buttons -->
+<div class="mt-auto pt-8 border-t border-outline-variant flex justify-between">
+<button class="px-6 py-3 border border-outline-variant rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container transition-all flex items-center gap-2 invisible" id="prev-btn" onclick="prevStep()">
+<span class="material-symbols-outlined">arrow_back</span>
+                            Précédent
+                        </button>
+<button class="px-8 py-3 bg-primary text-white rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-[0.98] transition-all flex items-center gap-2" id="next-btn" onclick="nextStep()">
+                            Suivant
+                            <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Result Sidebar -->
+<div class="col-span-4">
+<div class="sticky top-24 space-y-6">
+<div class="bg-white rounded-xl border border-outline-variant custom-shadow overflow-hidden">
+<div class="bg-primary p-6 text-white">
+<h4 class="font-label-md text-label-md opacity-80 uppercase tracking-wider mb-1">Estimation en direct</h4>
+<div class="flex items-baseline gap-2">
+<span class="text-display font-display" id="estimate-amount">215,00 €</span>
+<span class="text-body-md opacity-80">/ mois</span>
+</div>
+</div>
+<div class="p-6 space-y-6">
+<div class="space-y-3">
+<div class="flex justify-between items-center text-body-sm">
+<span class="text-on-surface-variant">Loyer de référence</span>
+<span class="font-bold text-primary">650,00 €</span>
+</div>
+<div class="flex justify-between items-center text-body-sm">
+<span class="text-on-surface-variant">Nombre de parts</span>
+<span class="font-bold text-primary">1.0</span>
+</div>
+<div class="flex justify-between items-center text-body-sm">
+<span class="text-on-surface-variant">Zone géographique</span>
+<span class="font-bold text-primary">Zone 1</span>
+</div>
+<div class="pt-3 border-t border-outline-variant flex justify-between items-center text-body-sm text-green-700 font-bold">
+<span>Estimation APL</span>
+<span>+ 215,00 €</span>
+</div>
+</div>
+<!-- AI Insight Box -->
+<div class="ai-accent-border bg-tertiary-fixed/30 p-4 rounded-r-lg space-y-2">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-base">smart_toy</span>
+<span class="font-label-md text-label-md">Pourquoi ce montant ?</span>
+</div>
+<p class="text-body-sm text-on-tertiary-fixed-variant leading-relaxed">
+                                    Votre loyer est proche du plafond pour un célibataire en zone tendue. Vos ressources de 2022 vous placent dans la tranche de revenus modestes, maximisant ainsi le coefficient multiplicateur de l'aide.
+                                </p>
+<button class="text-label-sm font-label-sm text-primary flex items-center gap-1 hover:underline">
+                                    Voir le détail du calcul
+                                    <span class="material-symbols-outlined text-xs">open_in_new</span>
+</button>
+</div>
+<button class="w-full py-4 bg-primary text-white rounded-lg font-label-md text-label-md hover:bg-opacity-90 transition-all flex items-center justify-center gap-2">
+                                Déposer ma demande
+                                <span class="material-symbols-outlined">send</span>
+</button>
+</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
+<div class="flex items-center gap-3 mb-3">
+<span class="material-symbols-outlined text-on-surface-variant">verified_user</span>
+<span class="font-label-md text-label-md">Garantie Service Public</span>
+</div>
+<p class="text-body-sm text-on-surface-variant">
+                            Cette simulation est purement indicative et n'engage pas la responsabilité de la CAF ou de la MSA.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="ml-64 bg-surface-container-lowest border-t border-border-subtle py-8 px-12 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm font-bold uppercase text-on-surface-variant">République Française</span>
+<p class="text-body-sm text-on-surface-variant">© 2024 - Direction de l'information légale et administrative</p>
+</div>
+<div class="flex flex-wrap gap-6">
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-colors" href="#">Accessibilité: totalement conforme</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-colors" href="#">Mentions légales</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-colors" href="#">Données personnelles</a>
+<a class="text-body-sm text-on-surface-variant hover:text-primary hover:underline transition-colors" href="#">Gestion des cookies</a>
+</div>
+</footer>
+<script>
+        let currentStep = 1;
+
+        function goToStep(step) {
+            // Hide all steps
+            document.getElementById('step-1').classList.add('hidden');
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-3').classList.add('hidden');
+
+            // Show current step
+            document.getElementById(`step-${step}`).classList.remove('hidden');
+
+            // Update indicators
+            for (let i = 1; i <= 3; i++) {
+                const indicator = document.getElementById(`step-indicator-${i}`);
+                const label = indicator.nextElementSibling;
+                if (i < step) {
+                    indicator.classList.remove('bg-surface-container-highest', 'bg-primary', 'text-on-surface-variant');
+                    indicator.classList.add('bg-green-600', 'text-white');
+                    indicator.innerHTML = '<span class="material-symbols-outlined text-sm">check</span>';
+                } else if (i === step) {
+                    indicator.classList.remove('bg-surface-container-highest', 'bg-green-600', 'text-on-surface-variant');
+                    indicator.classList.add('bg-primary', 'text-white');
+                    indicator.innerHTML = i;
+                    label.classList.add('text-primary');
+                    label.classList.remove('text-on-surface-variant');
+                } else {
+                    indicator.classList.remove('bg-primary', 'bg-green-600', 'text-white');
+                    indicator.classList.add('bg-surface-container-highest', 'text-on-surface-variant');
+                    indicator.innerHTML = i;
+                    label.classList.remove('text-primary');
+                    label.classList.add('text-on-surface-variant');
+                }
+            }
+
+            // Update progress bar
+            const progress = (step / 3) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+
+            // Update buttons
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            
+            if (step === 1) prevBtn.classList.add('invisible');
+            else prevBtn.classList.remove('invisible');
+
+            if (step === 3) {
+                nextBtn.innerHTML = 'Terminer <span class="material-symbols-outlined">check_circle</span>';
+            } else {
+                nextBtn.innerHTML = 'Suivant <span class="material-symbols-outlined">arrow_forward</span>';
+            }
+
+            currentStep = step;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function nextStep() {
+            if (currentStep < 3) goToStep(currentStep + 1);
+            else {
+                alert("Simulation terminée ! Vos résultats ont été mis à jour.");
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) goToStep(currentStep - 1);
+        }
+
+        function increment(type) {
+            const input = document.getElementById(`${type}-count`);
+            input.value = parseInt(input.value) + 1;
+            recalculate();
+        }
+
+        function decrement(type) {
+            const input = document.getElementById(`${type}-count`);
+            if (parseInt(input.value) > 0) {
+                input.value = parseInt(input.value) - 1;
+                recalculate();
+            }
+        }
+
+        function updateRent(val) {
+            document.getElementById('rent-value').textContent = `${val} €`;
+            recalculate();
+        }
+
+        function updateIncome(val) {
+            document.getElementById('income-value').textContent = `${val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} €`;
+            recalculate();
+        }
+
+        function recalculate() {
+            // Faux calculation logic for UI interactivity
+            const rent = parseInt(document.getElementById('rent-value').textContent);
+            const children = parseInt(document.getElementById('children-count').value);
+            const income = parseInt(document.getElementById('income-value').textContent.replace(/\s/g, ''));
+            
+            let base = 150;
+            base += (rent * 0.1);
+            base += (children * 60);
+            base -= (income / 1000) * 5;
+            
+            const final = Math.max(0, Math.min(rent * 0.8, base));
+            document.getElementById('estimate-amount').textContent = `${final.toFixed(2).replace('.', ',')} €`;
+        }
+    </script>
+</body></html>
