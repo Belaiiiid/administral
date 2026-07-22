@@ -7,6 +7,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
+import { agentRoutes } from '@/features/agent';
 
 /*
  * Each feature module is code-split at the route boundary, so a new
@@ -38,7 +39,6 @@ const DocumentsPage = lazy(() => import('@/features/documents/pages/DocumentsPag
 const DocumentUploadPage = lazy(() => import('@/features/documents/pages/DocumentUploadPage'));
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
-const AgentDashboardPage = lazy(() => import('@/features/agent/pages/AgentDashboardPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
 const router = createBrowserRouter([
@@ -88,12 +88,13 @@ const router = createBrowserRouter([
     ],
   },
   {
-    // Back-office — guarded by role.
+    // Back-office — guarded by role. The Agent Portal owns its own route table
+    // (features/agent/routes.tsx) and mounts it wholesale under ROUTES.agent.
     element: <ProtectedRoute role="agent" />,
     children: [
       {
         element: <AppShell />,
-        children: [{ path: ROUTES.agent, element: <AgentDashboardPage /> }],
+        children: [{ path: ROUTES.agent, children: agentRoutes }],
       },
     ],
   },

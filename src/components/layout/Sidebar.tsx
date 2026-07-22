@@ -1,14 +1,12 @@
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import {
   isNavItemActive,
-  PRIMARY_NAV,
-  SECONDARY_NAV,
+  resolveNavSections,
   SIGN_OUT_ITEM,
   type NavItem,
 } from '@/app/config/navigation';
-import { ROUTES } from '@/app/router/paths';
 import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -47,6 +45,9 @@ function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
 export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   const onNavigate = inDrawer ? closeSidebar : undefined;
+  const { pathname } = useLocation();
+  // Citizen rail or back-office rail, decided by the route (app/config/navigation.ts).
+  const { primary, secondary, cta } = resolveNavSections(pathname);
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-low px-4 py-6">
@@ -61,22 +62,24 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <nav aria-label="Navigation principale" className="flex-1">
         <ul className="flex flex-col gap-1">
-          {PRIMARY_NAV.map((item) => (
+          {primary.map((item) => (
             <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
           ))}
         </ul>
       </nav>
 
-      <Button asChild block className="mt-6">
-        <NavLink to={ROUTES.aplApplication} onClick={onNavigate}>
-          <Plus aria-hidden="true" />
-          Nouvelle demande
-        </NavLink>
-      </Button>
+      {cta && (
+        <Button asChild block className="mt-6">
+          <NavLink to={cta.to} onClick={onNavigate}>
+            <cta.icon aria-hidden="true" />
+            {cta.label}
+          </NavLink>
+        </Button>
+      )}
 
       <div className="mt-6 border-t border-border pt-6">
         <ul className="flex flex-col gap-1">
-          {SECONDARY_NAV.map((item) => (
+          {secondary.map((item) => (
             <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
           ))}
           <li>

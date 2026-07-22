@@ -1,34 +1,19 @@
+import { Bot, Calculator, FileText, FolderOpen, LayoutDashboard, LogOut, Plus, Settings } from 'lucide-react';
+
 import {
-  Bot,
-  Calculator,
-  FileText,
-  FolderOpen,
-  LayoutDashboard,
-  LogOut,
-  Settings,
-  ShieldCheck,
-  type LucideIcon,
-} from 'lucide-react';
-
+  isNavItemActive,
+  isSelfOrChild,
+  type NavCta,
+  type NavItem,
+  type NavSections,
+} from '@/app/config/nav-item';
 import { ROUTES } from '@/app/router/paths';
+import { AGENT_NAV, AGENT_SECONDARY_NAV } from '@/features/agent/config/navigation';
+import { isAgentPath } from '@/features/agent/paths';
 
-export interface NavItem {
-  id: string;
-  label: string;
-  to: string;
-  icon: LucideIcon;
-  /**
-   * Decides whether this item is the active one.
-   *
-   * Plain prefix matching is not enough here: `/apl` and `/apl/simulateur` are
-   * sibling entries in the same rail, so a prefix rule would light up both.
-   * Defaults to "exact, or a child segment of `to`".
-   */
-  match?: (pathname: string) => boolean;
-}
-
-const isSelfOrChild = (to: string) => (pathname: string) =>
-  pathname === to || pathname.startsWith(`${to}/`);
+// Re-exported so existing importers (Sidebar) keep their import path.
+export { isNavItemActive };
+export type { NavCta, NavItem, NavSections };
 
 /** Primary sidebar navigation — mirrors the mockups' rail. */
 export const PRIMARY_NAV: NavItem[] = [
@@ -53,20 +38,17 @@ export const PRIMARY_NAV: NavItem[] = [
   { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
 ];
 
-/** Resolve the active state for a nav item against the current pathname. */
-export function isNavItemActive(item: NavItem, pathname: string): boolean {
-  return item.match ? item.match(pathname) : isSelfOrChild(item.to)(pathname);
-}
-
 /** Footer of the sidebar. */
 export const SECONDARY_NAV: NavItem[] = [
   { id: 'profile', label: 'Paramètres', to: ROUTES.profile, icon: Settings },
 ];
 
-/** Agent-facing navigation — separate rail for the back-office module. */
-export const AGENT_NAV: NavItem[] = [
-  { id: 'agent', label: 'Supervision', to: ROUTES.agent, icon: ShieldCheck },
-];
+/** The citizen rail's primary action. */
+const CITIZEN_CTA: NavCta = {
+  label: 'Nouvelle demande',
+  to: ROUTES.aplApplication,
+  icon: Plus,
+};
 
 export const SIGN_OUT_ITEM: NavItem = {
   id: 'logout',
@@ -74,3 +56,24 @@ export const SIGN_OUT_ITEM: NavItem = {
   to: ROUTES.login,
   icon: LogOut,
 };
+
+/**
+ * Pick the rail for the current location.
+ *
+ * Resolving from the pathname — rather than threading nav config through
+ * <AppShell /> and <Sidebar /> as props — keeps both components' signatures
+ * untouched, so no existing call site had to change when the back-office
+ * gained its own rail.
+ *
+ * The agent branch is keyed on the route, not on `sessionStore.role`: an agent
+ * browsing their own citizen space must still see the citizen rail.
+ */
+export function resolveNavSections(pathname: string): NavSections {
+  if (isAgentPath(pathname)) {
+    // No CTA: the back-office has no "create" action — agents process work
+    // that citizens submit.
+    return { primary: AGENT_NAV, secondary: AGENT_SECONDARY_NAV, cta: null };
+  }
+
+  return { primary: PRIMARY_NAV, secondary: SECONDARY_NAV, cta: CITIZEN_CTA };
+}

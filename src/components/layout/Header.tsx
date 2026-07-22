@@ -2,6 +2,7 @@ import { Bell, HelpCircle, Menu, Search, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
+import { DevRoleSwitch } from '@/components/layout/DevRoleSwitch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -84,6 +85,9 @@ export function Header({
         <Button variant="ghost" size="icon" className="rounded-full" aria-label="Aide">
           <HelpCircle aria-hidden="true" />
         </Button>
+
+        {/* Compiled out of production builds — see DevRoleSwitch. */}
+        {import.meta.env.DEV && <DevRoleSwitch />}
 
         <span aria-hidden="true" className="mx-2 hidden h-8 w-px bg-border sm:block" />
 
