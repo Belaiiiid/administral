@@ -95,3 +95,4 @@ sémantique (`header`/`nav`/`main`/`footer`, un seul `h1` par page), `aria-hidde
 décoratives, `aria-current` sur la navigation, cibles tactiles de 44px minimum, et sept préférences
 d'accessibilité fonctionnelles (contraste élevé, texte agrandi, focus renforcé, animations réduites)
 persistées et appliquées via `<html class="a11y-*">`.
+# MonParcours
