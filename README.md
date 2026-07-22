@@ -8,12 +8,19 @@ intégrations administratives seront ajoutés comme modules full-stack indépend
 
 ## Démarrage
 
+Le dépôt est séparé en deux projets indépendants, `frontend/` et `backend/`.
+Chacun possède ses propres dépendances ; la racine ne contient aucun outillage
+de build.
+
 ```bash
+cd frontend
 npm install
 npm run dev      # http://localhost:5173
 ```
 
-| Script | Effet |
+`backend/` est actuellement vide — voir [`backend/README.md`](backend/README.md).
+
+| Script (depuis `frontend/`) | Effet |
 |---|---|
 | `npm run dev` | Serveur de développement |
 | `npm run build` | Build de production (typecheck inclus) |
@@ -28,7 +35,18 @@ React Router 6 · Zustand · lucide-react
 ## Structure
 
 ```
-src/
+MonParcours/
+├── frontend/          Application React (voir ci-dessous)
+├── backend/           Vide — aucun code serveur à ce stade
+├── docs/              Documentation d'architecture
+├── design-preference/ Maquettes de référence
+└── README.md
+```
+
+L'organisation interne du frontend est inchangée :
+
+```
+frontend/src/
 ├── app/               Composition de l'application
 │   ├── config/        Identité, registre des services, navigation
 │   ├── providers/     Racine de composition des providers
@@ -55,9 +73,9 @@ src/
 
 ## Ajouter un service public
 
-1. Ajouter l'entrée dans `src/app/config/services.ts`.
-2. Créer `src/features/<service>/pages/`.
-3. Déclarer les routes dans `src/app/router/index.tsx`.
+1. Ajouter l'entrée dans `frontend/src/app/config/services.ts`.
+2. Créer `frontend/src/features/<service>/pages/`.
+3. Déclarer les routes dans `frontend/src/app/router/index.tsx`.
 
 La coquille (header, sidebar, footer, garde d'accès) n'a pas à être modifiée.
 
@@ -77,4 +95,3 @@ sémantique (`header`/`nav`/`main`/`footer`, un seul `h1` par page), `aria-hidde
 décoratives, `aria-current` sur la navigation, cibles tactiles de 44px minimum, et sept préférences
 d'accessibilité fonctionnelles (contraste élevé, texte agrandi, focus renforcé, animations réduites)
 persistées et appliquées via `<html class="a11y-*">`.
-# MonParcours
