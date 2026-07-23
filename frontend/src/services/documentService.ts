@@ -3,7 +3,6 @@ import type {
   DocumentClassification,
   DocumentationArticle,
   ExtractedField,
-  FraudAnalysis,
   PersonalizedChecklist,
   RequiredDocument,
 } from '@/types';
@@ -41,8 +40,6 @@ export interface DocumentService {
   >;
   /** How the classifier matched one uploaded document against the checklist. */
   getClassification(documentId: string): Promise<DocumentClassification>;
-  /** Full C4 metadata-forensics result for one document. */
-  getFraudAnalysis(documentId: string): Promise<FraudAnalysis>;
   listArticles(): Promise<DocumentationArticle[]>;
   getArticle(slug: string): Promise<DocumentationArticle>;
 }
@@ -81,9 +78,6 @@ export const documentService: DocumentService = {
     apiClient.get<DocumentClassification>(
       `/documents/${encodeURIComponent(documentId)}/classification`,
     ),
-
-  getFraudAnalysis: (documentId) =>
-    apiClient.get<FraudAnalysis>(`/documents/${encodeURIComponent(documentId)}/fraud`),
 
   // No structured field-extraction endpoint yet — the extracted text preview
   // lives on the document itself. Kept explicit rather than faked.

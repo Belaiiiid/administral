@@ -1,12 +1,4 @@
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle2,
-  Eye,
-  FileText,
-  ScanLine,
-  ShieldAlert,
-} from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, FileText, ScanLine } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -50,13 +42,6 @@ function QueueItem({ document }: { document: CitizenDocument }) {
         ? 'Document fictif ou modèle détecté'
         : 'Document non attendu ou insuffisant';
 
-  // Authenticity (C4) badge. `FAIBLE` (nothing flagged) shows nothing — a badge
-  // on every clean document would be noise; the indicator only appears when the
-  // forensic layer found something to look at.
-  const risk = document.fraudRisk;
-  const showRisk = Boolean(risk) && risk !== 'FAIBLE' && risk !== 'INCONNU';
-  const riskTone = risk === 'CRITIQUE' || risk === 'ÉLEVÉ' ? 'error' : 'warning';
-
   return (
     <li className="flex items-center gap-4 rounded-lg border border-border bg-surface-lowest p-4">
       <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', className)}>
@@ -78,14 +63,6 @@ function QueueItem({ document }: { document: CitizenDocument }) {
               <p className="text-body-sm text-on-surface-variant">
                 Classification indisponible : {document.classificationError}
               </p>
-            )}
-            {showRisk && (
-              <span className="mt-1 inline-flex">
-                <Badge tone={riskTone}>
-                  <ShieldAlert aria-hidden="true" />
-                  Authenticité à vérifier — {risk}
-                </Badge>
-              </span>
             )}
           </>
         )}

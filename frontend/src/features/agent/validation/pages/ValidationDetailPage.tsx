@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/utils';
 import { AgentPage, AsyncBoundary, CaseScore, CaseStatusBadge } from '@/features/agent/components';
 import {
   CaseDocumentsCard,
+  CaseFraudCard,
   CoherenceReportCard,
   CompletenessReportCard,
 } from '@/features/agent/cases/components';
@@ -92,6 +93,8 @@ export default function ValidationDetailPage() {
             </div>
 
             <CaseDocumentsCard documents={caseRecord.documents} />
+
+            <CaseFraudCard documents={caseRecord.documents} />
 
             {decision ? (
               <DecisionOutcomeCard decision={decision} />

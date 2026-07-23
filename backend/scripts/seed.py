@@ -97,6 +97,29 @@ def build_cases() -> list[Citizen]:
                         uploaded_at=_dt("2026-07-14T09:20:00Z"),
                         status=DocumentStatus.validated,
                         extracted_at=_dt("2026-07-14T09:26:00Z"),
+                        # C4 forensics: nothing flagged — coherent metadata.
+                        fraud_risk="FAIBLE",
+                        fraud_analysis={
+                            "fichier": "bail-location.pdf",
+                            "typeFichier": "PDF",
+                            "dateCreation": "2026-07-10T14:00:00",
+                            "dateModification": "2026-07-10T14:00:00",
+                            "logiciel": "Microsoft Word",
+                            "auteurDeclare": "Agence Lyon Habitat",
+                            "signauxAVerifier": [],
+                            "analyseLlm": {
+                                "niveauRisque": "FAIBLE",
+                                "verdict": "Aucun signe de falsification détecté.",
+                                "signauxLlm": [],
+                                "analyseLlm": "Les métadonnées sont cohérentes : logiciel "
+                                "bureautique standard, dates identiques et plausibles, auteur "
+                                "déclaré compatible avec un contrat de location.",
+                                "recommandation": "Aucune action particulière.",
+                            },
+                            "niveauRisque": "FAIBLE",
+                            "aDesSignaux": False,
+                            "erreur": None,
+                        },
                     ),
                     CaseDocument(
                         id="doc-0417-2",
@@ -307,6 +330,42 @@ def build_cases() -> list[Citizen]:
                         uploaded_at=_dt("2026-07-20T11:44:00Z"),
                         status=DocumentStatus.validated,
                         extracted_at=_dt("2026-07-20T11:49:00Z"),
+                        # C4 forensics flagged this identity document as likely forged.
+                        fraud_risk="CRITIQUE",
+                        fraud_analysis={
+                            "fichier": "cni-recto-verso.pdf",
+                            "typeFichier": "PDF",
+                            "dateCreation": "2026-07-20T09:00:00",
+                            "dateModification": "2026-06-01T08:00:00",
+                            "logiciel": "GIMP 2.10 PDF Export",
+                            "auteurDeclare": None,
+                            "signauxAVerifier": [
+                                "INCOHÉRENCE : date de modification antérieure à la date de création",
+                                "SIGNAL : produit/modifié avec un logiciel d'édition graphique ou "
+                                "d'édition PDF suspect (GIMP 2.10 PDF Export) plutôt qu'un outil "
+                                "bureautique standard ou un scanner",
+                            ],
+                            "analyseLlm": {
+                                "niveauRisque": "CRITIQUE",
+                                "verdict": "Document très probablement falsifié : plusieurs signaux "
+                                "convergent.",
+                                "signauxLlm": [
+                                    "Un logiciel d'édition d'images (GIMP) est incohérent avec la "
+                                    "nature d'une pièce d'identité officielle",
+                                    "La chronologie des dates est impossible : modification avant "
+                                    "création",
+                                ],
+                                "analyseLlm": "La combinaison d'un producteur GIMP, d'une "
+                                "chronologie de dates incohérente et de l'absence d'auteur déclaré "
+                                "sur une pièce d'identité constitue un faisceau d'indices sérieux de "
+                                "falsification.",
+                                "recommandation": "Rejeter le document et exiger un original vérifié "
+                                "en préfecture.",
+                            },
+                            "niveauRisque": "CRITIQUE",
+                            "aDesSignaux": True,
+                            "erreur": None,
+                        },
                     ),
                     CaseDocument(
                         id="doc-0355-2",

@@ -36,38 +36,6 @@ export interface CitizenDocument {
   extractedTextPreview?: string;
   classification?: DocumentClassification;
   classificationError?: string;
-  /**
-   * Overall document-authenticity level from the C4 metadata forensics, for a
-   * per-document badge. `FAIBLE` when nothing was flagged, `À VÉRIFIER` when
-   * deterministic signals fired without an LLM verdict, or the LLM's level
-   * (`MODÉRÉ`/`ÉLEVÉ`/`CRITIQUE`). The full analysis is fetched separately.
-   */
-  fraudRisk?: string;
-}
-
-/** One layer of the C4 forensic verdict — the optional LLM analysis. */
-export interface FraudLlmAnalysis {
-  niveauRisque: string;
-  verdict: string;
-  signauxLlm: string[];
-  analyseLlm: string;
-  recommandation: string;
-}
-
-/** Full metadata-forensics result — `GET /documents/{id}/fraud`. */
-export interface FraudAnalysis {
-  fichier: string;
-  typeFichier?: string;
-  dateCreation?: string;
-  dateModification?: string;
-  logiciel?: string;
-  auteurDeclare?: string;
-  /** Deterministic forgery signals — always computed. */
-  signauxAVerifier: string[];
-  analyseLlm?: FraudLlmAnalysis;
-  niveauRisque: string;
-  aDesSignaux: boolean;
-  erreur?: string;
 }
 
 /** A field extracted from a document, with the model's confidence. */

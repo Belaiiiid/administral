@@ -105,6 +105,44 @@ export interface CaseDocument extends CitizenDocument {
   requirementLabel: string;
   /** Present once the extraction stage has read the file. */
   extractedAt?: string;
+  /**
+   * Overall document-authenticity level from the C4 metadata forensics — the
+   * badge value. `FAIBLE` when nothing was flagged, otherwise the risk level.
+   * Computed by the pipeline before the case reaches the agent.
+   */
+  fraudRisk?: string;
+  /** Full C4 forensic result — signals and the optional LLM verdict. */
+  fraudAnalysis?: FraudAnalysis;
+}
+
+/** One layer of the C4 forensic verdict — the optional Mistral analysis. */
+export interface FraudLlmAnalysis {
+  niveauRisque: string;
+  verdict: string;
+  signauxLlm: string[];
+  analyseLlm: string;
+  recommandation: string;
+}
+
+/**
+ * Document metadata forensics (Agent C4).
+ *
+ * Produced upstream, consumed by the Agent Portal — never recomputed here. The
+ * deterministic signals are always present; `analyseLlm` is the optional
+ * model verdict.
+ */
+export interface FraudAnalysis {
+  fichier: string;
+  typeFichier?: string;
+  dateCreation?: string;
+  dateModification?: string;
+  logiciel?: string;
+  auteurDeclare?: string;
+  signauxAVerifier: string[];
+  analyseLlm?: FraudLlmAnalysis;
+  niveauRisque: string;
+  aDesSignaux: boolean;
+  erreur?: string;
 }
 
 export type CaseStatus =

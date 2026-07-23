@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react';
+import { FileText, ShieldAlert } from 'lucide-react';
 
 import { EmptyState, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import {
   DOCUMENT_STATUS_LABEL,
   DOCUMENT_STATUS_TONE,
   formatFileSize,
+  fraudRiskTone,
 } from '@/features/agent/lib/casePresentation';
 
 export interface CaseDocumentsCardProps {
@@ -53,9 +54,19 @@ export function CaseDocumentsCard({ documents }: CaseDocumentsCardProps) {
                     <p className="mt-1 text-body-sm text-destructive">{document.errorMessage}</p>
                   )}
                 </div>
-                <Badge tone={DOCUMENT_STATUS_TONE[document.status]}>
-                  {DOCUMENT_STATUS_LABEL[document.status]}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Authenticity flag only when C4 found something — a badge on
+                      every clean file would drown the signal. */}
+                  {document.fraudRisk && document.fraudRisk !== 'FAIBLE' && (
+                    <Badge tone={fraudRiskTone(document.fraudRisk)}>
+                      <ShieldAlert aria-hidden="true" />
+                      {document.fraudRisk}
+                    </Badge>
+                  )}
+                  <Badge tone={DOCUMENT_STATUS_TONE[document.status]}>
+                    {DOCUMENT_STATUS_LABEL[document.status]}
+                  </Badge>
+                </div>
               </li>
             ))}
           </ul>

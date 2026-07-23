@@ -115,6 +115,24 @@ export const DOCUMENT_STATUS_LABEL: Record<DocumentAnalysisStatus, string> = {
   rejected: 'Rejeté',
 };
 
+/**
+ * Badge tone for a C4 fraud-risk level.
+ *
+ * A record keyed by the *known* levels, with a fallback in the accessor below —
+ * the level is a free string on the wire (the model could return anything), and
+ * an unmapped value must degrade to neutral rather than crash a lookup.
+ */
+const FRAUD_RISK_TONE: Record<string, StatusTone> = {
+  FAIBLE: 'success',
+  'À VÉRIFIER': 'warning',
+  MODÉRÉ: 'warning',
+  ÉLEVÉ: 'error',
+  CRITIQUE: 'error',
+  INCONNU: 'neutral',
+};
+
+export const fraudRiskTone = (risk: string): StatusTone => FRAUD_RISK_TONE[risk] ?? 'neutral';
+
 /** « 482 Ko ». Binary-agnostic on purpose — agents read size, not storage. */
 export const formatFileSize = (bytes: number): string =>
   bytes >= 1_000_000
