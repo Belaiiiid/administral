@@ -137,6 +137,11 @@ def upload_document(
         )
 
     _recompute_status(db, application.id)
+
+    # C7: Trigger the LangGraph pipeline to update the Case documents, completeness, and coherence reports
+    from app.modules.ai.agents.workflow import run_pipeline
+    run_pipeline(db, application.id)
+
     return _to_document_schema(document)
 
 
