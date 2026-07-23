@@ -8,3 +8,12 @@ dist-ssr
 .DS_Store
 *.tsbuildinfo
 .vite
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Uploaded files (local storage)
+backend/uploads/

@@ -6,7 +6,7 @@ import { useAsyncResource, type AsyncResource } from '@/features/agent/hooks/use
  * The instruction queue. Backs `GET /agent/cases`.
  *
  * Components call this and render `data`; they never touch the service, and
- * never learn whether the rows came from fixtures or from the network.
+ * never learn where the rows came from.
  */
 export function useAgentCases(query: CaseQuery = {}): AsyncResource<CaseSummary[]> {
   const { status, search, pendingDecision } = query;

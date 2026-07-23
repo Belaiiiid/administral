@@ -20,8 +20,8 @@ export interface ChatbotController {
  * A command hook, not a fetch-on-mount one: the assistant speaks when spoken to.
  * All it does is append turns and call the service — it does not choose an
  * answer, rank a source, or decide when the assistant should decline. Those live
- * behind `chatbotService`, which today is a keyword mock and tomorrow is the
- * backend.
+ * behind `chatbotService`, and behind it the backend that retrieves the sources
+ * and composes the answer.
  *
  * @param context What is known about the citizen's situation, forwarded with
  *                every question. Pass only values that are genuinely known;

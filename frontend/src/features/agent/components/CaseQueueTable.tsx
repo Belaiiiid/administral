@@ -37,8 +37,8 @@ export interface CaseQueueTableProps {
  *
  * Pure presentation: every cell prints a field that arrived on the model. There
  * is no sorting, no filtering and no derivation here — ordering and
- * `waitingDays` are the service's responsibility, so this table renders the
- * same whether its rows came from fixtures or from `GET /agent/cases`.
+ * `waitingDays` are computed by the backend behind `GET /agent/cases`, so this
+ * table only prints what the endpoint already ordered and derived.
  *
  * Shared by the dashboard and the full case list, hence its home in the
  * agent-level `components/` folder rather than a sub-domain.

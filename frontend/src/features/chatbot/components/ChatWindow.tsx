@@ -13,8 +13,8 @@ import type { ChatbotController } from '@/features/chatbot/hooks/useChatbot';
  *
  * Presentation only. It holds the draft the citizen is typing — genuinely local
  * UI state — and nothing else; the thread, the pending flag and the send action
- * all arrive from `useChatbot`. Swapping the mock service for the API changes
- * nothing in this file.
+ * all arrive from `useChatbot`. The service behind it could be swapped for any
+ * other and nothing in this file would change.
  */
 
 /**

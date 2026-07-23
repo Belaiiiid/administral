@@ -1,4 +1,5 @@
 import type { ChatbotContext, ChatbotResponse } from '@/features/chatbot/types/chatbot';
+import { apiClient } from '@/services/apiClient';
 
 /**
  * Citizen assistant contract.
@@ -22,31 +23,33 @@ export interface ChatbotService {
   sendMessage(message: string, context?: ChatbotContext): Promise<ChatbotResponse>;
 }
 
-const notImplemented = (method: string) => (): never => {
-  throw new Error(`chatbotService.${method}() sera implémenté par le module full-stack Assistant.`);
-};
-
 /**
- * The real implementation, pending.
- *
- * When the backend lands this becomes a single `apiClient` call plus a DTO→domain
- * mapping:
- *
- *   sendMessage: (message, context) =>
- *     apiClient.post<ChatbotResponseDto>('/citizen/chatbot/message', {
- *       message,
- *       context: toContextDto(context),
- *     }).then(toChatbotResponse),
+ * REST implementation, backed by the FastAPI service.
  *
  * Everything the request triggers server-side — assembling profile and case
- * context, hybrid retrieval over the knowledge base, prompting the model,
- * grounding the answer in the passages it retrieved — happens behind this call
- * and is invisible from here. That is the point: the frontend knows there is an
- * endpoint that answers questions with sources, and nothing further.
+ * context, retrieval over the knowledge base, composing the answer from the
+ * passages it retrieved — happens behind this one call and is invisible from
+ * here. That is the point: the frontend knows there is an endpoint that answers
+ * questions with sources, and nothing further.
  *
- * `apiClient` already exists (`src/services/apiClient.ts`) and already throws
- * until its `request()` is written — so this file needs no other scaffolding.
+ * `conversationHistory` is trimmed to the last few turns. The whole thread
+ * would grow without bound, and a context window is a finite resource the
+ * client should not spend carelessly on its own behalf.
  */
+const HISTORY_TURNS = 6;
+
 export const httpChatbotService: ChatbotService = {
-  sendMessage: notImplemented('sendMessage'),
+  sendMessage: (message, context) =>
+    apiClient.post<ChatbotResponse>('/citizen/chatbot/message', {
+      message,
+      context: context
+        ? {
+            caseId: context.caseId,
+            caseStatus: context.caseStatus,
+            conversationHistory: (context.conversationHistory ?? [])
+              .slice(-HISTORY_TURNS)
+              .map(({ role, content }) => ({ role, content })),
+          }
+        : undefined,
+    }),
 };

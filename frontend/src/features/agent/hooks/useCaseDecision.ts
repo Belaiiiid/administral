@@ -27,8 +27,8 @@ export interface CaseDecisionController {
  *
  * All the hook does is call the service and hold the result. It does not choose
  * an outcome, extract evidence, compose a message or decide whether a rejection
- * is permissible — those belong to the decision service, which today mocks the
- * backend and tomorrow is the backend.
+ * is permissible — those belong to the decision service, and behind it the
+ * backend, which extracts the evidence and composes the explanation.
  */
 export function useCaseDecision(caseId: string | undefined): CaseDecisionController {
   const [decision, setDecision] = useState<CaseDecision | null>(null);

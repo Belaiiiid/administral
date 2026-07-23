@@ -1,4 +1,5 @@
-import type { CaseDecision } from '@/types';
+import type { CaseDecision, DecisionOutcome } from '@/types';
+import { ApiClientError, apiClient } from '@/services/apiClient';
 
 /**
  * Agent decision contract.
@@ -39,29 +40,42 @@ export class MissingEvidenceError extends Error {
   readonly caseId: string;
 }
 
-const notImplemented = (method: string) => (): never => {
-  throw new Error(
-    `agentDecisionService.${method}() sera implémenté par le module full-stack Agent.`,
-  );
-};
-
 /**
- * The real implementation, pending.
- *
- * When the backend lands, each method is one `apiClient` call. Note the wire
- * vocabulary differs from the domain vocabulary — the mapping lives here and
- * nowhere else:
- *
- *   approveCase: (caseId) =>
- *     apiClient
- *       .post<DecisionResponseDto>(`/agent/cases/${caseId}/decision`, { decision: 'APPROVED' })
- *       .then(toCaseDecision),
+ * Sends the decision and translates the one domain failure back into its type.
  *
  * Evidence extraction and explanation generation happen server-side, so the
- * response already carries `message` and `evidenceUsed`. The frontend gains no
- * new responsibility at cutover — it loses one (the mock's local composition).
+ * response already carries `explanation` and `evidenceUsed`. The frontend
+ * gained no responsibility at cutover — it lost one.
+ *
+ * The wire uses the same lowercase vocabulary as `DecisionOutcome`
+ * (`validated` / `rejected`) rather than an APPROVED/REJECTED enum, so there is
+ * no translation table between a decision and the status transition it causes.
  */
+const decide = async (caseId: string, outcome: DecisionOutcome): Promise<CaseDecision> => {
+  try {
+    return await apiClient.post<CaseDecision>(
+      `/agent/cases/${encodeURIComponent(caseId)}/decision`,
+      { outcome },
+    );
+  } catch (cause) {
+    /*
+     * A refused rejection is a *domain* outcome, not a transport failure: the
+     * case simply presents nothing to reject. Restoring its own error type here
+     * means `DecisionPanel` can keep distinguishing it from a network fault
+     * without inspecting HTTP status codes.
+     */
+    if (
+      cause instanceof ApiClientError &&
+      cause.status === 400 &&
+      outcome === 'rejected'
+    ) {
+      throw new MissingEvidenceError(caseId);
+    }
+    throw cause;
+  }
+};
+
 export const httpDecisionService: AgentDecisionService = {
-  approveCase: notImplemented('approveCase'),
-  rejectCase: notImplemented('rejectCase'),
+  approveCase: (caseId) => decide(caseId, 'validated'),
+  rejectCase: (caseId) => decide(caseId, 'rejected'),
 };

@@ -1,38 +1,38 @@
-import { mockAgentCaseService } from '@/features/agent/data/mockAgentCaseService';
-import { mockDecisionService } from '@/features/agent/data/mockDecisionService';
-
 import type { AgentCaseService } from './agentCaseService';
 import type { AgentDecisionService } from './agentDecisionService';
+import { httpAgentCaseService } from './agentCaseService';
+import { httpDecisionService } from './agentDecisionService';
 
 export type { AgentCaseService, CaseQuery } from './agentCaseService';
 export { httpAgentCaseService } from './agentCaseService';
 export type { AgentDecisionService } from './agentDecisionService';
 export { httpDecisionService, MissingEvidenceError } from './agentDecisionService';
 
-/*
- * `explanationService` is intentionally NOT re-exported here.
- *
- * It is the backend's internal seam — the slot a language model occupies — and
- * the frontend must not be able to reach it. Exporting it from the module every
- * hook imports would make "a component called the explanation generator
- * directly" a one-line mistake instead of an impossible one.
- */
-
 /**
- * The binding every hook imports — and the *only* line that changes when the
- * backend lands.
+ * The bindings every hook imports.
  *
- * ┌─ today ────────────────────────────────────────────────────────────────┐
- * │  hooks → agentCaseService → mockAgentCaseService → fixtures.ts         │
- * ├─ when the API exists ──────────────────────────────────────────────────┤
+ * ┌────────────────────────────────────────────────────────────────────────┐
  * │  hooks → agentCaseService → httpAgentCaseService → apiClient → REST    │
  * └────────────────────────────────────────────────────────────────────────┘
  *
- * To cut over: change the right-hand side to `httpAgentCaseService`, implement
- * `apiClient.request()`, then delete `data/`. No page, component or hook is
- * modified — that is the property this indirection exists to guarantee.
+ * The fixture adapters that used to sit here are gone: evidence extraction,
+ * explanation generation and the case store all moved server-side, where they
+ * belonged. No page, component or hook changed at cutover — which is the
+ * property this indirection existed to guarantee, now demonstrated rather than
+ * asserted.
+ *
+ * To point at a different backend, set `VITE_API_BASE_URL`. To stub one in a
+ * test, assign a fake to these bindings; nothing else needs to know.
  */
-export const agentCaseService: AgentCaseService = mockAgentCaseService;
+export const agentCaseService: AgentCaseService = httpAgentCaseService;
 
-/** Same swap contract as above: replace with `httpDecisionService` at cutover. */
-export const agentDecisionService: AgentDecisionService = mockDecisionService;
+export const agentDecisionService: AgentDecisionService = httpDecisionService;
+
+/*
+ * `explanationService` is intentionally NOT re-exported here — and now has no
+ * frontend implementation at all. Composing a citizen-facing explanation is a
+ * server responsibility, sitting between the decision endpoint and the model.
+ * Exporting a route to it from the module every hook imports would make "a
+ * component generated its own explanation" a one-line mistake instead of an
+ * impossible one.
+ */

@@ -1,12 +1,13 @@
 import type { Case, CaseQueueStats, CaseSummary } from '@/types';
+import { apiClient } from '@/services/apiClient';
 
 /**
  * Agent-side case access contract.
  *
  * Mirrors the shape of the citizen services in `src/services/` — interface
  * first, transport second — so the UI depends on this type and never on where
- * the data comes from. Swapping fixtures for REST is a one-line change in
- * `services/index.ts`; no page, component or hook is touched.
+ * the data comes from. The binding in `services/index.ts` selects the
+ * implementation; no page, component or hook depends on which one.
  */
 export interface AgentCaseService {
   /** Instruction queue. Future endpoint: `GET /agent/cases`. */
@@ -33,27 +34,31 @@ export interface CaseQuery {
   pendingDecision?: boolean;
 }
 
-const notImplemented = (method: string) => (): never => {
-  throw new Error(
-    `agentCaseService.${method}() sera implémenté par le module full-stack Agent.`,
-  );
-};
-
 /**
- * The real implementation, pending.
+ * REST implementation, backed by the FastAPI service.
  *
- * When the backend lands, each method becomes a single `apiClient` call plus a
- * DTO→domain mapping:
+ * No DTO→domain mapping layer: the API serialises `Case`, `CaseSummary` and
+ * `CaseQueueStats` in exactly the shape declared in `src/types/case.ts`,
+ * camelCase included. That is not a coincidence — those types were written as
+ * the backend contract before the backend existed, and the Pydantic schemas
+ * mirror them field for field.
  *
- *   listCases: (query) =>
- *     apiClient.get<CaseSummaryDto[]>('/agent/cases', { params: query })
- *       .then((dtos) => dtos.map(toCaseSummary)),
- *
- * `apiClient` already exists (`src/services/apiClient.ts`) and already throws
- * until its `request()` is written — so this file needs no other scaffolding.
+ * If the two ever drift, this is where a mapper belongs. Adding one
+ * pre-emptively would be a translation layer that translates nothing.
  */
 export const httpAgentCaseService: AgentCaseService = {
-  listCases: notImplemented('listCases'),
-  getCase: notImplemented('getCase'),
-  getQueueStats: notImplemented('getQueueStats'),
+  listCases: (query = {}) =>
+    apiClient.get<CaseSummary[]>('/agent/cases', {
+      params: {
+        status: query.status,
+        search: query.search,
+        // Omitted rather than sent as `false`: the backend treats the string
+        // "false" as presence, so an explicit false would enable the filter.
+        pendingDecision: query.pendingDecision ? true : undefined,
+      },
+    }),
+
+  getCase: (id) => apiClient.get<Case>(`/agent/cases/${encodeURIComponent(id)}`),
+
+  getQueueStats: () => apiClient.get<CaseQueueStats>('/agent/cases/stats'),
 };

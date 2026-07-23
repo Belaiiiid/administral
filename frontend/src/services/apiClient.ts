@@ -1,11 +1,16 @@
 import type { ApiError } from '@/types';
 
 /**
- * HTTP client placeholder.
+ * HTTP client.
  *
- * No call is issued today — the skeleton renders from local fixtures. The shape
- * below is what feature services will consume once the backend exists, so
- * wiring it later means implementing `request` and nothing else.
+ * The single place the application talks to the network. Feature services build
+ * on this and never call `fetch` directly, so auth headers, error normalisation
+ * and retry policy have exactly one home.
+ *
+ * Default base URL is `/api`, which the Vite dev server proxies to the FastAPI
+ * backend on :8000 (see `vite.config.ts`). Same-origin in development means no
+ * CORS preflight and no `SameSite` exemptions when cookie auth arrives.
+ * Deployments that serve the API from another origin set `VITE_API_BASE_URL`.
  */
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
@@ -26,13 +31,102 @@ export class ApiClientError extends Error {
 }
 
 /**
- * @todo Implement when the backend lands: auth header injection, 401 refresh,
- *       error normalisation into ApiClientError, request cancellation.
+ * Serialises query parameters, dropping `undefined`.
+ *
+ * Dropping rather than sending `?status=undefined`: an absent filter and a
+ * filter whose value is the string "undefined" mean very different things to a
+ * server, and only one of them is intended.
  */
-export async function request<T>(_path: string, _options: RequestOptions = {}): Promise<T> {
-  throw new Error(
-    'apiClient.request() n’est pas encore implémenté — le socle utilise des données de démonstration.',
-  );
+function buildQuery(params: RequestOptions['params']): string {
+  if (!params) return '';
+
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.append(key, String(value));
+  }
+
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}
+
+/**
+ * Normalises a failure response into `ApiError`.
+ *
+ * The backend returns `{code, message}` for domain errors, but a 502 from a
+ * proxy or a crash before the handler runs returns HTML. Parsing defensively
+ * means a caller always receives an `ApiError`, never a JSON parse exception
+ * masking the real status.
+ */
+async function toApiError(response: Response): Promise<ApiError> {
+  try {
+    const payload = (await response.json()) as unknown;
+
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      typeof (payload as ApiError).message === 'string'
+    ) {
+      return payload as ApiError;
+    }
+
+    // FastAPI's own validation errors use `detail`, not `message`.
+    if (payload && typeof payload === 'object' && 'detail' in payload) {
+      return { code: 'VALIDATION_ERROR', message: `Requête invalide (${response.status}).` };
+    }
+  } catch {
+    // Body was not JSON — fall through to the generic shape below.
+  }
+
+  return {
+    code: 'HTTP_ERROR',
+    message: `La requête a échoué (${response.status} ${response.statusText}).`,
+  };
+}
+
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { body, params, headers, ...init } = options;
+
+  /*
+   * FormData is sent as-is: the browser sets `multipart/form-data` with the
+   * boundary, which a manual Content-Type would clobber. Everything else is
+   * JSON. This is what lets file upload and JSON requests share one client.
+   */
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+  const hasBody = body !== undefined;
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`, {
+      ...init,
+      headers: {
+        ...(hasBody && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...headers,
+      },
+      ...(hasBody ? { body: isFormData ? (body as FormData) : JSON.stringify(body) } : {}),
+    });
+  } catch (cause) {
+    /*
+     * `fetch` rejects only on network failure — a 500 resolves normally. This
+     * is surfaced as an ApiClientError so callers handle one error type rather
+     * than distinguishing "server said no" from "server did not answer".
+     */
+    throw new ApiClientError(0, {
+      code: 'NETWORK_ERROR',
+      message:
+        'Le serveur est injoignable. Vérifiez que l’API est démarrée (http://localhost:8000).',
+      details: { cause: [cause instanceof Error ? cause.message : String(cause)] },
+    });
+  }
+
+  if (!response.ok) {
+    throw new ApiClientError(response.status, await toApiError(response));
+  }
+
+  // 204 has no body; calling .json() on it throws.
+  if (response.status === 204) return undefined as T;
+
+  return (await response.json()) as T;
 }
 
 export const apiClient = {

@@ -1,0 +1,26 @@
+# MonParcours — API dependencies.
+# Install:  pip install -r requirements.txt
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# ORM + PostgreSQL driver
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+
+# Document text extraction
+python-multipart==0.0.20
+pypdf==5.1.0
+pdfplumber==0.11.5
+
+# Schema migrations
+alembic==1.14.0
+
+# Configuration and validation
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# Tests
+pytest==8.3.4
+httpx==0.28.1
