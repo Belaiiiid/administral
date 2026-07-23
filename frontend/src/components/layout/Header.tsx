@@ -1,8 +1,7 @@
 import { Bell, HelpCircle, Menu, Search, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
-import { DevRoleSwitch } from '@/components/layout/DevRoleSwitch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +32,13 @@ export function Header({
 }: HeaderProps) {
   const openSidebar = useUiStore((state) => state.openSidebar);
   const displayName = useSessionStore((state) => state.displayName);
+  const logout = useSessionStore((state) => state.logout);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.login, { replace: true });
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-header items-center gap-4 border-b border-border bg-surface px-margin-mobile md:px-gutter">
@@ -86,9 +92,6 @@ export function Header({
           <HelpCircle aria-hidden="true" />
         </Button>
 
-        {/* Compiled out of production builds — see DevRoleSwitch. */}
-        {import.meta.env.DEV && <DevRoleSwitch />}
-
         <span aria-hidden="true" className="mx-2 hidden h-8 w-px bg-border sm:block" />
 
         <DropdownMenu>
@@ -128,8 +131,8 @@ export function Header({
               <Link to={ROUTES.profileAccessibility}>Accessibilité</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem destructive asChild>
-              <Link to={ROUTES.login}>Déconnexion</Link>
+            <DropdownMenuItem destructive onSelect={handleLogout}>
+              Déconnexion
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

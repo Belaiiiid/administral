@@ -18,9 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.exceptions import DomainError, domain_error_handler
 from app.database.session import check_health, verify_connection
+from app.features.citizen.profiling.routers import router as profiling_router
 from app.modules.agent.router import router as agent_router
 from app.modules.ai.chatbot.router import router as chatbot_router
 from app.modules.ai.coherence.router import router as coherence_router
+from app.modules.auth.router import router as auth_router
 from app.modules.citizen.router import router as citizen_router
 
 
@@ -77,10 +79,13 @@ def health() -> dict[str, object]:
 
 # `/api` matches the frontend's API_BASE_URL default (see
 # frontend/src/services/apiClient.ts).
+app.include_router(auth_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
 app.include_router(chatbot_router, prefix="/api")
 app.include_router(coherence_router, prefix="/api")
 app.include_router(citizen_router, prefix="/api")
+# Citizen profiling assistant (A2/A3/A4): /api/session + /api/session/{id}/profilage/tour
+app.include_router(profiling_router, prefix="/api")
 
 # Not yet mounted — these modules exist as folders with no routes. Each is
 # added when its slice is built, not speculatively:

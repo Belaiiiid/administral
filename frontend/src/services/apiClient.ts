@@ -1,4 +1,5 @@
 import type { ApiError } from '@/types';
+import { clearToken, getToken } from './authToken';
 
 /**
  * HTTP client.
@@ -95,12 +96,18 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const hasBody = body !== undefined;
 
+  // The bearer token, when the user is logged in. Attached on every request so
+  // the protected routes (the agent dossiers) are reachable; harmless on the
+  // public ones, which ignore it.
+  const token = getToken();
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`, {
       ...init,
       headers: {
         ...(hasBody && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
       ...(hasBody ? { body: isFormData ? (body as FormData) : JSON.stringify(body) } : {}),
@@ -120,6 +127,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (!response.ok) {
+    // A 401 means the token is missing, expired (they are short-lived) or
+    // invalid. Drop it so the app stops sending a dead credential; the session
+    // store, watching for this, routes the user back to login.
+    if (response.status === 401) clearToken();
     throw new ApiClientError(response.status, await toApiError(response));
   }
 

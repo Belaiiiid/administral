@@ -1,23 +1,56 @@
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useSessionStore } from '@/store/sessionStore';
+
+interface LocationState {
+  from?: { pathname: string };
+}
 
 /**
- * Login skeleton. The form does not submit anywhere — authentication is a
- * future full-stack module (see docs/roadmap.md).
+ * Login. Authenticates against the auth module and routes the user to their
+ * journey: agents to the back-office, citizens to their portal (or back to the
+ * page a guard bounced them from).
  */
 export default function LoginPage() {
   useDocumentTitle('Connexion');
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const login = useSessionStore((state) => state.login);
+  const isLoggingIn = useSessionStore((state) => state.isLoggingIn);
+  const error = useSessionStore((state) => state.error);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      const role = await login({ email, password });
+      // An agent always lands in the back-office. A citizen returns where a
+      // guard sent them from, or their portal by default.
+      if (role === 'agent') {
+        navigate(ROUTES.agent, { replace: true });
+      } else {
+        const from = (location.state as LocationState | null)?.from?.pathname;
+        navigate(from ?? ROUTES.portal, { replace: true });
+      }
+    } catch {
+      // The store holds the error message; the form renders it below.
+    }
+  };
 
   return (
     <Card>
@@ -37,11 +70,13 @@ export default function LoginPage() {
           <span aria-hidden="true" className="h-px flex-1 bg-border" />
         </div>
 
-        <form
-          className="flex flex-col gap-5"
-          onSubmit={(event) => event.preventDefault()}
-          noValidate
-        >
+        {error && (
+          <Alert tone="error" className="mb-5">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Adresse e-mail</Label>
             <Input
@@ -51,6 +86,9 @@ export default function LoginPage() {
               autoComplete="email"
               placeholder="nom@exemple.fr"
               startIcon={<Mail />}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
             />
           </div>
 
@@ -70,6 +108,9 @@ export default function LoginPage() {
               name="password"
               autoComplete="current-password"
               startIcon={<Lock />}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
               endAdornment={
                 <button
                   type="button"
@@ -96,8 +137,8 @@ export default function LoginPage() {
             </Label>
           </div>
 
-          <Button type="submit" block size="lg">
-            Se connecter
+          <Button type="submit" block size="lg" disabled={isLoggingIn}>
+            {isLoggingIn ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
 

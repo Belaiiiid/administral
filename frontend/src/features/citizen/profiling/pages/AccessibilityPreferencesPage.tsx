@@ -2,7 +2,7 @@ import { Info } from 'lucide-react';
 
 import { APP_CONFIG } from '@/app/config/app';
 import { PageHeader } from '@/components/shared';
-import { ACCESSIBILITY_OPTIONS } from '@/features/profile/accessibilityOptions';
+import { ACCESSIBILITY_OPTIONS } from '@/features/citizen/profiling/utils/accessibilityOptions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';

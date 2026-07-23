@@ -1,50 +1,107 @@
 import { create } from 'zustand';
 
-import type { AdministrationId } from '@/types';
+import type { AdministrationId, AuthRole, AuthUser, LoginCredentials } from '@/types';
+import { authService } from '@/services/authService';
+import { clearToken, getToken, setToken } from '@/services/authToken';
 
 /**
- * Session shell — deliberately inert.
+ * Authenticated session.
  *
- * Authentication (FranceConnect / credentials) is a future full-stack module.
- * The store exposes the shape the router's <ProtectedRoute /> will consume so
- * that wiring real auth later touches this file only.
+ * This is the file the scaffolding always pointed at: `ProtectedRoute`, the
+ * header and the sidebar read from here, and wiring real auth was always meant
+ * to touch only this store. It now holds a real JWT-backed session.
+ *
+ * The token lives in `localStorage` (via `authToken`); this store holds the
+ * decoded identity. On load it rehydrates `isAuthenticated` from the presence of
+ * a token — the token is then validated server-side on the first real request,
+ * and a 401 clears it.
  */
+
 export type SessionRole = 'citizen' | 'agent';
+
+/** Backend roles → the two front-end journeys. ADMIN travels with the agents. */
+const toSessionRole = (role: AuthRole): SessionRole => (role === 'CITIZEN' ? 'citizen' : 'agent');
 
 interface SessionState {
   isAuthenticated: boolean;
   role: SessionRole;
-  /** `null` until the auth bootstrap resolves an identity. */
+  user: AuthUser | null;
   displayName: string | null;
   activatedServices: AdministrationId[];
+  /** True while a login request is in flight. */
+  isLoggingIn: boolean;
+  /** Last login error message, for the form to display. */
+  error: string | null;
 
-  /**
-   * Switch the active role.
-   *
-   * ⚠️ NOT AN ACCESS CONTROL MECHANISM. This exists so the back-office is
-   * reachable for development and review while there is no auth module —
-   * `ProtectedRoute role="agent"` otherwise redirects every /agent navigation
-   * to /portal, leaving the Agent Portal unrenderable.
-   *
-   * Real authorisation is server-side and arrives with the auth module. Its
-   * only caller is <DevRoleSwitch />, which is compiled out of production
-   * builds; nothing in application code may depend on it.
-   */
-  setRole: (role: SessionRole) => void;
+  /** Authenticate. Resolves to the role on success so the caller can redirect. */
+  login: (credentials: LoginCredentials) => Promise<SessionRole>;
+  logout: () => void;
+  /** Rehydrate the identity from the stored token at app start. */
+  bootstrap: () => Promise<void>;
 }
 
-/**
- * Empty session so the shell renders without inventing a citizen.
- *
- * `isAuthenticated` stays `true` only so the protected routes remain
- * navigable while there is no auth module; every consumer must treat
- * `displayName` and `activatedServices` as genuinely absent.
- */
 export const useSessionStore = create<SessionState>((set) => ({
-  isAuthenticated: true,
+  // Optimistic: a stored token means "probably authenticated" until a request
+  // proves otherwise. Avoids a login flash on every reload.
+  isAuthenticated: getToken() !== null,
   role: 'citizen',
+  user: null,
   displayName: null,
   activatedServices: [],
+  isLoggingIn: false,
+  error: null,
 
-  setRole: (role) => set({ role }),
+  login: async (credentials) => {
+    set({ isLoggingIn: true, error: null });
+    try {
+      const response = await authService.login(credentials);
+      setToken(response.accessToken);
+      const role = toSessionRole(response.user.role);
+
+      set({
+        isAuthenticated: true,
+        role,
+        user: response.user,
+        displayName: `${response.user.firstName} ${response.user.lastName}`,
+        isLoggingIn: false,
+        error: null,
+      });
+      return role;
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : 'La connexion a échoué. Réessayez.';
+      set({ isLoggingIn: false, error: message });
+      throw cause;
+    }
+  },
+
+  logout: () => {
+    clearToken();
+    set({
+      isAuthenticated: false,
+      role: 'citizen',
+      user: null,
+      displayName: null,
+      error: null,
+    });
+  },
+
+  bootstrap: async () => {
+    if (getToken() === null) {
+      set({ isAuthenticated: false });
+      return;
+    }
+    try {
+      const user = await authService.me();
+      set({
+        isAuthenticated: true,
+        role: toSessionRole(user.role),
+        user,
+        displayName: `${user.firstName} ${user.lastName}`,
+      });
+    } catch {
+      // Token invalid/expired — apiClient already cleared it.
+      set({ isAuthenticated: false, role: 'citizen', user: null, displayName: null });
+    }
+  },
 }));

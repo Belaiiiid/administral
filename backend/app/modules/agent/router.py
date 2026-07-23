@@ -4,10 +4,10 @@ Receives requests, delegates, returns responses. It holds no business rule — i
 a condition here started deciding *which* cases matter, it would belong in the
 service, where the queue and the counters can share it.
 
-⚠️ Unauthenticated. These endpoints expose case data and must sit behind the
-agent auth guard before this reaches any shared environment — see
-``app/core/security.py``, where the dependency belongs, and ``modules/auth/``,
-which is still a placeholder.
+Every route here is behind ``require_agent``: these endpoints expose citizen
+dossiers, so a caller without a valid AGENT (or ADMIN) token is refused. A
+citizen token reaches these routes and gets 403 — the access-control guarantee
+this portal now rests on.
 """
 
 from __future__ import annotations
@@ -25,8 +25,11 @@ from app.modules.agent.schemas import (
     CaseSummarySchema,
     DecisionRequestSchema,
 )
+from app.modules.auth.dependencies import require_agent
 
-router = APIRouter(prefix="/agent", tags=["agent"])
+# The guard is applied at the router level, so it covers every current and
+# future agent route without each having to remember it.
+router = APIRouter(prefix="/agent", tags=["agent"], dependencies=[Depends(require_agent)])
 
 
 # Declared before any `/cases/{case_id}` route, so a future detail endpoint

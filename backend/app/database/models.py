@@ -28,6 +28,7 @@ from app.modules.citizen.models import (
     ApplicationDocument,
     ChecklistItem,
 )
+from app.modules.auth.models import User
 
 # Re-exported so `from app.database.models import Base` reaches the metadata
 # with every table attached.
@@ -46,4 +47,6 @@ __all__ = [
     "Application",
     "ApplicationDocument",
     "ChecklistItem",
+    # Auth module
+    "User",
 ]

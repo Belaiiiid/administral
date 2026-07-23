@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173"
 
+    # -- Authentication ----------------------------------------------------
+    # HS256 JWTs. The secret MUST be overridden in any shared environment — the
+    # default is a placeholder that would let anyone forge a token.
+    jwt_secret_key: str = "dev-only-change-me-with-a-32-plus-char-random-secret"
+    jwt_algorithm: str = "HS256"
+    # Deliberately short-lived (the feature's defining trait). No refresh token
+    # yet, so a re-login is needed after expiry — acceptable for the two-role
+    # foundation this establishes.
+    access_token_expire_minutes: int = 30
+
     # -- AI / Mistral ------------------------------------------------------
     # Optional on purpose. Absent, the coherence analyser degrades to
     # `a_revoir` rather than declaring a dossier coherent unverified — an
@@ -61,6 +71,12 @@ class Settings(BaseSettings):
     # Forensic (C4) analysis benefits from a stronger model — subtle metadata
     # inconsistencies are a reasoning task, not a classification one.
     mistral_fraud_model: str = "mistral-large-latest"
+    # Profiling (citizen.profiling): this project talks to the Mistral API only,
+    # so the deterministic rule generator is OFF by default — every profiling
+    # turn must call Mistral, and a missing key surfaces as an error rather than
+    # a silent rule-based answer. Set `MISTRAL_ALLOW_FALLBACK=true` only to run
+    # the assistant offline (local dev without a key, tests).
+    mistral_allow_fallback: bool = False
 
     # -- Document storage --------------------------------------------------
     # Where uploaded files are written. Local filesystem for development; a

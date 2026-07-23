@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
-import { ACCESSIBILITY_OPTIONS } from '@/features/profile/accessibilityOptions';
+import { ACCESSIBILITY_OPTIONS } from '@/features/citizen/profiling/utils/accessibilityOptions';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';

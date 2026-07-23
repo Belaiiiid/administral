@@ -30,9 +30,9 @@ const AplApplicationDetailPage = lazy(
   () => import('@/features/apl/pages/AplApplicationDetailPage'),
 );
 
-const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'));
+const ProfilePage = lazy(() => import('@/features/citizen/profiling/pages/ProfilePage'));
 const AccessibilityPreferencesPage = lazy(
-  () => import('@/features/profile/pages/AccessibilityPreferencesPage'),
+  () => import('@/features/citizen/profiling/pages/AccessibilityPreferencesPage'),
 );
 
 const DocumentsPage = lazy(() => import('@/features/documents/pages/DocumentsPage'));
