@@ -83,3 +83,116 @@ def test_offline_client_returns_single_review_result(monkeypatch) -> None:
     assert len(results) == 1
     assert results[0]["statut"] == "a_revoir"
     assert results[0]["champ"] == "global"
+
+
+# ---------------------------------------------------------------------------
+# C6 — Rapport de cohérence : génération + mapping (sans DB)
+# ---------------------------------------------------------------------------
+
+
+class _FakeCase:
+    """Minimal Case stub — only the fields generer_et_persister_rapport touches."""
+
+    def __init__(self, case_id: str) -> None:
+        self.id = case_id
+        self.coherence_report = None
+
+
+def test_rapport_coherent_sans_anomalies(monkeypatch) -> None:
+    """C6 — dossier cohérent : outcome=passed, anomalies=[].
+
+    The LLM call is replaced by a stub that returns a single coherent check.
+    The DB upsert is replaced by the identity function so no real session is
+    needed. Only the mapping logic (service layer) is exercised.
+    """
+    from app.modules.agent.models import ReportOutcome
+    from app.modules.ai.coherence import service as svc
+
+    # Stub: LLM returns one fully coherent check.
+    monkeypatch.setattr(
+        svc,
+        "analyser_coherence",
+        lambda profil, documents: svc.ResultatCoherence(
+            coherent_global=True,
+            statut_global="coherent",
+            incoherences=[],
+        ),
+    )
+
+    # Stub: bypass DB write, return the report as-is.
+    persisted: list = []
+
+    def fake_upsert(db, *, case, report):  # noqa: ARG001
+        persisted.append(report)
+        return report
+
+    monkeypatch.setattr(svc, "upsert_coherence_report", fake_upsert)
+
+    case = _FakeCase("case-coherent-001")
+    report = svc.generer_et_persister_rapport(
+        db=None,  # not reached — upsert is stubbed
+        case=case,
+        profil=_PROFIL,
+        documents=_DOCS,
+    )
+
+    assert report.outcome == ReportOutcome.passed
+    assert report.anomalies == []
+    assert report.case_id == "case-coherent-001"
+
+
+def test_rapport_incoherent_avec_cause(monkeypatch) -> None:
+    """C6 — dossier incohérent : outcome=failed, anomalies avec field et message.
+
+    The LLM returns one `incoherent` check on the `montant_loyer` field with a
+    human-readable reason and two evidence snippets. The service must map this
+    to a `CoherenceAnomaly` whose `declared_value`/`observed_value` match the
+    evidence items and whose `message` matches the reason.
+    """
+    from app.modules.agent.models import AnomalySeverity, ReportOutcome
+    from app.modules.ai.coherence import service as svc
+    from app.modules.ai.coherence.schemas import Verification
+
+    incoherence = Verification(
+        champ="montant_loyer",
+        coherent=False,
+        statut="incoherent",
+        raison="Le loyer déclaré (800 €) ne correspond pas au bail (650 €).",
+        confiance=0.95,
+        fichiers_concernes=["bail.pdf"],
+        preuves=["800 €", "650 €"],
+    )
+
+    monkeypatch.setattr(
+        svc,
+        "analyser_coherence",
+        lambda profil, documents: svc.ResultatCoherence(
+            coherent_global=False,
+            statut_global="incoherent",
+            incoherences=[incoherence],
+        ),
+    )
+
+    def fake_upsert(db, *, case, report):  # noqa: ARG001
+        return report
+
+    monkeypatch.setattr(svc, "upsert_coherence_report", fake_upsert)
+
+    case = _FakeCase("case-incoherent-001")
+    report = svc.generer_et_persister_rapport(
+        db=None,
+        case=case,
+        profil=_PROFIL,
+        documents=_DOCS,
+    )
+
+    assert report.outcome == ReportOutcome.failed
+    assert len(report.anomalies) == 1
+
+    anomaly = report.anomalies[0]
+    assert anomaly.field == "montant_loyer"
+    assert anomaly.severity == AnomalySeverity.error
+    assert anomaly.declared_value == "800 €"
+    assert anomaly.observed_value == "650 €"
+    assert "800 €" in anomaly.message or "loyer" in anomaly.message.lower()
+

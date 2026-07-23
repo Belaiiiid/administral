@@ -20,6 +20,7 @@ from app.modules.agent.models import (
     CaseDecision,
     CaseStatus,
     Citizen,
+    CoherenceAnomaly,
     CoherenceReport,
     CompletenessReport,
 )
@@ -136,3 +137,28 @@ def count_queue_stats(
     )
 
     return (pending or 0, to_review_today or 0, citizens_tracked or 0)
+
+
+def upsert_coherence_report(
+    db: Session,
+    *,
+    case: Case,
+    report: CoherenceReport,
+) -> CoherenceReport:
+    """Persist (or replace) the coherence report for a case.
+
+    If a report already exists the old one is deleted first: ``case_id`` is a
+    unique key, so a blind INSERT would raise.  Both the delete and the insert
+    happen in the same transaction so the case is never transiently report-less.
+    """
+    if case.coherence_report is not None:
+        db.delete(case.coherence_report)
+        db.flush()
+
+    case.coherence_report = report
+    db.add(case)
+    db.commit()
+    db.refresh(report)
+
+    return report
+
