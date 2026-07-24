@@ -13,4 +13,5 @@ export {
   ACCESSIBILITY_OPTIONS,
   type AccessibilityOption,
 } from '@/features/citizen/profiling/utils/accessibilityOptions';
+export { profilPartielToSnapshot } from '@/features/citizen/profiling/utils/profileSnapshot';
 export * from '@/features/citizen/profiling/types/profilage';

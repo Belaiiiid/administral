@@ -194,6 +194,10 @@ export interface CompletenessItem {
 export interface CoherenceReport {
   outcome: ReportOutcome;
   checkedAt: string;
+  /** Overall 0–100 coherence score; absent on legacy reports. */
+  coherenceScore?: number | null;
+  /** The analyser's natural-language summary; absent on legacy reports. */
+  aiExplanation?: string | null;
   anomalies: CoherenceAnomaly[];
 }
 

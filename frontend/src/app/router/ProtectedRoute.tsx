@@ -9,11 +9,12 @@ export interface ProtectedRouteProps {
 }
 
 /**
- * Route guard architecture — deliberately not enforcing anything yet.
+ * Route guard.
  *
- * The session store currently returns an authenticated placeholder, so this
- * component is a pass-through. When the auth module lands, only
- * `sessionStore` changes and every guarded branch starts enforcing.
+ * Reads the JWT-backed `sessionStore`: unauthenticated visitors are sent to the
+ * login page (remembering where they came from), and an authenticated user who
+ * lacks the required role is bounced to the citizen portal. The role check
+ * folds ADMIN in with the agents (see `sessionStore.toSessionRole`).
  */
 export function ProtectedRoute({ role }: ProtectedRouteProps) {
   const location = useLocation();

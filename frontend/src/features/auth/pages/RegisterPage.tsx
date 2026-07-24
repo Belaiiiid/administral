@@ -1,16 +1,41 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useSessionStore } from '@/store/sessionStore';
 
 export default function RegisterPage() {
   useDocumentTitle('Créer un compte');
+  const navigate = useNavigate();
+  const register = useSessionStore((state) => state.register);
+  const isLoggingIn = useSessionStore((state) => state.isLoggingIn);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    const form = new FormData(event.currentTarget);
+    try {
+      await register({
+        firstName: String(form.get('firstName') ?? '').trim(),
+        lastName: String(form.get('lastName') ?? '').trim(),
+        email: String(form.get('email') ?? '').trim(),
+        password: String(form.get('password') ?? ''),
+      });
+      // Public registration creates a citizen — land on the citizen portal.
+      navigate(ROUTES.portal, { replace: true });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'La création du compte a échoué.');
+    }
+  };
 
   return (
     <Card>
@@ -28,11 +53,13 @@ export default function RegisterPage() {
           <span aria-hidden="true" className="h-px flex-1 bg-border" />
         </div>
 
-        <form
-          className="flex flex-col gap-5"
-          onSubmit={(event) => event.preventDefault()}
-          noValidate
-        >
+        {error && (
+          <Alert tone="error" className="mb-5">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="firstName">Prénom</Label>
@@ -65,7 +92,7 @@ export default function RegisterPage() {
               aria-describedby="password-hint"
             />
             <p id="password-hint" className="text-body-sm text-on-surface-variant">
-              12 caractères minimum, dont une majuscule et un chiffre.
+              8 caractères minimum.
             </p>
           </div>
 
@@ -77,8 +104,8 @@ export default function RegisterPage() {
             </Label>
           </div>
 
-          <Button type="submit" block size="lg">
-            Créer mon compte
+          <Button type="submit" block size="lg" disabled={isLoggingIn}>
+            {isLoggingIn ? 'Création du compte…' : 'Créer mon compte'}
           </Button>
         </form>
 

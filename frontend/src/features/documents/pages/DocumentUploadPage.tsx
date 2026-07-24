@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, FileText, ScanLine } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, FileText, Loader2, ScanLine, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -10,7 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/app/router/paths';
-import { documentService } from '@/services/documentService';
+import { documentService, type DossierReview } from '@/services/documentService';
+import { profilPartielToSnapshot, useProfilageStore } from '@/features/citizen/profiling';
 import type { CitizenDocument, PersonalizedChecklist } from '@/types';
 
 /**
@@ -71,7 +72,14 @@ function QueueItem({ document }: { document: CitizenDocument }) {
         )}
       </div>
       {document.status === 'validated' && (
-        <Button variant="ghost" size="icon" aria-label={`Prévisualiser ${document.fileName}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Prévisualiser ${document.fileName}`}
+          onClick={() =>
+            window.open(documentService.previewUrl(document.id), '_blank', 'noopener,noreferrer')
+          }
+        >
           <Eye aria-hidden="true" />
         </Button>
       )}
@@ -84,6 +92,29 @@ export default function DocumentUploadPage() {
   const [queue, setQueue] = useState<CitizenDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [checklist, setChecklist] = useState<PersonalizedChecklist | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [review, setReview] = useState<DossierReview | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // The profile the citizen built with the profiling assistant — mapped onto the
+  // submission snapshot so the dossier carries their real declared situation
+  // (and the coherence analysis has something to compare against).
+  const profilPartiel = useProfilageStore((state) => state.profilPartiel);
+
+  const refreshReview = () =>
+    documentService.getReview(TEST_APPLICATION_ID).then(setReview).catch(() => undefined);
+
+  const submitDossier = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await documentService.submit(TEST_APPLICATION_ID, profilPartielToSnapshot(profilPartiel));
+      await refreshReview();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'La soumission du dossier a échoué.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const refreshChecklist = () =>
     documentService.getChecklist(TEST_APPLICATION_ID).then(setChecklist).catch(() => undefined);
@@ -91,6 +122,7 @@ export default function DocumentUploadPage() {
   useEffect(() => {
     documentService.listDocuments().then(setQueue).catch(() => undefined);
     refreshChecklist();
+    refreshReview();
   }, []);
 
   const uploadFiles = async (files: File[]) => {
@@ -263,6 +295,97 @@ export default function DocumentUploadPage() {
                   Chargement de votre checklist personnalisée…
                 </p>
               )}
+              {review?.decision ? (
+                <div
+                  className={cn(
+                    'rounded-lg border-l-4 p-4 text-body-sm',
+                    review.decision.outcome === 'validated'
+                      ? 'border-l-success bg-success-surface'
+                      : 'border-l-destructive bg-destructive-surface',
+                  )}
+                >
+                  <p
+                    className={cn(
+                      'flex items-center gap-2 text-label-md',
+                      review.decision.outcome === 'validated' ? 'text-success' : 'text-destructive',
+                    )}
+                  >
+                    {review.decision.outcome === 'validated' ? (
+                      <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+                    )}
+                    Décision : {review.decision.outcome === 'validated' ? 'Dossier validé' : 'Dossier rejeté'}
+                  </p>
+                  <p className="mt-1 text-on-surface-variant">{review.decision.explanation}</p>
+                </div>
+              ) : review?.submitted ? (
+                <div className="rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
+                  <p className="flex items-center gap-2 text-label-md text-primary">
+                    <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                    Dossier transmis — en cours d’instruction
+                  </p>
+                  <p className="mt-1 text-on-surface-variant">
+                    Référence {review.application_number}. Un agent instruit votre demande ; la
+                    décision s’affichera ici.
+                  </p>
+                </div>
+              ) : (
+                <Button block onClick={submitDossier} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Send aria-hidden="true" />
+                  )}
+                  Soumettre mon dossier
+                </Button>
+              )}
+              {submitError && (
+                <p role="alert" className="text-body-sm text-destructive">
+                  {submitError}
+                </p>
+              )}
+
+              {review?.coherence && (
+                <div className="rounded-lg border border-border p-4 text-body-sm">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-label-md text-on-surface">Analyse de cohérence</span>
+                    {typeof review.coherence.score === 'number' && (
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-label-sm',
+                          review.coherence.outcome === 'passed'
+                            ? 'bg-success-surface text-success'
+                            : review.coherence.outcome === 'failed'
+                              ? 'bg-destructive-surface text-destructive'
+                              : 'bg-primary-fixed text-primary',
+                        )}
+                      >
+                        {review.coherence.score}/100
+                      </span>
+                    )}
+                  </div>
+                  {review.coherence.explanation && (
+                    <p className="text-on-surface-variant">{review.coherence.explanation}</p>
+                  )}
+                  {review.coherence.anomalies.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {review.coherence.anomalies.slice(0, 3).map((anomaly, index) => (
+                        <li key={index} className="text-on-surface-variant">
+                          • <span className="text-on-surface">{anomaly.field}</span> :{' '}
+                          {anomaly.message}
+                        </li>
+                      ))}
+                      {review.coherence.anomalies.length > 3 && (
+                        <li className="text-on-surface-variant">
+                          + {review.coherence.anomalies.length - 3} autre(s)…
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )}
+
               <Button variant="outline" block>
                 Sauvegarder et continuer plus tard
               </Button>

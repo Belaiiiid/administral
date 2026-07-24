@@ -19,8 +19,9 @@ from typing import Optional, TypedDict
 from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
+from app.features.citizen.profiling.services.completude import champs_manquants
 from app.features.citizen.profiling.services.llm import generer_tour, prochain_champ_attendu
-from app.features.citizen.profiling.schemas.agent import TourAgent
+from app.features.citizen.profiling.schemas.agent import ProchaineAction, TourAgent
 from app.features.citizen.profiling.schemas.profil import ProfilPartiel
 
 MAX_RETRY = 2  # cf Harness Couche 03 : "retry auto si non conforme (max 2)"
@@ -46,15 +47,23 @@ async def _noeud_generer(etat: EtatTour) -> EtatTour:
         etat["sortie"] = None
         return etat
 
-    attendu = prochain_champ_attendu(etat["profil"])
-    if attendu is not None and (
+    # Tant qu'il reste des champs à collecter, le LLM DOIT poser une question,
+    # et le champ visé doit appartenir à la frontière des champs réellement en
+    # attente dans la cascade (`champs_manquants` applique déjà les conditions de
+    # branche + exclusions). On laisse ainsi le LLM choisir l'ORDRE entre les
+    # branches encore ouvertes (conformément à l'intention du harness — « on
+    # laisse le LLM choisir LA prochaine question »), tout en interdisant qu'il
+    # invente un champ hors cascade ou clôture prématurément. La complétude (A4)
+    # et le plafond de 12 tours restent, eux, du seul ressort du harness.
+    champs_valides = set(champs_manquants(etat["profil"]))
+    if champs_valides and (
         tour.prochaine_action.value != "poser_question"
-        or tour.champ_cible != attendu["champ_cible"]
+        or tour.champ_cible not in champs_valides
     ):
         etat["tentative"] += 1
         etat["erreur"] = (
-            f"Cascade non respectée : attendu {attendu['champ_cible']}, "
-            f"reçu {tour.champ_cible}"
+            f"Cascade non respectée : attendu l'un de {sorted(champs_valides)}, "
+            f"reçu {tour.champ_cible} ({tour.prochaine_action.value})"
         )
         etat["sortie"] = None
         return etat
@@ -88,12 +97,15 @@ async def executer_tour_agent(
 ) -> tuple[TourAgent, str]:
     """Exécute un tour complet (avec retry interne) et renvoie (TourAgent validé, source).
 
-    `source` vaut `"llm"` si Mistral a répondu, `"fallback"` si le générateur
-    déterministe a été utilisé (autorisé uniquement par APL_ALLOW_FALLBACK).
-
-    Lève ValueError si le LLM ne produit toujours pas de sortie conforme après
-    MAX_RETRY tentatives — le harness (couche API) doit alors renvoyer une 502
-    plutôt que de transmettre une sortie non garantie au frontend.
+    `source` vaut `"llm"` si Mistral a répondu et respecté la cascade, sinon
+    `"deterministe"` : le LLM est interrogé à CHAQUE tour, mais s'il ne produit
+    pas de question conforme après MAX_RETRY tentatives (il clôt trop tôt ou
+    saute un champ « traînard » — ville, contrôle bailleur-proche…), on ne
+    renvoie pas une 502 qui bloquerait l'entretien : on retombe sur LA question
+    déterministe suivante (`prochain_champ_attendu`), garantie valide par
+    construction. Le LLM reste le pilote dès qu'il redevient cohérent ; les
+    garde-fous (complétude A4, plafond de 12 tours, exclusions) demeurent au
+    seul ressort du harness — jamais du LLM.
     """
     etat_initial: EtatTour = {
         "profil": profil,
@@ -105,7 +117,8 @@ async def executer_tour_agent(
     }
     resultat = await _GRAPHE.ainvoke(etat_initial)
     if resultat["sortie"] is None:
-        raise ValueError(
-            f"Sortie LLM non conforme après {MAX_RETRY} tentatives: {resultat['erreur']}"
-        )
+        secours = prochain_champ_attendu(profil)
+        if secours is not None:
+            return TourAgent.model_validate(secours), "deterministe"
+        return TourAgent(prochaine_action=ProchaineAction.profil_complet), "deterministe"
     return resultat["sortie"], resultat["source"] or "inconnu"

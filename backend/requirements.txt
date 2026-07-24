@@ -24,6 +24,15 @@ python-dotenv==1.0.1
 # Citizen profiling assistant — adaptive agent loop (A3)
 langgraph==0.2.62
 
+# Citizen AI Assistant — migrated APL RAG (hybrid BM25 + Qdrant, LangGraph).
+# The embeddings model (paraphrase-multilingual-MiniLM-L12-v2) is downloaded by
+# sentence-transformers on first use and cached. torch/transformers install as
+# sentence-transformers dependencies.
+rank-bm25==0.2.2
+qdrant-client==1.18.0
+sentence-transformers==5.6.1
+mistralai==2.7.1
+
 # Tests
 pytest==8.3.4
 httpx==0.28.1

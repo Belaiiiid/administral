@@ -14,6 +14,7 @@ citizen never loses an upload because a later stage was unavailable.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -156,6 +157,22 @@ def get_classification(db: Session, document_id: str) -> DocumentClassificationS
     if document is None or document.classification is None:
         raise NotFoundError("Aucune classification disponible pour ce document.")
     return DocumentClassificationSchema.model_validate(document.classification)
+
+
+def get_document_file(db: Session, document_id: str) -> tuple[str, str, str]:
+    """Resolve a document's stored bytes for download/preview.
+
+    Returns ``(stored_path, mime_type, file_name)``. The stored path is a
+    server-generated UUID name (see ``storage.store``) — never client input — so
+    serving it carries no path-traversal risk. Only metadata is user-facing; the
+    on-disk name never leaves the server.
+    """
+    document = repository.get_document(db, document_id)
+    if document is None:
+        raise NotFoundError("Document introuvable.")
+    if not Path(document.stored_path).is_file():
+        raise NotFoundError("Le fichier de ce document est introuvable sur le stockage.")
+    return document.stored_path, document.mime_type, document.file_name
 
 
 def _recompute_status(db: Session, application_id: str) -> None:

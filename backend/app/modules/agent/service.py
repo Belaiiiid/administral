@@ -199,6 +199,8 @@ def get_case(db: Session, case_id: str) -> CaseDetailSchema:
         coherence = CoherenceReportSchema(
             outcome=case.coherence_report.outcome,
             checked_at=case.coherence_report.checked_at,
+            coherence_score=case.coherence_report.coherence_score,
+            ai_explanation=case.coherence_report.ai_explanation,
             anomalies=[
                 CoherenceAnomalySchema(
                     id=a.id,

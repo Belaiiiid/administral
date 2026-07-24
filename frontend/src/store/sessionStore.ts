@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import type { AdministrationId, AuthRole, AuthUser, LoginCredentials } from '@/types';
+import type {
+  AdministrationId,
+  AuthRole,
+  AuthUser,
+  LoginCredentials,
+  RegisterPayload,
+} from '@/types';
 import { authService } from '@/services/authService';
 import { clearToken, getToken, setToken } from '@/services/authToken';
 
@@ -35,6 +41,8 @@ interface SessionState {
 
   /** Authenticate. Resolves to the role on success so the caller can redirect. */
   login: (credentials: LoginCredentials) => Promise<SessionRole>;
+  /** Create a citizen account and sign in. Resolves to the role for redirect. */
+  register: (payload: RegisterPayload) => Promise<SessionRole>;
   logout: () => void;
   /** Rehydrate the identity from the stored token at app start. */
   bootstrap: () => Promise<void>;
@@ -70,6 +78,30 @@ export const useSessionStore = create<SessionState>((set) => ({
     } catch (cause) {
       const message =
         cause instanceof Error ? cause.message : 'La connexion a échoué. Réessayez.';
+      set({ isLoggingIn: false, error: message });
+      throw cause;
+    }
+  },
+
+  register: async (payload) => {
+    set({ isLoggingIn: true, error: null });
+    try {
+      const response = await authService.register(payload);
+      setToken(response.accessToken);
+      const role = toSessionRole(response.user.role); // public registration is always CITIZEN
+
+      set({
+        isAuthenticated: true,
+        role,
+        user: response.user,
+        displayName: `${response.user.firstName} ${response.user.lastName}`,
+        isLoggingIn: false,
+        error: null,
+      });
+      return role;
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : 'La création du compte a échoué. Réessayez.';
       set({ isLoggingIn: false, error: message });
       throw cause;
     }

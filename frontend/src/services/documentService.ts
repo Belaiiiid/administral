@@ -6,7 +6,46 @@ import type {
   PersonalizedChecklist,
   RequiredDocument,
 } from '@/types';
-import { apiClient } from './apiClient';
+import { apiClient, API_BASE_URL } from './apiClient';
+
+/** Result of submitting a dossier — the agent Case emitted from the Application. */
+export interface SubmitDossierResult {
+  case_id: string;
+  application_number: string;
+  status: string;
+  documents_transferred: number;
+  completion_rate: number;
+}
+
+/** One inconsistency the coherence analysis flagged. */
+export interface DossierAnomaly {
+  severity: string;
+  field: string;
+  declared_value: string;
+  observed_value: string;
+  message: string;
+}
+
+/** The citizen's view of where their submitted dossier stands in agent review. */
+export interface DossierReview {
+  submitted: boolean;
+  application_number: string | null;
+  status: string | null;
+  submitted_at: string | null;
+  completion_rate: number | null;
+  coherence: {
+    outcome: string;
+    score: number | null;
+    explanation: string | null;
+    anomalies: DossierAnomaly[];
+  } | null;
+  decision: {
+    outcome: string;
+    explanation: string;
+    decided_by: string;
+    decided_at: string;
+  } | null;
+}
 
 /**
  * Citizen document contract.
@@ -24,6 +63,10 @@ export interface DocumentService {
   listDocuments(): Promise<CitizenDocument[]>;
   upload(file: File, onProgress?: (percent: number) => void): Promise<CitizenDocument>;
   remove(id: string): Promise<void>;
+  /** Submit the dossier — emits an agent Case from the citizen Application. */
+  submit(applicationId: string, profile?: Record<string, unknown>): Promise<SubmitDossierResult>;
+  /** The citizen's read side: status + final decision of the submitted dossier. */
+  getReview(applicationId: string): Promise<DossierReview>;
   /** Fields extracted by the analysis pipeline, with confidence scores. */
   getExtractedFields(documentId: string): Promise<ExtractedField[]>;
   getRequiredDocuments(applicationId: string): Promise<RequiredDocument[]>;
@@ -40,6 +83,8 @@ export interface DocumentService {
   >;
   /** How the classifier matched one uploaded document against the checklist. */
   getClassification(documentId: string): Promise<DocumentClassification>;
+  /** Same-origin URL that opens the stored file inline (preview in a new tab). */
+  previewUrl(documentId: string): string;
   listArticles(): Promise<DocumentationArticle[]>;
   getArticle(slug: string): Promise<DocumentationArticle>;
 }
@@ -61,6 +106,20 @@ export const documentService: DocumentService = {
 
   remove: (id) => apiClient.delete<void>(`/documents/${encodeURIComponent(id)}`),
 
+  /**
+   * Submit the assembled dossier to the administration. This is the citizen →
+   * agent bridge: the backend emits a reviewable Case from the Application, so
+   * the dossier then appears in the agent queue. Idempotent server-side.
+   */
+  submit: (applicationId, profile) =>
+    apiClient.post<SubmitDossierResult>(
+      `/applications/${encodeURIComponent(applicationId)}/submit`,
+      { service_id: 'caf', profile: profile ?? {} },
+    ),
+
+  getReview: (applicationId) =>
+    apiClient.get<DossierReview>(`/applications/${encodeURIComponent(applicationId)}/review`),
+
   getChecklist: (applicationId) =>
     apiClient.get<PersonalizedChecklist>(
       `/applications/${encodeURIComponent(applicationId)}/checklist`,
@@ -78,6 +137,9 @@ export const documentService: DocumentService = {
     apiClient.get<DocumentClassification>(
       `/documents/${encodeURIComponent(documentId)}/classification`,
     ),
+
+  previewUrl: (documentId) =>
+    `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/download`,
 
   // No structured field-extraction endpoint yet — the extracted text preview
   // lives on the document itself. Kept explicit rather than faked.

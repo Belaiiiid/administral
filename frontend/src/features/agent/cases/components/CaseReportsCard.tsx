@@ -127,28 +127,50 @@ export function CoherenceReportCard({ report }: CoherenceReportCardProps) {
           <p className="text-body-sm text-on-surface-variant">
             Le contrôle de cohérence n’a pas encore été effectué pour ce dossier.
           </p>
-        ) : report.anomalies.length === 0 ? (
-          <p className="text-body-sm text-on-surface-variant">
-            Aucune incohérence détectée entre les données déclarées et les pièces fournies.
-          </p>
         ) : (
-          <ul className="space-y-3">
-            {report.anomalies.map((anomaly) => (
-              <li key={anomaly.id}>
-                <Alert tone={ANOMALY_TONE[anomaly.severity]}>
-                  <div>
-                    <AlertTitle>{anomaly.field}</AlertTitle>
-                    <AlertDescription>
-                      {anomaly.message}
-                      <span className="mt-1 block text-body-sm text-on-surface-variant">
-                        Déclaré : {anomaly.declaredValue} · Constaté : {anomaly.observedValue}
-                      </span>
-                    </AlertDescription>
-                  </div>
-                </Alert>
-              </li>
-            ))}
-          </ul>
+          <>
+            {typeof report.coherenceScore === 'number' && (
+              <div className="mb-4">
+                <div className="mb-1 flex items-baseline justify-between">
+                  <span className="text-body-sm text-on-surface-variant">
+                    Score de cohérence global
+                  </span>
+                  <span className="text-label-md text-on-surface">{report.coherenceScore} / 100</span>
+                </div>
+                <Progress value={report.coherenceScore} />
+              </div>
+            )}
+
+            {report.aiExplanation && (
+              <p className="mb-4 rounded-lg bg-surface-low p-3 text-body-sm text-on-surface-variant">
+                {report.aiExplanation}
+              </p>
+            )}
+
+            {report.anomalies.length === 0 ? (
+              <p className="text-body-sm text-on-surface-variant">
+                Aucune incohérence détectée entre les données déclarées et les pièces fournies.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {report.anomalies.map((anomaly) => (
+                  <li key={anomaly.id}>
+                    <Alert tone={ANOMALY_TONE[anomaly.severity]}>
+                      <div>
+                        <AlertTitle>{anomaly.field}</AlertTitle>
+                        <AlertDescription>
+                          {anomaly.message}
+                          <span className="mt-1 block text-body-sm text-on-surface-variant">
+                            Déclaré : {anomaly.declaredValue} · Constaté : {anomaly.observedValue}
+                          </span>
+                        </AlertDescription>
+                      </div>
+                    </Alert>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

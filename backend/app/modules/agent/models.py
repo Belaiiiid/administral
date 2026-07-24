@@ -304,6 +304,12 @@ class CoherenceReport(TimestampMixin, Base):
 
     outcome: Mapped[ReportOutcome] = mapped_column(report_outcome_type, nullable=False)
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    #: Overall coherence score 0–100, produced by the analysis stage. Null on
+    #: legacy/seed reports that predate scoring.
+    coherence_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #: The analyser's natural-language summary of the dossier's coherence
+    #: (readability, missing pieces, inconsistencies) — shown to citizen and agent.
+    ai_explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     anomalies: Mapped[list[CoherenceAnomaly]] = relationship(
         back_populates="report", cascade="all, delete-orphan"

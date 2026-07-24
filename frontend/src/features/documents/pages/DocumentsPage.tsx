@@ -1,4 +1,5 @@
-import { BookOpen, FileText, Send, Upload } from 'lucide-react';
+import { BookOpen, FileText, Send, Trash2, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -16,10 +17,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { documentService } from '@/services/documentService';
 import type { CitizenDocument, DocumentAnalysisStatus, ProcessStatus } from '@/types';
-
-/** Empty until `documentService.list()` exists. */
-const DOCUMENTS: CitizenDocument[] = [];
 
 /** The analysis pipeline has more states than the badge vocabulary exposes. */
 const ANALYSIS_STATUS_TO_PROCESS: Record<DocumentAnalysisStatus, ProcessStatus> = {
@@ -29,9 +28,39 @@ const ANALYSIS_STATUS_TO_PROCESS: Record<DocumentAnalysisStatus, ProcessStatus> 
   rejected: 'rejected',
 };
 
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString('fr-FR');
+}
+
 /** Documents list + documentation centre. */
 export default function DocumentsPage() {
   useDocumentTitle('Documents');
+
+  // Wired to the FastAPI citizen module: the list is the real persisted state,
+  // refetched on delete so the table stays in sync with PostgreSQL.
+  const [documents, setDocuments] = useState<CitizenDocument[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const refresh = () =>
+    documentService.listDocuments().then(setDocuments).catch(() => undefined);
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await documentService.remove(id);
+      setDocuments((current) => current.filter((doc) => doc.id !== id));
+    } catch {
+      // Refetch to resync with the server if the optimistic removal was wrong.
+      await refresh();
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-container">
@@ -61,7 +90,7 @@ export default function DocumentsPage() {
               <SectionHeader title="Pièces déposées" as="h2" />
             </CardHeader>
             <CardContent className="px-0">
-              {DOCUMENTS.length > 0 ? (
+              {documents.length > 0 ? (
                 <Table>
                   <caption className="sr-only">
                     Liste de vos pièces justificatives avec leur statut d’analyse
@@ -72,24 +101,47 @@ export default function DocumentsPage() {
                       <TableHead>Type</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Statut</TableHead>
+                      <TableHead>
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {DOCUMENTS.map((doc) => (
+                    {documents.map((doc) => (
                       <TableRow key={doc.id}>
                         <TableCell>
-                          <span className="flex items-center gap-3">
-                            <FileText
-                              className="size-5 shrink-0 text-on-surface-variant"
-                              aria-hidden="true"
-                            />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              window.open(
+                                documentService.previewUrl(doc.id),
+                                '_blank',
+                                'noopener,noreferrer',
+                              )
+                            }
+                            className="flex items-center gap-3 text-left text-primary hover:underline"
+                          >
+                            <FileText className="size-5 shrink-0" aria-hidden="true" />
                             {doc.fileName}
-                          </span>
+                          </button>
                         </TableCell>
                         <TableCell className="text-on-surface-variant">{doc.mimeType}</TableCell>
-                        <TableCell className="text-on-surface-variant">{doc.uploadedAt}</TableCell>
+                        <TableCell className="text-on-surface-variant">
+                          {formatDate(doc.uploadedAt)}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={ANALYSIS_STATUS_TO_PROCESS[doc.status]} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Supprimer ${doc.fileName}`}
+                            disabled={deletingId === doc.id}
+                            onClick={() => handleDelete(doc.id)}
+                          >
+                            <Trash2 aria-hidden="true" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

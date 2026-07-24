@@ -9,6 +9,7 @@ Swagger UI:  http://localhost:8000/docs
 
 from __future__ import annotations
 
+import threading
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -18,12 +19,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.exceptions import DomainError, domain_error_handler
 from app.database.session import check_health, verify_connection
+from app.features.citizen.chatbot.router import router as chatbot_router
 from app.features.citizen.profiling.routers import router as profiling_router
 from app.modules.agent.router import router as agent_router
-from app.modules.ai.chatbot.router import router as chatbot_router
 from app.modules.ai.coherence.router import router as coherence_router
 from app.modules.auth.router import router as auth_router
 from app.modules.citizen.router import router as citizen_router
+
+
+def _warmup_chatbot() -> None:
+    """Pre-build the RAG pipeline (embeddings model + indexes) in the background.
+
+    The first `rag_general` request otherwise pays a one-off ~15s model load;
+    warming it at startup means the assistant answers promptly during a demo.
+    Best-effort: any failure here is swallowed — the assistant degrades
+    gracefully at request time (see chatbot service safety net)."""
+    try:
+        from app.features.citizen.chatbot.rag import orchestrator
+
+        orchestrator.get_rag_pipeline()
+    except Exception:  # noqa: BLE001 — warmup must never affect startup
+        pass
 
 
 @asynccontextmanager
@@ -35,6 +51,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     broken environment looks healthy — it answers, then fails every call.
     """
     verify_connection()
+    # Warm the Citizen AI Assistant in a daemon thread so startup is not blocked
+    # and the first demo question is fast.
+    threading.Thread(target=_warmup_chatbot, daemon=True).start()
     yield
 
 

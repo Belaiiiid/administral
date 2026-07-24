@@ -26,6 +26,11 @@ _bearer = HTTPBearer(
     auto_error=True,
 )
 
+# Same scheme, but a missing token is allowed (returns None) instead of 403 —
+# for endpoints that work anonymously and merely personalise when a citizen is
+# signed in (the AI assistant: general questions need no account).
+_bearer_optional = HTTPBearer(bearerFormat="JWT", auto_error=False)
+
 _UNAUTHORISED = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Token d'authentification invalide ou expiré.",
@@ -48,6 +53,26 @@ def get_current_user(
         # The token is well-formed but the account is gone (deleted). Same 401.
         raise _UNAUTHORISED
     return user
+
+
+def get_current_user_optional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_optional)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User | None:
+    """Resolve the citizen if a valid token is present; otherwise ``None``.
+
+    Never raises on a missing or bad token — the endpoint decides what to do
+    without a user. Used by the assistant so a general question is answered even
+    when no one is signed in, while a dossier question can still be personalised.
+    """
+    if credentials is None:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+        user_id = int(payload["sub"])
+    except (InvalidTokenError, KeyError, ValueError, TypeError):
+        return None
+    return repository.get_by_id(db, user_id)
 
 
 def require_role(*allowed: Role):

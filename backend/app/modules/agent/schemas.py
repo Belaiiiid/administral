@@ -175,6 +175,10 @@ class CoherenceAnomalySchema(CamelModel):
 class CoherenceReportSchema(CamelModel):
     outcome: ReportOutcome
     checked_at: datetime
+    #: Overall 0–100 coherence score; null on legacy/seed reports.
+    coherence_score: int | None = None
+    #: The analyser's natural-language summary; null on legacy/seed reports.
+    ai_explanation: str | None = None
     anomalies: list[CoherenceAnomalySchema]
 
 

@@ -1,4 +1,4 @@
-import { Bot, Calculator, FileText, FolderOpen, LayoutDashboard, LogOut, Plus, Settings } from 'lucide-react';
+import { Bot, FolderOpen, LayoutDashboard, LogOut, Plus, UserRound } from 'lucide-react';
 
 import {
   isNavItemActive,
@@ -15,7 +15,15 @@ import { isAgentPath } from '@/features/agent/paths';
 export { isNavItemActive };
 export type { NavCta, NavItem, NavSections };
 
-/** Primary sidebar navigation — mirrors the mockups' rail. */
+/**
+ * Primary sidebar navigation.
+ *
+ * Demo-readiness: the APL entries (Mes demandes, Simulateur APL) and the old
+ * "Nouvelle demande" target were unbuilt front-end skeletons (no backend), so
+ * they are removed from the rail — the dossier is built and tracked under
+ * Documents, which is fully wired end to end. The `/apl/*` routes still exist
+ * (reachable by URL) but are no longer surfaced.
+ */
 export const PRIMARY_NAV: NavItem[] = [
   {
     id: 'portal',
@@ -25,28 +33,25 @@ export const PRIMARY_NAV: NavItem[] = [
     match: (pathname) => pathname === ROUTES.portal,
   },
   {
-    id: 'apl',
-    label: 'Mes demandes',
-    to: ROUTES.apl,
-    icon: FileText,
-    // Everything under /apl except the simulator, which has its own entry.
+    id: 'documents',
+    label: 'Mon dossier',
+    to: ROUTES.documents,
+    icon: FolderOpen,
     match: (pathname) =>
-      isSelfOrChild(ROUTES.apl)(pathname) && !isSelfOrChild(ROUTES.aplSimulator)(pathname),
+      isSelfOrChild(ROUTES.documents)(pathname) || isSelfOrChild(ROUTES.documentsUpload)(pathname),
   },
-  { id: 'documents', label: 'Documents', to: ROUTES.documents, icon: FolderOpen },
-  { id: 'simulator', label: 'Simulateur APL', to: ROUTES.aplSimulator, icon: Calculator },
   { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
 ];
 
 /** Footer of the sidebar. */
 export const SECONDARY_NAV: NavItem[] = [
-  { id: 'profile', label: 'Paramètres', to: ROUTES.profile, icon: Settings },
+  { id: 'profile', label: 'Mon profil', to: ROUTES.profile, icon: UserRound },
 ];
 
-/** The citizen rail's primary action. */
+/** The citizen rail's primary action — starts the real dossier flow. */
 const CITIZEN_CTA: NavCta = {
   label: 'Nouvelle demande',
-  to: ROUTES.aplApplication,
+  to: ROUTES.documentsUpload,
   icon: Plus,
 };
 

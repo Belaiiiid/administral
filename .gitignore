@@ -17,3 +17,9 @@ __pycache__/
 
 # Uploaded files (local storage)
 backend/uploads/
+
+# Citizen AI Assistant — RAG indexes rebuilt at runtime from the committed
+# chunks (data/chunks/*.json). Regenerated on first use; not source.
+backend/app/features/citizen/chatbot/rag/qdrant_data/
+backend/app/features/citizen/chatbot/rag/bm25_index.pkl
+backend/app/features/citizen/chatbot/rag/qdrant_index.fingerprint
