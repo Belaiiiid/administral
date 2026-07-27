@@ -1,4 +1,4 @@
-import { Bot, Mic, Paperclip, Send } from 'lucide-react';
+import { Bot, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/shared';
@@ -117,10 +117,6 @@ export function ChatWindow({ controller }: ChatWindowProps) {
             submit(draft);
           }}
         >
-          <Button type="button" variant="ghost" size="icon" aria-label="Joindre un fichier">
-            <Paperclip aria-hidden="true" />
-          </Button>
-
           <label htmlFor="chat-input" className="sr-only">
             Votre message
           </label>
@@ -140,9 +136,6 @@ export function ChatWindow({ controller }: ChatWindowProps) {
             className="min-h-11 resize-none border-0 focus-visible:ring-0"
           />
 
-          <Button type="button" variant="ghost" size="icon" aria-label="Saisie vocale">
-            <Mic aria-hidden="true" />
-          </Button>
           <Button
             type="submit"
             size="icon"

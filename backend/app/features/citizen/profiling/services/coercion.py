@@ -132,9 +132,45 @@ def _normaliser(valeur: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", sans_accents)).strip()
 
 
-def _est_demande_clarification(valeur: str) -> bool:
+#: Mots trop courts ou trop communs pour indiquer qu'une question porte sur le
+#: champ demandé. Filtrés avant la comparaison lexicale ci-dessous.
+_MOTS_VIDES = {"est", "les", "des", "une", "aux", "pour", "avec", "dans", "vous"}
+
+
+def _vocabulaire_du_champ(champ_cible: str) -> set[str]:
+    """Les mots propres au champ interrogé, tirés de son nom technique.
+
+    ``logement_conventionne`` → ``{"logement", "conventionne"}``. Sert à
+    distinguer « conventionné ? » (question *sur ce champ*) de « quel temps
+    fera-t-il demain ? » (question sans rapport).
+    """
+    mots = _normaliser(champ_cible.replace("_", " ")).split()
+    return {mot for mot in mots if len(mot) >= 4 and mot not in _MOTS_VIDES}
+
+
+def _est_demande_clarification(champ_cible: str, valeur: str) -> bool:
+    """Le citoyen demande-t-il une explication *sur la question posée* ?
+
+    Un point d'interrogation seul ne suffit pas. « Quel temps fera-t-il
+    demain ? » est bien une question, mais pas une demande de clarification :
+    la traiter comme telle renverrait l'explication du champ en cours à
+    quelqu'un qui parlait d'autre chose. Deux signaux sont donc retenus :
+
+    1. une tournure explicitement interrogative sur le sens (`_MOTS_CLARIFICATION`) ;
+    2. un point d'interrogation *accompagné* d'un mot du champ interrogé.
+
+    Tout le reste part en `hors_sujet`, qui repose la question sans prétendre
+    répondre à ce qui n'a pas été demandé.
+    """
     normalisee = _normaliser(valeur)
-    return "?" in valeur or any(mot in normalisee for mot in _MOTS_CLARIFICATION)
+    if any(mot in normalisee for mot in _MOTS_CLARIFICATION):
+        return True
+
+    if "?" not in valeur:
+        return False
+
+    mots_saisis = set(normalisee.split())
+    return bool(mots_saisis & _vocabulaire_du_champ(champ_cible))
 
 
 def analyser_reponse(champ_cible: str, valeur_brute: str) -> AnalyseReponse:
@@ -143,7 +179,7 @@ def analyser_reponse(champ_cible: str, valeur_brute: str) -> AnalyseReponse:
     Les décisions de branche restent déterministes ; cette couche convertit
     uniquement une formulation naturelle en la valeur attendue du champ.
     """
-    if _est_demande_clarification(valeur_brute) or (
+    if _est_demande_clarification(champ_cible, valeur_brute) or (
         champ_cible == "logement_conventionne" and _normaliser(valeur_brute) in {"je ne sais pas", "ne sais pas"}
     ):
         return AnalyseReponse(

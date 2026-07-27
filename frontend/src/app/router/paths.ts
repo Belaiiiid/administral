@@ -5,11 +5,19 @@
 export const ROUTES = {
   home: '/',
 
-  // Public / authentication shell (no auth logic yet)
+  // Public / authentication shell
   login: '/login',
   register: '/register',
+  // Redeem links emailed by the backend. Public: the token is the credential,
+  // and these are opened from a mail client with no session. The paths are
+  // mirrored in backend/app/modules/auth/notifications.py — keep them in sync.
+  forgotPassword: '/mot-de-passe-oublie',
+  resetPassword: '/reinitialiser-mot-de-passe',
+  verifyEmail: '/verifier-email',
   onboardingServices: '/onboarding/services',
   onboardingAccessibility: '/onboarding/accessibilite',
+  // Signup-first profiling: where a new citizen lands right after registration.
+  onboardingProfilage: '/onboarding/profilage',
 
   // Citizen portal
   portal: '/portal',
@@ -25,6 +33,8 @@ export const ROUTES = {
   // Cross-cutting citizen modules
   profile: '/profile',
   profileAccessibility: '/profile/accessibilite',
+  settings: '/parametres',
+  dossier: '/mon-dossier',
   documents: '/documents',
   documentsUpload: '/documents/depot',
   chat: '/chat',

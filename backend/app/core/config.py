@@ -54,6 +54,31 @@ class Settings(BaseSettings):
     # foundation this establishes.
     access_token_expire_minutes: int = 30
 
+    # -- Account tokens (email verification / password reset) --------------
+    # Deliberately different lifetimes. A verification link is a convenience and
+    # can be re-sent freely, so it lives long enough to survive a spam folder. A
+    # reset link is an account-takeover primitive, so it expires fast.
+    email_verification_token_ttl_hours: int = 48
+    password_reset_token_ttl_minutes: int = 60
+
+    # -- Email delivery ----------------------------------------------------
+    # `console` writes the message to the log instead of sending it — the
+    # default, so local development needs no SMTP server and no secrets. It is a
+    # real backend behind the same interface as SMTP, not a stub: switching to
+    # production delivery is `EMAIL_BACKEND=smtp` plus the SMTP_* values below,
+    # with no code change (see app/core/email.py).
+    email_backend: str = "console"
+    email_from: str = "MonParcours <ne-pas-repondre@monparcours.fr>"
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+
+    # Where the links in those emails point — the frontend, not the API. Only
+    # the frontend knows how to render /verifier-email or /reinitialiser.
+    frontend_base_url: str = "http://localhost:5173"
+
     # -- AI / Mistral ------------------------------------------------------
     # Optional on purpose. Absent, the coherence analyser degrades to
     # `a_revoir` rather than declaring a dossier coherent unverified — an

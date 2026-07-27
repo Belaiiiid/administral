@@ -6,3 +6,6 @@ export * from './profile';
 export * from './document';
 export * from './chat';
 export * from './notification';
+export * from './settings';
+export * from './contestation';
+export * from './dossier';

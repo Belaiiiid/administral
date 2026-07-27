@@ -47,8 +47,11 @@ from app.modules.agent.models import (
 from app.modules.agent.models import DocumentStatus as CaseDocumentStatus
 from app.modules.ai.coherence.service import analyser_coherence
 from app.modules.auth.models import User
-from app.modules.citizen import repository as citizen_repo
+from app.modules.audit import service as audit_service
+from app.modules.audit.models import AuditAction
+from app.modules.citizen import profile as citizen_profile, repository as citizen_repo
 from app.modules.citizen.models import Application
+from app.modules.notifications import service as notifications_service
 
 # Public-facing labels per administration, so the agent queue reads the service
 # name the citizen chose rather than a bare id.
@@ -57,10 +60,10 @@ _SERVICE_LABELS = {
     "france-travail": "France Travail",
 }
 
-# Placeholders used only when the citizen has not supplied civil-status details
-# through the profiling flow. Synthetic on purpose (see seed data conventions).
-_DEFAULT_BIRTH_DATE = date(1990, 1, 1)
-_DEFAULT_NIR = "000000000000000"
+# No civil-status placeholders. `birth_date` and `social_security_number` were
+# filled with 1990-01-01 and a fifteen-zero NIR when the citizen had not
+# declared them — values an agent reading the case could not tell apart from
+# real ones. Both columns are nullable now, and undeclared reads as undeclared.
 
 
 class ProfileSnapshotIn(BaseModel):
@@ -157,26 +160,27 @@ def _coerce_enum(enum_cls, value: str, default):
 
 
 def _find_or_create_citizen(db: Session, user: User, profile: ProfileSnapshotIn) -> Citizen:
-    """One applicant, one ``citizens`` row — keyed by the account e-mail.
+    """One applicant, one ``citizens`` row — keyed by the account's id.
 
-    ``users`` (auth) and ``citizens`` (case applicant) are separate tables the
-    merge never linked. We reconcile them here by e-mail: a returning citizen
-    reuses their row, so re-submitting never duplicates the applicant.
+    Delegates to `citizen_profile.resolve_citizen`, which resolves on the
+    ``user_id`` foreign key. Submission used to run its own e-mail match here;
+    two resolvers meant a citizen who edited their address could get a second
+    applicant row from whichever path ran first. There is now one rule, in one
+    place, and the profile page and the submission bridge both obey it.
+
+    Civil status is *not* invented. A citizen who skipped profiling submits with
+    a null birth date and NIR, and the agent sees them as missing — which is
+    true — rather than as 1990-01-01 and a fifteen-zero NIR, which is not.
     """
-    existing = db.execute(
-        select(Citizen).where(Citizen.email == user.email)
-    ).scalar_one_or_none()
-    if existing is not None:
-        return existing
+    citizen = citizen_profile.resolve_citizen(db, user)
 
-    citizen = Citizen(
-        first_name=user.first_name,
-        last_name=user.last_name,
-        email=user.email,
-        birth_date=profile.birth_date or _DEFAULT_BIRTH_DATE,
-        social_security_number=profile.social_security_number or _DEFAULT_NIR,
-    )
-    db.add(citizen)
+    # Fill only what is still unknown: the snapshot supplies civil status the
+    # profile does not have yet, and never overwrites what the citizen declared.
+    if citizen.birth_date is None and profile.birth_date:
+        citizen.birth_date = profile.birth_date
+    if citizen.social_security_number is None and profile.social_security_number:
+        citizen.social_security_number = profile.social_security_number
+
     db.flush()  # assign the PK so the Case FK resolves in this transaction
     return citizen
 
@@ -399,12 +403,6 @@ def submit_application(
     coherence = _build_coherence_report(application, profile, completeness.completion_rate, now)
     citizen = _find_or_create_citizen(db, user, profile)
 
-    # Applicant identity backfilled from the account if the profiling flow left it blank.
-    if profile.social_security_number and citizen.social_security_number == _DEFAULT_NIR:
-        citizen.social_security_number = profile.social_security_number
-    if profile.birth_date and citizen.birth_date == _DEFAULT_BIRTH_DATE:
-        citizen.birth_date = profile.birth_date
-
     # Map each uploaded document onto a case document, resolving which checklist
     # requirement it satisfied (by the id the classifier matched). We also keep,
     # for each new case document, the path to its stored file — the C4 fraud
@@ -456,8 +454,33 @@ def submit_application(
     )
 
     db.add(case)
+    # Flush to assign the Case PK, then write the audit event into this same
+    # transaction so the trail entry and the dossier commit atomically — a
+    # submitted dossier can never exist without its "dossier_submitted" trace,
+    # and vice versa. Unlike the notification below, this is not best-effort.
+    db.flush()
+    audit_service.record(
+        db,
+        action=AuditAction.dossier_submitted,
+        entity_type="case",
+        entity_id=case.application_number,
+        actor=user,
+        summary=f"Dossier {case.application_number} soumis pour instruction.",
+        payload={
+            "case_id": case.id,
+            "service_id": case.service_id,
+            "documents_transferred": len(case.documents),
+            "completion_rate": completeness.completion_rate,
+            "coherence_score": coherence.coherence_score,
+        },
+    )
     db.commit()
     db.refresh(case)
+
+    # The dossier now exists in the agent queue — tell the agents. Best-effort:
+    # `emit_dossier_submitted` never raises, so a notification hiccup cannot fail
+    # a submission that has already committed.
+    notifications_service.emit_dossier_submitted(db, application_number=case.application_number)
 
     # C4 fraud forensics run AFTER the response is sent — slow (metadata + a
     # Mistral-large verdict per document) and not something to make the citizen

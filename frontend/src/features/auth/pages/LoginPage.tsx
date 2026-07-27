@@ -15,6 +15,8 @@ import { useSessionStore } from '@/store/sessionStore';
 
 interface LocationState {
   from?: { pathname: string };
+  /** Set by the reset flow after a successful password change. */
+  notice?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export default function LoginPage() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const notice = (location.state as LocationState | null)?.notice;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -70,6 +73,12 @@ export default function LoginPage() {
           <span aria-hidden="true" className="h-px flex-1 bg-border" />
         </div>
 
+        {notice && (
+          <Alert tone="success" className="mb-5">
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        )}
+
         {error && (
           <Alert tone="error" className="mb-5">
             <AlertDescription>{error}</AlertDescription>
@@ -96,7 +105,7 @@ export default function LoginPage() {
             <div className="flex items-baseline justify-between">
               <Label htmlFor="password">Mot de passe</Label>
               <Link
-                to="/mot-de-passe-oublie"
+                to={ROUTES.forgotPassword}
                 className="text-body-sm text-on-surface-variant hover:underline"
               >
                 Oublié ?

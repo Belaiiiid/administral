@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.modules.agent import service
+from app.modules.agent.assessment import MonParcoursResult
 from app.modules.agent.models import CaseStatus
 from app.modules.agent.schemas import (
     CaseDecisionSchema,
@@ -26,6 +27,7 @@ from app.modules.agent.schemas import (
     DecisionRequestSchema,
 )
 from app.modules.auth.dependencies import require_agent
+from app.modules.auth.models import User
 
 # The guard is applied at the router level, so it covers every current and
 # future agent route without each having to remember it.
@@ -96,6 +98,25 @@ def get_case(case_id: str, db: Session = Depends(get_db)) -> CaseDetailSchema:
     return service.get_case(db, case_id)
 
 
+@router.get(
+    "/cases/{case_id}/assessment",
+    response_model=MonParcoursResult,
+    summary="MonParcours Result — évaluation unifiée du dossier",
+    description=(
+        "Score global déterministe (complétude 35 %, cohérence 30 %, qualité "
+        "documentaire 20 %, vigilance 15 %) et les quatre catégories, chacune "
+        "avec score, statut, explication et preuves, plus les actions de revue "
+        "recommandées. Aide à l’instruction : l’IA ne décide pas de l’éligibilité."
+    ),
+)
+def get_case_assessment(
+    case_id: str,
+    db: Session = Depends(get_db),
+    agent: User = Depends(require_agent),
+) -> MonParcoursResult:
+    return service.get_case_assessment(db, case_id, agent=agent)
+
+
 @router.post(
     "/cases/{case_id}/decision",
     response_model=CaseDecisionSchema,
@@ -111,8 +132,11 @@ def decide_case(
     case_id: str,
     body: DecisionRequestSchema,
     db: Session = Depends(get_db),
+    agent: User = Depends(require_agent),
 ) -> CaseDecisionSchema:
     # Only the outcome comes from the client. Evidence and explanation are
     # derived server-side from the case — a client able to supply them could
-    # justify a decision with facts the record does not contain.
-    return service.decide_case(db, case_id, body.outcome)
+    # justify a decision with facts the record does not contain. The acting
+    # `agent` is resolved from the token so the decision carries a real human's
+    # name and the audit trace records who ruled.
+    return service.decide_case(db, case_id, body.outcome, agent=agent)

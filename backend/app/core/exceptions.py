@@ -33,6 +33,19 @@ class ValidationError(DomainError):
     code = "BAD_REQUEST"
 
 
+class ForbiddenError(DomainError):
+    """The caller is authenticated but not allowed to act on this resource.
+
+    Distinct from the router-level role guards (`require_citizen` etc.): those
+    refuse a whole surface by role, this refuses one *instance* — a citizen
+    contesting a dossier that is not theirs is a valid CITIZEN hitting a route
+    they may use, on a record they may not touch.
+    """
+
+    status_code = 403
+    code = "FORBIDDEN"
+
+
 class DatabaseConnectionError(DomainError):
     """Raised at startup when PostgreSQL cannot be reached."""
 

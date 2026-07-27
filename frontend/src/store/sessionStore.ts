@@ -9,6 +9,7 @@ import type {
 } from '@/types';
 import { authService } from '@/services/authService';
 import { clearToken, getToken, setToken } from '@/services/authToken';
+import { useNotificationStore } from '@/store/notificationStore';
 
 /**
  * Authenticated session.
@@ -109,6 +110,9 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   logout: () => {
     clearToken();
+    // Drop the previous account's notifications so the next sign-in never
+    // briefly shows a stale badge or another user's rows.
+    useNotificationStore.getState().reset();
     set({
       isAuthenticated: false,
       role: 'citizen',

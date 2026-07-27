@@ -30,8 +30,10 @@ export default function RegisterPage() {
         email: String(form.get('email') ?? '').trim(),
         password: String(form.get('password') ?? ''),
       });
-      // Public registration creates a citizen — land on the citizen portal.
-      navigate(ROUTES.portal, { replace: true });
+      // Signup-first profiling: a new citizen goes through the guided profiling
+      // step before the dashboard (see ProfilageOnboardingPage). It is a soft
+      // gate — they can finish later — but this is where the journey starts.
+      navigate(ROUTES.onboardingProfilage, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La création du compte a échoué.');
     }

@@ -5,6 +5,8 @@ import { Header } from '@/components/layout/Header';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
+import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
 
 /**
@@ -16,6 +18,9 @@ import { useUiStore } from '@/store/uiStore';
 export function AppShell() {
   const isSidebarOpen = useUiStore((state) => state.isSidebarOpen);
   const closeSidebar = useUiStore((state) => state.closeSidebar);
+  // The assistant is a citizen feature only — the agent portal shares this shell
+  // but has its own Assistant IA page, so the launcher is never mounted there.
+  const isCitizen = useSessionStore((state) => state.role === 'citizen');
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,6 +52,8 @@ export function AppShell() {
         </main>
         <Footer />
       </div>
+
+      {isCitizen && <FloatingChatbot />}
     </div>
   );
 }

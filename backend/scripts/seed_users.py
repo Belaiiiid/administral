@@ -8,6 +8,9 @@ Run:  .venv/Scripts/python -m scripts.seed_users
 
 from __future__ import annotations
 
+
+from datetime import UTC, datetime
+
 import app.database.models  # noqa: F401 — registers every table for the FKs
 from app.database.session import SessionLocal
 from app.modules.auth import repository
@@ -21,6 +24,7 @@ _DEMO_ACCOUNTS = [
     ("agent@monparcours.fr", "Agent1234", "Awa", "Agent", Role.AGENT),
     ("admin@monparcours.fr", "Admin1234", "Sacha", "Admin", Role.ADMIN),
 ]
+
 
 
 def main() -> None:
@@ -38,6 +42,12 @@ def main() -> None:
                     email=email,
                     password_hash=hash_password(password),
                     role=role,
+                    # Pre-verified: `monparcours.fr` is not a mailbox anyone can
+                    # read, so these accounts could never redeem a confirmation
+                    # link. Leaving them unverified would put a permanent
+                    # "confirmez votre adresse" banner on every demo.
+                    is_verified=True,
+                    verified_at=datetime.now(UTC),
                 ),
             )
             print(f"  créé : {email}  (rôle {role.value}, mot de passe « {password} »)")

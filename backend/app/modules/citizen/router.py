@@ -16,14 +16,16 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, require_citizen
 from app.modules.auth.models import User
-from app.modules.citizen import service, submission
+from app.modules.citizen import dossier, profile, service, submission
+from app.modules.citizen.profile import CitizenProfileResponse, CitizenProfileUpdate
 from app.modules.citizen.schemas import (
     ApplicationStatusSchema,
     CitizenDocumentSchema,
     DocumentClassificationSchema,
     PersonalizedChecklistSchema,
+    PersonalizedDossierSchema,
 )
 from app.modules.citizen.submission import (
     DossierReviewResponse,
@@ -168,3 +170,65 @@ def get_dossier_review(
     application_id: str, db: Session = Depends(get_db)
 ) -> DossierReviewResponse:
     return submission.get_dossier_review(db, application_id)
+
+
+# ---------------------------------------------------------------------------
+# Citizen profile
+#
+# `require_citizen` rather than `get_current_user`: these read and write one
+# person's civil status, so they need an authenticated caller whose own profile
+# it is. The identity comes from the token — no route or body names a citizen.
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/citizen/profile",
+    response_model=CitizenProfileResponse,
+    summary="Profil du citoyen connecté",
+    description=(
+        "Identité civile et réponses du profilage, telles qu'enregistrées en "
+        "base. Le NIR est renvoyé masqué — jamais en clair."
+    ),
+)
+def get_citizen_profile(
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> CitizenProfileResponse:
+    return profile.get_profile(db, current_user)
+
+
+@router.get(
+    "/citizen/dossier",
+    response_model=PersonalizedDossierSchema,
+    summary="Mon dossier personnalisé",
+    description=(
+        "La checklist des pièces justificatives dérivée du profil du citoyen "
+        "connecté : chaque pièce porte le motif de sa demande et son état "
+        "(manquante / déposée / validée). Déterministe et explicable — l'IA ne "
+        "décide pas des pièces requises. Régénérée automatiquement à chaque "
+        "changement de profil."
+    ),
+)
+def get_personalized_dossier(
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> PersonalizedDossierSchema:
+    citizen = profile.resolve_citizen(db, current_user)
+    return dossier.get_dossier(db, citizen, actor=current_user)
+
+
+@router.patch(
+    "/citizen/profile",
+    response_model=CitizenProfileResponse,
+    summary="Mettre à jour le profil du citoyen connecté",
+    description=(
+        "Mise à jour partielle : seuls les champs présents dans le corps de la "
+        "requête sont modifiés. Un champ absent n'est pas effacé."
+    ),
+)
+def update_citizen_profile(
+    payload: CitizenProfileUpdate,
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> CitizenProfileResponse:
+    return profile.update_profile(db, current_user, payload)

@@ -108,22 +108,64 @@ report_outcome_type = SAEnum(ReportOutcome, name="report_outcome")
 
 
 class Citizen(TimestampMixin, Base):
-    """The applicant record.
+    """The applicant record — one person's *living* profile.
 
     ``social_security_number`` holds the full NIR. It is never serialised: the
     API returns a masked form, produced in ``core.security``. Storing it whole
     and masking on the way out means the masking rule lives in one place and
     cannot be forgotten by a new endpoint.
+
+    Relationship to ``users``
+    -------------------------
+    ``user_id`` is the link to the authenticated account, and the only correct
+    way to answer "whose profile is this?". It replaces the e-mail string match
+    that previously reconciled the two tables: an address is editable and
+    case-sensitive in practice, so matching on it meant a citizen who corrected
+    their e-mail silently acquired a second, empty applicant record.
+
+    It is nullable because the two tables are not in bijection: seeded demo
+    applicants have no account, and an account has no applicant row until the
+    person actually starts a profile. Unique, so one account can never end up
+    with two applicant records.
+
+    Living profile vs. frozen snapshot
+    ----------------------------------
+    This row is *current* — it follows the citizen's edits. `Case` holds a copy
+    of the same information frozen at submission and must not follow them (see
+    `Case`). The two are deliberately distinct: an agent reviewing a dossier has
+    to see what was declared *then*, while the citizen edits what is true *now*.
+
+    ``profile_data`` holds the profiling assistant's answers as JSONB, validated
+    through `ProfilPartiel` on the way in and out. Columns were rejected here
+    because that schema is explicitly a moving contract (see its module
+    docstring) and is always read whole, never filtered field-by-field — the
+    same reasoning that makes `CaseDocument.fraud_analysis` a JSONB column.
+    Civil-status fields stay typed above precisely because they *are* queried,
+    masked and shown to agents individually.
     """
 
     __tablename__ = "citizens"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_uuid)
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True
+    )
+
     first_name: Mapped[str] = mapped_column(String(120), nullable=False)
     last_name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    birth_date: Mapped[date] = mapped_column(Date, nullable=False)
-    social_security_number: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: Nullable: unknown until the citizen declares it. Previously NOT NULL with
+    #: a 1990-01-01 placeholder written on their behalf, which an agent could
+    #: not distinguish from a declared date. An absent value must read as absent.
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    social_security_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+    #: Profiling answers, shaped by `ProfilPartiel`. ``None`` until the citizen
+    #: completes a first profiling turn.
+    profile_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    profile_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     cases: Mapped[list[Case]] = relationship(back_populates="citizen")
 
@@ -193,6 +235,17 @@ class Case(TimestampMixin, Base):
     city: Mapped[str] = mapped_column(String(120), nullable=False)
     annual_income: Mapped[int] = mapped_column(Integer, nullable=False)
     profile_captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    #: The unified "MonParcours Result" — a deterministic 4-category assessment
+    #: (completeness / coherence / document quality / vigilance) computed from the
+    #: reports and documents below. Stored as JSONB (an aggregate read as a whole,
+    #: never queried by field) and recomputed on read when its inputs change, so
+    #: ``assessment_generated`` / ``assessment_updated`` in the audit trail reflect
+    #: real changes rather than every view. Null until first computed.
+    assessment: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    assessment_computed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     documents: Mapped[list[CaseDocument]] = relationship(
         back_populates="case", cascade="all, delete-orphan"

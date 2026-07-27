@@ -1,4 +1,4 @@
-import { Bot, FolderOpen, LayoutDashboard, LogOut, Plus, UserRound } from 'lucide-react';
+import { Bot, ClipboardList, FolderOpen, LayoutDashboard, LogOut, Plus, UserRound } from 'lucide-react';
 
 import {
   isNavItemActive,
@@ -33,8 +33,15 @@ export const PRIMARY_NAV: NavItem[] = [
     match: (pathname) => pathname === ROUTES.portal,
   },
   {
+    id: 'dossier',
+    label: 'Mon dossier personnalisé',
+    to: ROUTES.dossier,
+    icon: ClipboardList,
+    match: isSelfOrChild(ROUTES.dossier),
+  },
+  {
     id: 'documents',
-    label: 'Mon dossier',
+    label: 'Mes documents',
     to: ROUTES.documents,
     icon: FolderOpen,
     match: (pathname) =>

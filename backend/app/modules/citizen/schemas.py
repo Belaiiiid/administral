@@ -17,12 +17,21 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from app.modules.citizen.models import DocumentCategory, DocumentStatus, ExtractionMethod
 
 
 class _Base(BaseModel):
     model_config = ConfigDict(populate_by_name=True, from_attributes=True)
+
+
+class _CamelBase(BaseModel):
+    """Clean camelCase wire shape for the newer personalised-dossier contract."""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel, populate_by_name=True, from_attributes=True
+    )
 
 
 class DocumentClassificationSchema(_Base):
@@ -87,3 +96,39 @@ class ApplicationStatusSchema(_Base):
     status: Literal["complete", "incomplete"]
     required_received_count: int = Field(serialization_alias="requiredReceivedCount")
     required_document_count: int = Field(serialization_alias="requiredDocumentCount")
+
+
+# ---------------------------------------------------------------------------
+# Personalised dossier — the profile-driven checklist (Iteration 3)
+# ---------------------------------------------------------------------------
+
+
+class DossierChecklistItemSchema(_CamelBase):
+    """One expected document on a *personalised* checklist, with its per-item state.
+
+    ``documentType`` is the stable ``item_key`` the classifier targets; ``reason``
+    is the profile-grounded justification for why this piece is asked; ``status``
+    is the three-state derived from the citizen's uploads.
+    """
+
+    document_type: str
+    libelle: str
+    categorie: DocumentCategory
+    required: bool
+    reason: str
+    status: Literal["missing", "uploaded", "validated"]
+    formats_acceptes: list[str]
+
+
+class PersonalizedDossierSchema(_CamelBase):
+    """A citizen's personalised dossier: the checklist derived from their profile."""
+
+    application_id: str
+    version_checklist: str
+    #: True once the profiling has produced enough to tailor the checklist beyond
+    #: the universal core — drives the "complétez votre profil" nudge in the UI.
+    profile_complete: bool
+    status: Literal["complete", "incomplete"]
+    required_received_count: int
+    required_document_count: int
+    items: list[DossierChecklistItemSchema]

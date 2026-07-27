@@ -77,14 +77,30 @@ def orchestrator_node(state: D4State) -> D4State:
     return {**state, "intent": intent}
 
 
+# NOTE: in MonParcours these two intents are answered by the service layer
+# (`chatbot/service.py` → `_answer_dossier` / `_answer_autre_profil`), which reads
+# the citizen's real dossier and the profiling feature. The graph still routes to
+# these nodes, but `service.answer_question` overrides their output for the API —
+# so the strings below are only ever seen by the standalone dev CLI in `__main__`.
+# They are honest guidance, not mock data.
 def depot_dossier_node(state: D4State) -> D4State:
-    # MOCK - à remplacer par une lecture directe du dossier (B1/B6) du citoyen
-    return {**state, "response": "[MOCK] Réponse basée sur le dossier du citoyen (dépend équipe B)"}
+    return {
+        **state,
+        "response": (
+            "Le suivi de votre dossier (statut, cohérence, décision) est disponible "
+            "dans votre espace citoyen."
+        ),
+    }
 
 
 def autre_profil_node(state: D4State) -> D4State:
-    # MOCK - à remplacer par extraction de profil + mécanisme B1
-    return {**state, "response": "[MOCK] Réponse basée sur un profil extrait (dépend équipe B)"}
+    return {
+        **state,
+        "response": (
+            "Pour une autre situation que la vôtre, utilisez l’assistant de profilage : "
+            "il construit une checklist personnalisée à partir du profil décrit."
+        ),
+    }
 
 
 _rag_pipeline_instance = None

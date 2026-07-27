@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { documentService } from '@/services/documentService';
 import type { CitizenDocument, DocumentAnalysisStatus, ProcessStatus } from '@/types';
 
@@ -41,6 +42,16 @@ export default function DocumentsPage() {
   // refetched on delete so the table stays in sync with PostgreSQL.
   const [documents, setDocuments] = useState<CitizenDocument[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [docQuestion, setDocQuestion] = useState('');
+  const askAssistant = useChatbotUiStore((state) => state.ask);
+
+  const submitDocQuestion = (event: React.FormEvent) => {
+    event.preventDefault();
+    const question = docQuestion.trim();
+    if (!question) return;
+    askAssistant(question); // opens the floating assistant and sends the question
+    setDocQuestion('');
+  };
 
   const refresh = () =>
     documentService.listDocuments().then(setDocuments).catch(() => undefined);
@@ -172,25 +183,15 @@ export default function DocumentsPage() {
             <div className="rounded-xl bg-primary-container p-8 text-white">
               <h2 className="mb-2 text-headline-lg">Centre de documentation</h2>
               <p className="max-w-2xl text-body-md text-white/80">
-                Retrouvez ici les guides et réponses officielles publiés par les administrations
-                rattachées à votre compte.
+                Posez votre question à l’assistant : il répond à partir des sources officielles
+                (service-public.fr, caf.fr) et cite ses références.
               </p>
             </div>
 
-            <Card>
-              <CardHeader>
-                <SectionHeader title="Guides" as="h2" />
-              </CardHeader>
-              <CardContent className="px-0">
-                <EmptyState
-                  icon={BookOpen}
-                  title="Aucun guide disponible"
-                  description="Les guides publiés par les administrations s’afficheront ici."
-                />
-              </CardContent>
-            </Card>
-
-            {/* Inline assistant */}
+            {/* Inline assistant — the real documentation resource. Empty "Guides"
+                and "FAQ" placeholders were removed: there is no admin-content
+                backend to fill them, and the RAG assistant already answers from
+                the official corpus. */}
             <Card className="border-l-4 border-l-ai bg-ai-surface">
               <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
                 <div className="flex-1">
@@ -203,33 +204,22 @@ export default function DocumentsPage() {
                     Posez votre question à l’assistant.
                   </p>
                 </div>
-                <form
-                  className="flex w-full gap-2 md:w-auto"
-                  onSubmit={(event) => event.preventDefault()}
-                >
+                <form className="flex w-full gap-2 md:w-auto" onSubmit={submitDocQuestion}>
                   <label htmlFor="doc-question" className="sr-only">
                     Votre question
                   </label>
-                  <Input id="doc-question" placeholder="Posez votre question…" className="md:w-64" />
-                  <Button type="submit">
+                  <Input
+                    id="doc-question"
+                    value={docQuestion}
+                    onChange={(event) => setDocQuestion(event.target.value)}
+                    placeholder="Posez votre question…"
+                    className="md:w-64"
+                  />
+                  <Button type="submit" disabled={docQuestion.trim().length === 0}>
                     <Send aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Poser</span>
                   </Button>
                 </form>
-              </CardContent>
-            </Card>
-
-            {/* FAQ */}
-            <Card>
-              <CardHeader>
-                <SectionHeader title="Questions fréquentes" as="h2" />
-              </CardHeader>
-              <CardContent className="px-0">
-                <EmptyState
-                  icon={BookOpen}
-                  title="Aucune question publiée"
-                  description="La foire aux questions sera alimentée par les administrations rattachées."
-                />
               </CardContent>
             </Card>
           </div>

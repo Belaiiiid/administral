@@ -13,12 +13,17 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.security import mask_social_security_number
+from app.modules.agent import assessment as assessment_service
 from app.modules.agent import repository
 from app.modules.agent.evidence import extract_blocking_evidence, extract_supporting_evidence
 from app.modules.agent.models import Case, CaseStatus, DecisionOutcome
 from app.modules.agent.models import CaseDecision as CaseDecisionModel
 from app.modules.agent.models import DecisionEvidence as DecisionEvidenceModel
 from app.modules.ai.fraud.schemas import FraudAnalysisSchema
+from app.modules.audit import service as audit_service
+from app.modules.audit.models import AuditAction
+from app.modules.auth.models import User
+from app.modules.notifications import service as notifications_service
 from app.modules.agent.schemas import (
     CaseCitizenSchema,
     CaseDecisionSchema,
@@ -39,9 +44,16 @@ from app.modules.agent.schemas import (
 )
 from app.modules.ai.explanation import generate_explanation
 
-#: Until an auth module exists there is no real agent identity, and inventing a
-#: plausible name would put a fake civil servant's name on a decision record.
-DECIDING_AGENT = "Agent (démonstration)"
+def _agent_display_name(agent: User) -> str:
+    """The deciding agent's name for the decision record.
+
+    The "Décision humaine" guardrail requires a real, identified human on every
+    decision — so the acting agent's own name is stamped here, resolved from the
+    authenticated account, never a placeholder. Falls back to the e-mail only if
+    the name columns are somehow empty.
+    """
+    full_name = f"{agent.first_name} {agent.last_name}".strip()
+    return full_name or agent.email
 
 #: Statuses meaning "an agent has concluded this case".
 TERMINAL_STATUSES: tuple[CaseStatus, ...] = (CaseStatus.validated, CaseStatus.rejected)
@@ -275,7 +287,9 @@ def get_case(db: Session, case_id: str) -> CaseDetailSchema:
     )
 
 
-def decide_case(db: Session, case_id: str, outcome: DecisionOutcome) -> CaseDecisionSchema:
+def decide_case(
+    db: Session, case_id: str, outcome: DecisionOutcome, *, agent: User
+) -> CaseDecisionSchema:
     """Record an agent's decision. Backs ``POST /agent/cases/{case_id}/decision``.
 
     The sequence is the contract, and the order matters:
@@ -284,12 +298,17 @@ def decide_case(db: Session, case_id: str, outcome: DecisionOutcome) -> CaseDeci
       2. extract evidence *from the case*
       3. refuse a rejection that no evidence supports
       4. formulate the explanation from that evidence
-      5. persist decision + status transition
+      5. write the audit trace and persist decision + status transition
 
     Step 3 before step 4 is the business rule: a rejection with nothing behind
     it is refused outright rather than explained vaguely. Step 2 before step 4
     is the anti-hallucination guarantee — the explanation is derived from the
     evidence, so it cannot assert something the record does not contain.
+
+    ``agent`` is the authenticated human making the call: their name is stamped
+    on the decision (the "Décision humaine" guardrail) and recorded as the actor
+    of the audit event, which is written into the same transaction as the
+    decision so an untraceable ruling cannot exist.
     """
     case = repository.find_case_by_id(db, case_id)
 
@@ -315,7 +334,7 @@ def decide_case(db: Session, case_id: str, outcome: DecisionOutcome) -> CaseDeci
         case_id=case.id,
         outcome=outcome,
         explanation=explanation,
-        decided_by=DECIDING_AGENT,
+        decided_by=_agent_display_name(agent),
         created_at=datetime.now(UTC),
         evidence_used=[
             DecisionEvidenceModel(field=e.field, value=e.value, source=e.source)
@@ -323,7 +342,55 @@ def decide_case(db: Session, case_id: str, outcome: DecisionOutcome) -> CaseDeci
         ],
     )
 
-    return _to_decision_schema(repository.save_decision(db, case, decision))
+    # Trace the ruling *before* it is committed: `record` adds the event to this
+    # session, and `save_decision`'s commit persists both together, so the
+    # decision and its audit entry are atomic (see audit.service.record).
+    audit_service.record(
+        db,
+        action=AuditAction.decision_recorded,
+        entity_type="case",
+        entity_id=case.application_number,
+        actor=agent,
+        summary=(
+            f"Dossier {case.application_number} {outcome.value} "
+            f"par {decision.decided_by}."
+        ),
+        payload={
+            "case_id": case.id,
+            "outcome": outcome.value,
+            "evidence_count": len(evidence),
+        },
+    )
+
+    saved = repository.save_decision(db, case, decision)
+
+    # The dossier now has a verdict — tell the citizen who owns it. Best-effort:
+    # `emit_decision` never raises, and no-ops for a legacy case whose applicant
+    # was never linked to an account.
+    notifications_service.emit_decision(
+        db,
+        citizen_user_id=case.citizen.user_id,
+        validated=outcome == DecisionOutcome.validated,
+        application_number=case.application_number,
+    )
+
+    return _to_decision_schema(saved)
+
+
+def get_case_assessment(
+    db: Session, case_id: str, *, agent: User
+) -> assessment_service.MonParcoursResult:
+    """The unified MonParcours Result. Backs ``GET /agent/cases/{id}/assessment``.
+
+    Loads the whole aggregate (reports, documents, fraud) and delegates to the
+    deterministic assessment service, which recomputes the result, persists it
+    when it changed, and records the audit event. No verdict is decided here —
+    the result is decision support for the agent.
+    """
+    case = repository.find_case_by_id(db, case_id)
+    if case is None:
+        raise NotFoundError(f"Aucun dossier ne correspond à l’identifiant « {case_id} ».")
+    return assessment_service.get_or_refresh_assessment(db, case, actor=agent)
 
 
 def get_queue_stats(db: Session) -> CaseQueueStatsSchema:

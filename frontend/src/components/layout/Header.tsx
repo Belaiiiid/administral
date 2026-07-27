@@ -1,4 +1,5 @@
-import { Bell, HelpCircle, Menu, Search, User } from 'lucide-react';
+import { Bell, HelpCircle, Menu, User } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -12,32 +13,52 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AGENT_ROUTES } from '@/features/agent';
+import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { getInitials } from '@/lib/utils';
+import { useNotificationStore } from '@/store/notificationStore';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
 
-export interface HeaderProps {
-  /** Placeholder for the search field. */
-  searchPlaceholder?: string;
-  /** Unread notification count — drives the indicator dot. */
-  unreadCount?: number;
-}
-
 /** Sticky 64px application header. */
-export function Header({
-  searchPlaceholder = 'Rechercher une demande, un document…',
-  unreadCount = 0,
-}: HeaderProps) {
+export function Header() {
   const openSidebar = useUiStore((state) => state.openSidebar);
   const displayName = useSessionStore((state) => state.displayName);
+  const role = useSessionStore((state) => state.role);
   const logout = useSessionStore((state) => state.logout);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const refreshCount = useNotificationStore((state) => state.refreshCount);
+  const openAssistant = useChatbotUiStore((state) => state.open);
   const navigate = useNavigate();
+
+  // Keep the badge honest across a reload: fetch the count once the shell mounts.
+  useEffect(() => {
+    void refreshCount();
+  }, [refreshCount]);
 
   const handleLogout = () => {
     logout();
     navigate(ROUTES.login, { replace: true });
+  };
+
+  // Role-aware: an agent has no citizen profiling profile, so "Mon profil" must
+  // land them on the back-office account page, never on the profiling form.
+  // Accessibility preferences are a citizen-profile concern — not shown here for
+  // agents, keeping their account view minimal (name / e-mail / role).
+  const isAgent = role === 'agent';
+  const profileTo = isAgent ? AGENT_ROUTES.profile : ROUTES.profile;
+  const notificationsTo = isAgent ? AGENT_ROUTES.notifications : ROUTES.portalNotifications;
+  const settingsTo = isAgent ? AGENT_ROUTES.settings : ROUTES.settings;
+
+  // Help opens the assistant: the citizen's floating panel, or the agent's own
+  // Assistant IA page. Never a dead button.
+  const handleHelp = () => {
+    if (isAgent) {
+      navigate(AGENT_ROUTES.assistant);
+    } else {
+      openAssistant();
+    }
   };
 
   return (
@@ -52,19 +73,6 @@ export function Header({
         <Menu aria-hidden="true" />
       </Button>
 
-      <div className="hidden w-full max-w-md sm:block">
-        <label htmlFor="global-search" className="sr-only">
-          Rechercher
-        </label>
-        <Input
-          id="global-search"
-          type="search"
-          placeholder={searchPlaceholder}
-          startIcon={<Search />}
-          className="border-transparent bg-surface-low"
-        />
-      </div>
-
       <div className="ml-auto flex items-center gap-2">
         <Button
           asChild
@@ -77,7 +85,7 @@ export function Header({
               : 'Notifications'
           }
         >
-          <Link to={ROUTES.portalNotifications}>
+          <Link to={notificationsTo}>
             <Bell aria-hidden="true" />
             {unreadCount > 0 && (
               <span
@@ -88,7 +96,13 @@ export function Header({
           </Link>
         </Button>
 
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Aide">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full"
+          aria-label="Aide"
+          onClick={handleHelp}
+        >
           <HelpCircle aria-hidden="true" />
         </Button>
 
@@ -125,10 +139,15 @@ export function Header({
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Mon espace</DropdownMenuLabel>
             <DropdownMenuItem asChild>
-              <Link to={ROUTES.profile}>Mon profil</Link>
+              <Link to={profileTo}>Mon profil</Link>
             </DropdownMenuItem>
+            {!isAgent && (
+              <DropdownMenuItem asChild>
+                <Link to={ROUTES.profileAccessibility}>Accessibilité</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
-              <Link to={ROUTES.profileAccessibility}>Accessibilité</Link>
+              <Link to={settingsTo}>Paramètres</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem destructive onSelect={handleLogout}>

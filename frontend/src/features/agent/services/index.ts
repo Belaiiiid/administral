@@ -1,12 +1,28 @@
+import type { AgentAssessmentService } from './agentAssessmentService';
+import type { AgentAuditService } from './agentAuditService';
 import type { AgentCaseService } from './agentCaseService';
+import type { AgentContestationService } from './agentContestationService';
 import type { AgentDecisionService } from './agentDecisionService';
+import { httpAgentAssessmentService } from './agentAssessmentService';
+import { httpAgentAuditService } from './agentAuditService';
 import { httpAgentCaseService } from './agentCaseService';
+import { httpAgentContestationService } from './agentContestationService';
 import { httpDecisionService } from './agentDecisionService';
 
 export type { AgentCaseService, CaseQuery } from './agentCaseService';
 export { httpAgentCaseService } from './agentCaseService';
 export type { AgentDecisionService } from './agentDecisionService';
 export { httpDecisionService, MissingEvidenceError } from './agentDecisionService';
+export type { AgentAuditService, AuditEvent, AuditAction, AuditTrail } from './agentAuditService';
+export { httpAgentAuditService } from './agentAuditService';
+export type { AgentContestationService } from './agentContestationService';
+export { httpAgentContestationService } from './agentContestationService';
+export type {
+  AgentAssessmentService,
+  MonParcoursResult,
+  CategoryAssessment,
+} from './agentAssessmentService';
+export { httpAgentAssessmentService } from './agentAssessmentService';
 
 /**
  * The bindings every hook imports.
@@ -27,6 +43,12 @@ export { httpDecisionService, MissingEvidenceError } from './agentDecisionServic
 export const agentCaseService: AgentCaseService = httpAgentCaseService;
 
 export const agentDecisionService: AgentDecisionService = httpDecisionService;
+
+export const agentAuditService: AgentAuditService = httpAgentAuditService;
+
+export const agentContestationService: AgentContestationService = httpAgentContestationService;
+
+export const agentAssessmentService: AgentAssessmentService = httpAgentAssessmentService;
 
 /*
  * `explanationService` is intentionally NOT re-exported here — and now has no

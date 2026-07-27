@@ -11,6 +11,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/app/router/paths';
 import { documentService, type DossierReview } from '@/services/documentService';
+import { DecisionContestation } from '@/features/documents/components/DecisionContestation';
 import { profilPartielToSnapshot, useProfilageStore } from '@/features/citizen/profiling';
 import type { CitizenDocument, PersonalizedChecklist } from '@/types';
 
@@ -340,6 +341,15 @@ export default function DocumentUploadPage() {
                   Soumettre mon dossier
                 </Button>
               )}
+
+              {/* Droit de contestation — offered only once a decision exists,
+                  since there is nothing to contest before one. Self-contained:
+                  it shows the filed challenge and its human review, or the form
+                  to open one. */}
+              {review?.decision && review.application_number && (
+                <DecisionContestation applicationNumber={review.application_number} />
+              )}
+
               {submitError && (
                 <p role="alert" className="text-body-sm text-destructive">
                   {submitError}
@@ -386,8 +396,12 @@ export default function DocumentUploadPage() {
                 </div>
               )}
 
-              <Button variant="outline" block>
-                Sauvegarder et continuer plus tard
+              {/* Each upload is already stored server-side the moment it lands,
+                  so there is no draft to flush here — the dossier persists on its
+                  own. This is an honest "leave and come back later": it returns
+                  to the dashboard, and the documents are waiting on return. */}
+              <Button variant="outline" block asChild>
+                <Link to={ROUTES.portal}>Enregistrer et revenir plus tard</Link>
               </Button>
             </CardContent>
           </Card>

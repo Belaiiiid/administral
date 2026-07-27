@@ -8,11 +8,10 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.modules.citizen.checklist import APL_CHECKLIST, CHECKLIST_VERSION
+from app.modules.citizen.checklist import CHECKLIST_VERSION
 from app.modules.citizen.models import (
     Application,
     ApplicationDocument,
-    ChecklistItem,
     ApplicationStatus,
 )
 
@@ -28,38 +27,48 @@ def get_application(db: Session, application_id: str) -> Application | None:
     ).scalar_one_or_none()
 
 
-def create_application(db: Session, application_id: str | None = None) -> Application:
-    """Create an application and populate its checklist from the standard set.
+def create_application(
+    db: Session, application_id: str | None = None, *, citizen_id: str | None = None
+) -> Application:
+    """Create an *empty* application — its checklist is generated, not fixed.
 
-    The checklist is written as rows now, not derived on read, so an item's
-    `received` flag is durable state the classifier flips — not a value
-    recomputed on every request.
+    The checklist is no longer populated from the static ``APL_CHECKLIST`` here:
+    that was the second, duplicate generation path. Every dossier now gets its
+    checklist from the one deterministic, profile-driven generator
+    (``dossier.sync_checklist`` → ``checklist_rules``), whether it belongs to a
+    citizen (their profile) or is the anonymous demo dossier (the universal
+    core). This function only creates the row; the caller syncs the checklist.
     """
     application = Application(
         status=ApplicationStatus.incomplete,
         checklist_version=CHECKLIST_VERSION,
+        citizen_id=citizen_id,
     )
     if application_id is not None:
         application.id = application_id
-
-    application.checklist_items = [
-        ChecklistItem(
-            item_key=t.item_key,
-            libelle=t.libelle,
-            categorie=t.categorie,
-            obligatoire=t.obligatoire,
-            justification=t.justification,
-            formats_acceptes=list(t.formats_acceptes),
-            received=False,
-            position=index,
-        )
-        for index, t in enumerate(APL_CHECKLIST)
-    ]
 
     db.add(application)
     db.commit()
     db.refresh(application)
     return application
+
+
+def get_application_by_citizen(db: Session, citizen_id: str) -> Application | None:
+    """The application belonging to one citizen, if any.
+
+    The personalised dossier is per-citizen: it is found by the ``citizen_id``
+    foreign key, not by the demo id the legacy upload page addresses. One
+    citizen has at most one live application here (the newest wins, defensively).
+    """
+    return db.execute(
+        select(Application)
+        .where(Application.citizen_id == citizen_id)
+        .order_by(Application.created_at.desc())
+        .options(
+            selectinload(Application.documents),
+            selectinload(Application.checklist_items),
+        )
+    ).scalar_one_or_none()
 
 
 def list_documents(db: Session, application_id: str) -> list[ApplicationDocument]:

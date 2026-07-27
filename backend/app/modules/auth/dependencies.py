@@ -97,8 +97,12 @@ def require_role(*allowed: Role):
     return guard
 
 
-#: Any authenticated citizen (or agent/admin, who are also citizens of the app).
-require_citizen = require_role(Role.CITIZEN, Role.AGENT, Role.ADMIN)
+#: Strictly a CITIZEN. The surfaces behind this guard — the APL profile — belong
+#: to an applicant; an agent or admin has no such profile, and must not be able
+#: to open one (which `resolve_citizen` would do on first access). Staff are not
+#: widened in here, unlike the agent/admin guards below: this is the one place
+#: the hierarchy runs the other way.
+require_citizen = require_role(Role.CITIZEN)
 #: Agent-only surfaces — the dossiers. ADMIN is admitted too.
 require_agent = require_role(Role.AGENT, Role.ADMIN)
 require_admin = require_role(Role.ADMIN)

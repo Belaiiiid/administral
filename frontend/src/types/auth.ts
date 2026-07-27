@@ -7,6 +7,8 @@ export interface AuthUser {
   lastName: string;
   email: string;
   role: AuthRole;
+  /** Whether the address has been confirmed via the emailed link. */
+  isVerified: boolean;
   createdAt: string;
 }
 
@@ -28,5 +30,19 @@ export interface RegisterPayload {
   firstName: string;
   lastName: string;
   email: string;
+  password: string;
+}
+
+/**
+ * The uniform acknowledgement returned by endpoints that deliberately reveal
+ * nothing — notably the password-reset request, which answers identically
+ * whether or not the address has an account.
+ */
+export interface AuthMessageResponse {
+  message: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
   password: string;
 }

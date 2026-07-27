@@ -8,6 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/utils';
 import { AgentPage, AsyncBoundary, CaseScore, CaseStatusBadge } from '@/features/agent/components';
 import {
+  CaseAssessmentCard,
+  CaseAuditCard,
   CaseDocumentsCard,
   CaseFraudCard,
   CaseProfileCard,
@@ -88,6 +90,10 @@ export default function CaseDetailPage() {
               </CardContent>
             </Card>
 
+            {/* The unified assessment, read first: it synthesises the four
+                analyses below into one decision-support score. */}
+            <CaseAssessmentCard caseId={caseRecord.id} />
+
             <CaseProfileCard citizen={caseRecord.citizen} profile={caseRecord.profile} />
 
             <div className="grid gap-gutter lg:grid-cols-2">
@@ -98,6 +104,8 @@ export default function CaseDetailPage() {
             <CaseDocumentsCard documents={caseRecord.documents} />
 
             <CaseFraudCard documents={caseRecord.documents} />
+
+            <CaseAuditCard applicationNumber={caseRecord.applicationNumber} />
           </div>
         )}
       </AsyncBoundary>

@@ -13,12 +13,16 @@ export const AGENT_ROUTES = {
   root: BASE,
   cases: `${BASE}/dossiers`,
   caseDetail: (id = ':caseId') => `${BASE}/dossiers/${id}`,
+  contestations: `${BASE}/contestations`,
+  contestationDetail: (id = ':contestationId') => `${BASE}/contestations/${id}`,
   documents: `${BASE}/pieces`,
   validation: `${BASE}/validation`,
   validationDetail: (id = ':caseId') => `${BASE}/validation/${id}`,
   reports: `${BASE}/statistiques`,
   assistant: `${BASE}/assistant`,
   settings: `${BASE}/parametres`,
+  profile: `${BASE}/profil`,
+  notifications: `${BASE}/notifications`,
 } as const;
 
 /** True when a pathname belongs to the Agent Portal. Used to pick the rail. */

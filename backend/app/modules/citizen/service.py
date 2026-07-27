@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.config import settings
 from app.modules.citizen import repository, storage
-from app.modules.citizen.checklist import APL_CHECKLIST
+from app.modules.citizen.checklist import APL_CHECKLIST, ChecklistTemplate
 from app.modules.citizen.classification import classify_document
 from app.modules.citizen.extraction import extract_text
 from app.modules.citizen.models import (
@@ -48,6 +48,15 @@ def _ensure_application(db: Session, application_id: str) -> Application:
         # before any explicit "create application" step exists. Creating it here
         # keeps the demo working without inventing a citizen or a fake account.
         application = repository.create_application(db, application_id)
+        # One generation path: populate the checklist through the same
+        # deterministic generator the personalised dossier uses. This anonymous
+        # dossier has no profile, so a blank profile yields the universal core —
+        # no second, static checklist logic. Imported here to avoid a module
+        # cycle (dossier imports the citizen models this module also defines).
+        from app.modules.citizen import dossier
+        from app.features.citizen.profiling.schemas.profil import ProfilPartiel
+
+        dossier.sync_checklist(db, application, ProfilPartiel(), actor=None)
     return application
 
 
@@ -99,7 +108,22 @@ def upload_document(
 
     stored_path = storage.store(data, file_name)
     extraction = extract_text(data, mime_type)
-    classification = classify_document(extraction.text, list(APL_CHECKLIST))
+    # Classify against *this application's* checklist, not the fixed list: a
+    # personalised dossier carries item keys the static list does not, and the
+    # classifier can only match a key it is shown. Falls back to the standard
+    # list for an application with no checklist yet.
+    checklist = [
+        ChecklistTemplate(
+            item_key=i.item_key,
+            libelle=i.libelle,
+            categorie=i.categorie,
+            obligatoire=i.obligatoire,
+            justification=i.justification,
+            formats_acceptes=list(i.formats_acceptes),
+        )
+        for i in application.checklist_items
+    ] or list(APL_CHECKLIST)
+    classification = classify_document(extraction.text, checklist)
 
     document = ApplicationDocument(
         application_id=application.id,
