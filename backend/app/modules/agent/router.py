@@ -13,11 +13,19 @@ this portal now rests on.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.modules.agent import service
 from app.modules.agent.assessment import MonParcoursResult
+from app.modules.agent.completeness_report import (
+    CompletenessReportView,
+    build_report,
+    render_html,
+    render_pdf,
+)
+from app.modules.agent import repository
 from app.modules.agent.models import CaseStatus
 from app.modules.agent.schemas import (
     CaseDecisionSchema,
@@ -96,6 +104,49 @@ def list_cases(
 )
 def get_case(case_id: str, db: Session = Depends(get_db)) -> CaseDetailSchema:
     return service.get_case(db, case_id)
+
+
+@router.get(
+    "/cases/{case_id}/completeness-report",
+    response_model=CompletenessReportView,
+    summary="Rapport de complétude lisible",
+    description="Rapport généré après B6 pour un dossier complet ou incomplet, avec la lisibilité des pièces fournies.",
+)
+def get_completeness_report(case_id: str, db: Session = Depends(get_db)) -> CompletenessReportView:
+    case = repository.find_case_by_id(db, case_id)
+    if case is None:
+        service.get_case(db, case_id)  # raises the standard 404
+        raise AssertionError("unreachable")
+    return build_report(case)
+
+
+@router.get(
+    "/cases/{case_id}/completeness-report.html",
+    response_class=HTMLResponse,
+    summary="Exporter le rapport de complétude en HTML",
+)
+def get_completeness_report_html(case_id: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    case = repository.find_case_by_id(db, case_id)
+    if case is None:
+        service.get_case(db, case_id)
+        raise AssertionError("unreachable")
+    return HTMLResponse(render_html(build_report(case)))
+
+
+@router.get(
+    "/cases/{case_id}/completeness-report.pdf",
+    summary="Exporter le rapport de complétude en PDF",
+)
+def get_completeness_report_pdf(case_id: str, db: Session = Depends(get_db)) -> Response:
+    case = repository.find_case_by_id(db, case_id)
+    if case is None:
+        service.get_case(db, case_id)
+        raise AssertionError("unreachable")
+    return Response(
+        render_pdf(build_report(case)),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="rapport-completude-{case.application_number}.pdf"'},
+    )
 
 
 @router.get(
