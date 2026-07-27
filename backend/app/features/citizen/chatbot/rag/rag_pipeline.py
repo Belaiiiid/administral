@@ -3,11 +3,31 @@ Module RAG de production pour la branche 'rag_general' de l'orchestrateur D4.
 Contrairement à hybrid_search.py (qui sert de banc de test), ce module est
 conçu pour être importé et initialisé UNE SEULE FOIS au démarrage de l'app
 (construire les index est coûteux), puis interrogé plusieurs fois.
+
+Résilience : la recherche sémantique (Qdrant + modèle d'embeddings
+sentence-transformers) exige de télécharger un modèle au premier démarrage. Si ce
+téléchargement échoue ou traîne (pas de réseau, incompatibilité de librairie,
+environnement hors-ligne), le pipeline NE DOIT PAS rester bloqué ni tomber en
+panne : il bascule sur une recherche BM25 seule (lexicale, pur Python, aucun
+téléchargement) qui suffit à fournir des réponses citées. La génération (Mistral)
+reste identique dans les deux cas. C'est ce qui garantit que l'assistant répond
+toujours, même sans la couche sémantique.
 """
+import os
+import threading
+
 from . import bm25_index
 from . import qdrant_index
 from .hybrid_search import reciprocal_rank_fusion
 from .llm_client import call_llm
+
+# La recherche sémantique est activée par défaut mais bornée : si l'index n'est
+# pas prêt dans ce délai (typiquement le téléchargement du modèle d'embeddings au
+# tout premier démarrage), on démarre en BM25 seul plutôt que de bloquer. Réglable
+# par variable d'environnement pour les déploiements où le modèle est déjà en
+# cache (délai plus court) ou volontairement désactivé (CHATBOT_SEMANTIC=0).
+_SEMANTIC_ENABLED = os.environ.get("CHATBOT_SEMANTIC", "1").lower() not in ("0", "false", "no")
+_SEMANTIC_TIMEOUT_S = float(os.environ.get("CHATBOT_SEMANTIC_TIMEOUT_S", "25"))
 
 GENERATION_SYSTEM_PROMPT = """Tu es un assistant qui aide les citoyens à comprendre l'aide au logement (APL).
 Réponds en langage simple et clair (vulgarisé), pas de jargon juridique.
@@ -28,15 +48,70 @@ RÈGLES STRICTES :
 class RagPipeline:
     def __init__(self):
         print("Initialisation du pipeline RAG (une seule fois)...")
+        # BM25 : pur Python, aucune dépendance réseau — toujours disponible.
         self.bm25, self.chunks = bm25_index.build_index()
-        self.qdrant_client, self.embedding_model = qdrant_index.build_index()
-        print("Pipeline RAG prêt.\n")
+
+        # Sémantique : optionnelle et bornée. Une panne ou une lenteur ici ne doit
+        # jamais empêcher l'assistant de répondre.
+        self.qdrant_client = None
+        self.embedding_model = None
+        self.semantic_available = False
+        if _SEMANTIC_ENABLED:
+            self._try_build_semantic()
+
+        mode = "hybride (BM25 + sémantique)" if self.semantic_available else "BM25 seul"
+        print(f"Pipeline RAG prêt — recherche {mode}.\n")
+
+    def _try_build_semantic(self):
+        """Construit l'index sémantique avec un délai maximal.
+
+        Le chargement du modèle d'embeddings peut se bloquer indéfiniment (premier
+        téléchargement sans réseau, client HTTP fermé, etc.). On l'exécute donc
+        dans un thread borné : s'il n'aboutit pas à temps, on continue en BM25
+        seul. Le thread restant est daemon — il mourra avec le process."""
+        result: dict = {}
+
+        def build():
+            try:
+                result["value"] = qdrant_index.build_index()
+            except Exception as exc:  # noqa: BLE001 — capturé pour dégrader proprement
+                result["error"] = exc
+
+        worker = threading.Thread(target=build, name="rag-semantic-build", daemon=True)
+        worker.start()
+        worker.join(_SEMANTIC_TIMEOUT_S)
+
+        if worker.is_alive():
+            print(
+                f"[RAG] Index sémantique non prêt en {_SEMANTIC_TIMEOUT_S:.0f}s "
+                "(modèle d'embeddings indisponible ?) — bascule sur BM25 seul."
+            )
+            return
+        if "value" in result:
+            self.qdrant_client, self.embedding_model = result["value"]
+            self.semantic_available = True
+        else:
+            print(
+                f"[RAG] Index sémantique indisponible ({result.get('error')}) "
+                "— bascule sur BM25 seul."
+            )
 
     def retrieve(self, query, top_k=3, category="demarche"):
         bm25_results = bm25_index.search(query, self.bm25, self.chunks, top_k=10, category=category)
-        semantic_results = qdrant_index.search(query, self.qdrant_client, self.embedding_model, top_k=10, category=category)
-        fused = reciprocal_rank_fusion(bm25_results, semantic_results, top_k=top_k)
-        return fused  # liste de (chunk, score)
+
+        # BM25 seul : on renvoie directement les meilleurs résultats lexicaux.
+        if not self.semantic_available:
+            return bm25_results[:top_k]
+
+        # Hybride : on fusionne lexical + sémantique. Une panne sémantique en cours
+        # de route (Qdrant, encodage) retombe elle aussi sur BM25.
+        try:
+            semantic_results = qdrant_index.search(
+                query, self.qdrant_client, self.embedding_model, top_k=10, category=category
+            )
+        except Exception:  # noqa: BLE001 — la recherche doit toujours renvoyer quelque chose
+            return bm25_results[:top_k]
+        return reciprocal_rank_fusion(bm25_results, semantic_results, top_k=top_k)
 
     def generate_answer(self, query, retrieved_chunks, conversation_history=None):
         context = "\n\n".join(

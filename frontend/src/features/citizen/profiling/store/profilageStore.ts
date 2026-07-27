@@ -2,7 +2,28 @@ import { create } from 'zustand';
 
 import { ApiClientError } from '@/services/apiClient';
 import { profilageService } from '@/features/citizen/profiling/services/profilageService';
+import {
+  citizenProfileService,
+  profilingAnswersToPayload,
+} from '@/features/citizen/profiling/services/citizenProfileService';
 import type { ProfilPartiel, TourAgent } from '@/features/citizen/profiling/types/profilage';
+
+/**
+ * Persist the profiling answers to the citizen's profile, best-effort.
+ *
+ * The profiling turn endpoint is session-based and keeps answers only in an
+ * in-memory session (30-min TTL); nothing reached the database until the citizen
+ * pressed "Enregistrer" on the profile page — so the personalised dossier stayed
+ * stale as they talked to the assistant. Persisting after each valid turn lets
+ * the backend regenerate the checklist live (`_resync_dossier`). Swallowed on
+ * failure: an anonymous or expired session simply keeps its session-only answers,
+ * exactly as before — this never surfaces an error in the assistant.
+ */
+function persistProfilAnswers(profil: ProfilPartiel | null): void {
+  const payload = profilingAnswersToPayload(profil);
+  if (Object.keys(payload).length === 0) return;
+  void citizenProfileService.mettreAJour(payload).catch(() => undefined);
+}
 
 export interface HistoriqueEntry {
   question: string;
@@ -114,6 +135,12 @@ export const useProfilageStore = create<ProfilageState>((set, get) => ({
           : state.historique,
         isLoading: false,
       }));
+
+      // Réponse valide → on persiste le profil pour que la checklist du dossier
+      // se régénère côté serveur (best-effort ; sans session citoyen, no-op).
+      if (reponseValide) {
+        persistProfilAnswers(tourResponse.profil_partiel);
+      }
 
       // Le highlight du champ nouvellement rempli s'estompe après 1,5s.
       setTimeout(() => {

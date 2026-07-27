@@ -80,7 +80,7 @@ export default function DocumentsPage() {
         description="Retrouvez vos pièces justificatives et la documentation officielle."
         actions={
           <Button asChild>
-            <Link to={ROUTES.documentsUpload}>
+            <Link to={ROUTES.dossier}>
               <Upload aria-hidden="true" />
               Déposer un document
             </Link>
@@ -165,7 +165,7 @@ export default function DocumentsPage() {
                   description="Déposez vos justificatifs pour les retrouver ici et suivre leur analyse."
                   actions={
                     <Button asChild>
-                      <Link to={ROUTES.documentsUpload}>
+                      <Link to={ROUTES.dossier}>
                         <Upload aria-hidden="true" />
                         Déposer un document
                       </Link>

@@ -9,6 +9,74 @@ Legend: ✅ complete · 🟡 partial / diverges · ❌ missing.
 
 ---
 
+## Iteration 5 — Coherent citizen workflow: live checklist, working assistant, one dossier (2026-07-27)
+
+Fixes to the citizen path so it is dynamic and coherent end to end, per user
+report ("checklist toujours statique, chatbot ne répond pas, dossier reste
+statique quand on change le profil").
+
+### The citizen AI assistant now answers (was silent)
+
+- **Root cause.** Every general APL question routed to `rag_general`, whose
+  `RagPipeline` built a semantic index requiring a sentence-transformers model
+  download. Under the installed `huggingface_hub` 1.x the download hangs/fails
+  ("Cannot send a request, as the client has been closed"), so the lazy
+  singleton never became ready — the startup warm-up hung, and every request
+  re-hung then degraded to "L'assistant est momentanément indisponible".
+- **Fix — resilient, bounded retrieval** (`rag/rag_pipeline.py`). BM25 (pure
+  Python, no download) is always built. The semantic index is now **optional and
+  time-boxed**: built in a daemon thread with a timeout (`CHATBOT_SEMANTIC_TIMEOUT_S`,
+  default 25 s; `CHATBOT_SEMANTIC=0` disables it). If it isn't ready in time the
+  pipeline serves **BM25-only** — grounded, cited answers from the local corpus,
+  with Mistral generation unchanged. Verified: a real question now returns a
+  sourced answer (intent `rag_general`) instead of the outage message.
+
+### One citizen dossier, profile-driven and dynamic (was two, one static)
+
+- **The "front statique".** `DocumentUploadPage` (the primary "Déposer un
+  document" + "Soumettre" flow) was hardwired to a fixed demo dossier
+  `TEST-DOSSIER-0001` and the profile-agnostic checklist — so changing the
+  profile never changed it. The profile-driven dossier lived on a *separate*
+  page (`/mon-dossier`).
+- **Unified onto `/mon-dossier`** (`PersonalizedDossierPage`), now the single,
+  complete dossier: **état civil (NIR + date de naissance) vérifié → checklist
+  personnalisée (dérivée du profil) → dépôt des pièces → complétude →
+  transmission → instruction (cohérence, décision, contestation)** — all keyed
+  on the citizen's *own* `application.id`. The legacy upload page is now a
+  redirect here; the sidebar CTA and the "Déposer un document" links point here.
+- **NIR + date de naissance** are captured and **required before submission**
+  (inline, via the existing `PATCH /citizen/profile`), addressing "ajoute la
+  saisie du numéro de sécurité sociale et la date de naissance … d'après la
+  checklist on vérifie".
+
+### Profiling answers persist live (checklist regenerates as the citizen talks)
+
+- The profiling turn endpoint kept answers only in an in-memory session
+  (30-min TTL); nothing reached the DB until the citizen pressed "Enregistrer",
+  so the personalised checklist stayed stale while they answered. The profiling
+  store now **persists each valid answer** to the profile (best-effort, no-op
+  without a citizen session), which triggers `_resync_dossier` — so the checklist
+  regenerates live as the citizen interacts.
+
+### Validation
+
+- Backend **109/109 pass**; live round-trip (rolled back): empty profile → 4
+  core items; declaring *locataire + salarié* → **7 items** (contrat de location,
+  attestation de loyer, bulletins de salaire added); submitting the citizen's own
+  application emits a `Case`; review reads it back. Chatbot answers a general
+  question with a source. Frontend `tsc --noEmit` clean; `npm run build` succeeds.
+
+### Files
+
+- Backend: `features/citizen/chatbot/rag/rag_pipeline.py` (BM25 fallback +
+  time-boxed semantic build). No schema/migration change.
+- Frontend: `features/documents/pages/PersonalizedDossierPage.tsx` (unified
+  dossier), `pages/DocumentUploadPage.tsx` (→ redirect), `services/dossierService.ts`
+  (+submit/getReview), `features/citizen/profiling/store/profilageStore.ts`
+  (auto-persist), `app/config/navigation.ts` + `pages/DocumentsPage.tsx` (links).
+
+---
+
 ## Iteration 4 — Unified dossier flow + MonParcours Result (2026-07-26)
 
 Two moves: removed the last duplicated checklist logic (one generator for every

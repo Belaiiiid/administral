@@ -55,10 +55,10 @@ export const SECONDARY_NAV: NavItem[] = [
   { id: 'profile', label: 'Mon profil', to: ROUTES.profile, icon: UserRound },
 ];
 
-/** The citizen rail's primary action — starts the real dossier flow. */
+/** The citizen rail's primary action — opens the unified personalised dossier. */
 const CITIZEN_CTA: NavCta = {
   label: 'Nouvelle demande',
-  to: ROUTES.documentsUpload,
+  to: ROUTES.dossier,
   icon: Plus,
 };
 
