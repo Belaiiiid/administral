@@ -6,6 +6,7 @@ import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
+import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
 
@@ -14,8 +15,14 @@ import { useUiStore } from '@/store/uiStore';
  *
  * Desktop  (≥1024px): fixed 256px rail + offset content column.
  * Tablet / mobile:    rail becomes a focus-trapped drawer (Radix Dialog).
+ *
+ * `hideSidebar` drops the desktop rail — for the services hub, reached before
+ * a citizen has picked a service, where a sidebar would have nothing of its
+ * own to navigate (it would just show whichever service's rail happened to be
+ * last). The mobile drawer stays available either way: on a small screen the
+ * rail is never persistent regardless, so there is nothing to hide there.
  */
-export function AppShell() {
+export function AppShell({ hideSidebar = false }: { hideSidebar?: boolean } = {}) {
   const isSidebarOpen = useUiStore((state) => state.isSidebarOpen);
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   // The assistant is a citizen feature only — the agent portal shares this shell
@@ -27,9 +34,11 @@ export function AppShell() {
       <SkipLink />
 
       {/* Desktop rail */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-sidebar lg:block">
-        <Sidebar />
-      </aside>
+      {!hideSidebar && (
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-sidebar lg:block">
+          <Sidebar />
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       <Dialog open={isSidebarOpen} onOpenChange={(open) => !open && closeSidebar()}>
@@ -41,7 +50,7 @@ export function AppShell() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex min-h-screen flex-col lg:pl-sidebar">
+      <div className={cn('flex min-h-screen flex-col', !hideSidebar && 'lg:pl-sidebar')}>
         <Header />
         <main
           id="main-content"

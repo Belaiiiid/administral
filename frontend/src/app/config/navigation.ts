@@ -1,13 +1,4 @@
-import {
-  Bot,
-  FolderOpen,
-  LayoutGrid,
-  LogOut,
-  Plus,
-  Route,
-  Send,
-  UserRound,
-} from 'lucide-react';
+import { Bot, LayoutGrid, LogOut, Plus, Route, Send, UserRound } from 'lucide-react';
 
 import {
   isNavItemActive,
@@ -54,14 +45,6 @@ export const PRIMARY_NAV: NavItem[] = [
     to: ROUTES.suivi,
     icon: Route,
     match: (pathname) => pathname === ROUTES.suivi,
-  },
-  {
-    id: 'documents',
-    label: 'Mes documents',
-    to: ROUTES.documents,
-    icon: FolderOpen,
-    match: (pathname) =>
-      isSelfOrChild(ROUTES.documents)(pathname) || isSelfOrChild(ROUTES.documentsUpload)(pathname),
   },
   { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
 ];

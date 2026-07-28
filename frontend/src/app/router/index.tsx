@@ -8,6 +8,7 @@ import { AuthLayout } from '@/components/layout/AuthLayout';
 import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
+import { useSessionStore } from '@/store/sessionStore';
 
 /*
  * Each feature module is code-split at the route boundary, so a new
@@ -39,9 +40,22 @@ const PersonalizedDossierPage = lazy(
 const SuiviDossierPage = lazy(() => import('@/features/documents/pages/SuiviDossierPage'));
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
+const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLandingPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
+/**
+ * `/` — public by default. A signed-in visitor is sent straight to their
+ * portal (there is nothing for them at a marketing/assistant landing they
+ * have already moved past); everyone else meets the assistant first and
+ * "Se connecter" second, never the other way around.
+ */
+function HomeRoute() {
+  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
+}
+
 const router = createBrowserRouter([
+  { path: ROUTES.home, element: <HomeRoute /> },
   {
     // Entry journey — no application chrome.
     element: <AuthLayout />,
@@ -72,11 +86,15 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
+        // Services hub — reached before a service is picked, so no sidebar:
+        // there is nothing yet for one to navigate (see `AppShell`).
+        element: <AppShell hideSidebar />,
+        children: [{ path: ROUTES.portal, element: <CitizenDashboardPage /> }],
+      },
+      {
+        // Inside a service (APL today) — the sidebar applies.
         element: <AppShell />,
         children: [
-          { path: ROUTES.home, element: <Navigate to={ROUTES.portal} replace /> },
-
-          { path: ROUTES.portal, element: <CitizenDashboardPage /> },
           { path: ROUTES.portalNotifications, element: <NotificationsPage /> },
 
           { path: ROUTES.profile, element: <ProfilePage /> },
