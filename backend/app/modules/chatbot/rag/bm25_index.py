@@ -60,11 +60,14 @@ def build_index():
     return bm25, chunks
 
 def search(query, bm25, chunks, top_k=3, category=None):
+    """category: None (pas de filtre), une catégorie (str), ou une liste de catégories
+    (ex: ["demarche", "legislation"] pour un accès agent élargi)."""
     tokenized_query = tokenize(query)
     scores = bm25.get_scores(tokenized_query)
     candidate_indices = range(len(chunks))
     if category:
-        candidate_indices = [i for i in candidate_indices if chunks[i].get("category") == category]
+        allowed = {category} if isinstance(category, str) else set(category)
+        candidate_indices = [i for i in candidate_indices if chunks[i].get("category") in allowed]
     ranked = sorted(candidate_indices, key=lambda i: scores[i], reverse=True)[:top_k]
     return [(chunks[i], scores[i]) for i in ranked]
 

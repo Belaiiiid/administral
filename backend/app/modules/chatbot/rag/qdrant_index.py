@@ -3,7 +3,7 @@ import glob
 import os
 import hashlib
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchAny
 from sentence_transformers import SentenceTransformer
 
 # Paths resolved relative to this module so the embedded Qdrant store and the
@@ -92,11 +92,14 @@ def build_index():
 
 
 def search(query, client, model, top_k=3, category=None):
+    """category: None (pas de filtre), une catégorie (str), ou une liste de catégories
+    (ex: ["demarche", "legislation"] pour un accès agent élargi)."""
     query_vector = model.encode(query).tolist()
     query_filter = None
     if category:
+        allowed = [category] if isinstance(category, str) else list(category)
         query_filter = Filter(
-            must=[FieldCondition(key="category", match=MatchValue(value=category))]
+            must=[FieldCondition(key="category", match=MatchAny(any=allowed))]
         )
     results = client.query_points(
         collection_name=COLLECTION_NAME,
