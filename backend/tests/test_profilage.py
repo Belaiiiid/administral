@@ -13,21 +13,21 @@ import asyncio
 
 import pytest
 
-from app.features.citizen.profiling.services.completude import champs_manquants, evaluer_completude_profil
-from app.features.citizen.profiling.services.coercion import analyser_reponse
-from app.features.citizen.profiling.services.harness import LIMITE_TOURS, jouer_tour
-from app.features.citizen.profiling.services.knowledge import rechercher_exclusion
-from app.features.citizen.profiling.services.llm import prochain_champ_attendu
-from app.features.citizen.profiling.repositories.session_store import SessionStore
-from app.features.citizen.profiling.schemas.agent import ProchaineAction, TypeReponse
-from app.features.citizen.profiling.schemas.profil import (
+from app.modules.profiling.services.completude import champs_manquants, evaluer_completude_profil
+from app.modules.profiling.services.coercion import analyser_reponse
+from app.modules.profiling.services.harness import LIMITE_TOURS, jouer_tour
+from app.modules.profiling.services.knowledge import rechercher_exclusion
+from app.modules.profiling.services.llm import prochain_champ_attendu
+from app.modules.profiling.repositories.session_store import SessionStore
+from app.modules.profiling.schemas.agent import ProchaineAction, TypeReponse
+from app.modules.profiling.schemas.profil import (
     ProfilPartiel,
     StatutLogement,
     StatutMarital,
     StatutProfessionnel,
     TypeLocation,
 )
-import app.features.citizen.profiling.services.llm as _llm
+import app.modules.profiling.services.llm as _llm
 
 # Ces tests tournent SANS clé Mistral : on force le fallback déterministe (règles)
 # quelle que soit la configuration `.env` de l'environnement, exactement comme la

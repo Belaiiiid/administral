@@ -14,21 +14,12 @@ export const ROUTES = {
   forgotPassword: '/mot-de-passe-oublie',
   resetPassword: '/reinitialiser-mot-de-passe',
   verifyEmail: '/verifier-email',
-  onboardingServices: '/onboarding/services',
-  onboardingAccessibility: '/onboarding/accessibilite',
   // Signup-first profiling: where a new citizen lands right after registration.
   onboardingProfilage: '/onboarding/profilage',
 
   // Citizen portal
   portal: '/portal',
-  portalServices: '/portal/services',
   portalNotifications: '/portal/notifications',
-
-  // APL service module
-  apl: '/apl',
-  aplSimulator: '/apl/simulateur',
-  aplApplication: '/apl/demande',
-  aplApplicationDetail: (id = ':applicationId') => `/apl/demande/${id}`,
 
   // Cross-cutting citizen modules
   profile: '/profile',

@@ -23,7 +23,7 @@ because the upload flow now classifies against the application's own items.
 
 from __future__ import annotations
 
-from app.features.citizen.profiling.schemas.profil import (
+from app.modules.profiling.schemas.profil import (
     ProfilPartiel,
     StatutLogement,
     StatutMarital,

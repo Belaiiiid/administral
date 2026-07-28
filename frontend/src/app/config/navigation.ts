@@ -57,7 +57,7 @@ export const SECONDARY_NAV: NavItem[] = [
 
 /** The citizen rail's primary action — opens the unified personalised dossier. */
 const CITIZEN_CTA: NavCta = {
-  label: 'Nouvelle demande',
+  label: 'Déposer un dossier',
   to: ROUTES.dossier,
   icon: Plus,
 };

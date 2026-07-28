@@ -8,7 +8,7 @@ mapping so a rule change is a visible diff, not a silent regression.
 
 from __future__ import annotations
 
-from app.features.citizen.profiling.schemas.profil import (
+from app.modules.profiling.schemas.profil import (
     ProfilPartiel,
     StatutLogement,
     StatutMarital,

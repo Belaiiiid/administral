@@ -14,7 +14,7 @@ export const SERVICES: ServiceDefinition[] = [
     administration: 'CAF',
     description:
       'Gestion simplifiée de vos aides au logement et simulations de droits en temps réel.',
-    basePath: '/apl',
+    basePath: '/mon-dossier',
     status: 'available',
   },
   {

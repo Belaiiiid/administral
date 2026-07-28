@@ -69,7 +69,7 @@ export default function CitizenDashboardPage() {
             className="mb-4"
             action={
               <Button asChild variant="link" size="sm">
-                <Link to={ROUTES.portalServices}>Gérer mes services</Link>
+                <Link to={ROUTES.dossier}>Gérer mes services</Link>
               </Button>
             }
           />
@@ -110,7 +110,7 @@ export default function CitizenDashboardPage() {
                   description="Rattachez une administration à votre compte pour suivre vos démarches ici."
                   actions={
                     <Button asChild>
-                      <Link to={ROUTES.portalServices}>
+                      <Link to={ROUTES.dossier}>
                         <Plus aria-hidden="true" />
                         Activer un service
                       </Link>
@@ -220,7 +220,7 @@ export default function CitizenDashboardPage() {
               description={`${inactiveServices.length} administrations peuvent être rattachées à votre compte pour pré-remplir automatiquement vos démarches.`}
               actions={
                 <Button asChild>
-                  <Link to={ROUTES.portalServices}>
+                  <Link to={ROUTES.dossier}>
                     <Plus aria-hidden="true" />
                     Ajouter un service
                   </Link>

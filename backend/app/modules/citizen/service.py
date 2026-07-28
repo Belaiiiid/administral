@@ -13,6 +13,7 @@ citizen never loses an upload because a later stage was unavailable.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -54,7 +55,7 @@ def _ensure_application(db: Session, application_id: str) -> Application:
         # no second, static checklist logic. Imported here to avoid a module
         # cycle (dossier imports the citizen models this module also defines).
         from app.modules.citizen import dossier
-        from app.features.citizen.profiling.schemas.profil import ProfilPartiel
+        from app.modules.profiling.schemas.profil import ProfilPartiel
 
         dossier.sync_checklist(db, application, ProfilPartiel(), actor=None)
     return application
@@ -106,6 +107,15 @@ def upload_document(
 
     application = _ensure_application(db, application_id)
 
+    # Refuse an exact re-import before touching storage or spending an OCR/
+    # classification call on bytes already on file for this dossier.
+    content_hash = hashlib.sha256(data).hexdigest()
+    duplicate = repository.find_document_by_hash(db, application.id, content_hash)
+    if duplicate is not None:
+        raise ValidationError(
+            f"Ce document a déjà été déposé sous le nom « {duplicate.file_name} »."
+        )
+
     stored_path = storage.store(data, file_name)
     extraction = extract_text(data, mime_type)
     # Classify against *this application's* checklist, not the fixed list: a
@@ -131,6 +141,7 @@ def upload_document(
         mime_type=mime_type,
         size_bytes=len(data),
         stored_path=stored_path,
+        content_hash=content_hash,
         uploaded_at=datetime.now(UTC),
         # The document is stored and recorded whatever the analysis found — a
         # failed classification is not a failed upload.

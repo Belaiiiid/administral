@@ -32,7 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import mask_social_security_number
-from app.features.citizen.profiling.schemas.profil import ProfilPartiel, ProfilPatch
+from app.modules.profiling.schemas.profil import ProfilPartiel, ProfilPatch
 from app.modules.agent.models import Citizen
 from app.modules.audit import service as audit_service
 from app.modules.audit.models import AuditAction

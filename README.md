@@ -2,9 +2,10 @@
 
 Portail citoyen GovTech français. **Un compte, un profil citoyen, plusieurs services publics.**
 
-Ce dépôt contient le **socle frontend** : structure, design system, layouts, squelettes de pages et
-routage. Il ne contient **aucune logique métier** — backend, authentification, assistant IA et
-intégrations administratives seront ajoutés comme modules full-stack indépendants.
+Ce dépôt contient le frontend (React) **et** le backend (FastAPI/Python) : authentification,
+assistant IA citoyen (RAG + Mistral), instruction de dossiers, contestations, audit, notifications…
+Les deux projets sont indépendants, chacun avec ses propres dépendances et sa propre commande de
+démarrage — il n'y a pas de `npm run` côté backend.
 
 ## Démarrage
 
@@ -12,13 +13,13 @@ Le dépôt est séparé en deux projets indépendants, `frontend/` et `backend/`
 Chacun possède ses propres dépendances ; la racine ne contient aucun outillage
 de build.
 
+### Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev      # http://localhost:5173
 ```
-
-`backend/` est actuellement vide — voir [`backend/README.md`](backend/README.md).
 
 | Script (depuis `frontend/`) | Effet |
 |---|---|
@@ -27,19 +28,42 @@ npm run dev      # http://localhost:5173
 | `npm run preview` | Prévisualisation du build |
 | `npm run typecheck` | Vérification TypeScript seule |
 
+### Backend
+
+Le backend est en **Python** (FastAPI) — pas de Node/npm ici. Détails complets (base de données,
+migrations, seed, variables d'environnement) dans [`backend/README.md`](backend/README.md).
+
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/activate         # Windows — macOS/Linux : source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env           # puis renseigner DATABASE_PASSWORD
+alembic upgrade head
+uvicorn app.main:app --reload  # http://localhost:8000
+```
+
+| | |
+|---|---|
+| API | http://localhost:8000/api |
+| Swagger | http://localhost:8000/docs |
+| Santé | http://localhost:8000/api/health |
+
 ## Stack
 
-React 18 · TypeScript · Vite 6 · Tailwind CSS 3 · Radix UI (primitives de style shadcn/ui) ·
-React Router 6 · Zustand · lucide-react
+**Frontend** — React 18 · TypeScript · Vite 6 · Tailwind CSS 3 · Radix UI (primitives de style
+shadcn/ui) · React Router 6 · Zustand · lucide-react
+
+**Backend** — Python · FastAPI · SQLAlchemy 2 · Alembic · PostgreSQL · Pydantic v2 · LangGraph ·
+Mistral (LLM) · sentence-transformers / Qdrant / BM25 (RAG hybride)
 
 ## Structure
 
 ```
 MonParcours/
 ├── frontend/          Application React (voir ci-dessous)
-├── backend/           Vide — aucun code serveur à ce stade
+├── backend/           API FastAPI/Python (voir backend/README.md)
 ├── docs/              Documentation d'architecture
-├── design-preference/ Maquettes de référence
 └── README.md
 ```
 
@@ -95,4 +119,3 @@ sémantique (`header`/`nav`/`main`/`footer`, un seul `h1` par page), `aria-hidde
 décoratives, `aria-current` sur la navigation, cibles tactiles de 44px minimum, et sept préférences
 d'accessibilité fonctionnelles (contraste élevé, texte agrandi, focus renforcé, animations réduites)
 persistées et appliquées via `<html class="a11y-*">`.
-# MonParcours

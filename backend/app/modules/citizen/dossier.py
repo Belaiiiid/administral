@@ -19,18 +19,19 @@ atomically with the change.
 
 from __future__ import annotations
 
+import hashlib
+import json
+
 from sqlalchemy.orm import Session
 
-from app.features.citizen.profiling.schemas.profil import ProfilPartiel
+from app.modules.profiling.schemas.profil import ProfilPartiel
 from app.modules.agent.models import Citizen
+from app.modules.ai.checklist.service import generate_checklist
 from app.modules.audit import service as audit_service
 from app.modules.audit.models import AuditAction
 from app.modules.auth.models import User
 from app.modules.citizen import repository
-from app.modules.citizen.checklist_rules import (
-    PERSONALISED_CHECKLIST_VERSION,
-    generate_personalized_checklist,
-)
+from app.modules.citizen.checklist_rules import PERSONALISED_CHECKLIST_VERSION
 from app.modules.citizen.models import (
     Application,
     ApplicationDocument,
@@ -66,6 +67,12 @@ def ensure_application_for_citizen(db: Session, citizen: Citizen) -> Application
     return application
 
 
+def _profile_hash(profil: ProfilPartiel) -> str:
+    """Stable fingerprint of the profile's content, order-independent."""
+    payload = json.dumps(profil.model_dump(mode="json"), sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
 def sync_checklist(
     db: Session, application: Application, profil: ProfilPartiel, *, actor: User | None
 ) -> bool:
@@ -74,8 +81,18 @@ def sync_checklist(
     Returns True when something changed (and an audit event was written). A
     no-op profile leaves the checklist — and the trail — untouched, so this is
     safe to call on every read.
+
+    Generation now calls Mistral (``ai.checklist.service.generate_checklist``),
+    which a bare "safe to call on every read" would turn into a model call on
+    every dossier page view. The profile hash is what keeps that promise true:
+    skip straight past the model when the profile has not changed since the
+    checklist currently on file was generated.
     """
-    targets = generate_personalized_checklist(profil)
+    profile_hash = _profile_hash(profil)
+    if application.checklist_items and application.checklist_profile_hash == profile_hash:
+        return False
+
+    targets = generate_checklist(profil)
     target_by_key = {t.item_key: (position, t) for position, t in enumerate(targets)}
     existing_by_key = {item.item_key: item for item in application.checklist_items}
     had_items = len(existing_by_key) > 0
@@ -125,8 +142,14 @@ def sync_checklist(
 
     changed = bool(added or removed or updated)
     if not changed:
+        # The model (or the deterministic fallback) ran and agreed with what
+        # was already on file — still record the hash, so the *next* read
+        # skips generation entirely instead of asking again for the same answer.
+        application.checklist_profile_hash = profile_hash
+        db.commit()
         return False
 
+    application.checklist_profile_hash = profile_hash
     application.checklist_version = PERSONALISED_CHECKLIST_VERSION
     _recompute_status(application)
 

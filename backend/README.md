@@ -37,6 +37,11 @@ Renseignez `DATABASE_PASSWORD` avec le mot de passe de votre PostgreSQL local.
 psql -U postgres -c "CREATE DATABASE monparcours;"
 ```
 
+> **Windows** : l'installeur PostgreSQL n'ajoute pas toujours `psql` au `PATH`.
+> Si `psql: command not found`, appelez le binaire par son chemin complet
+> (`"C:\Program Files\PostgreSQL\<version>\bin\psql.exe"`) ou ajoutez ce
+> dossier au `PATH` de votre compte, puis rouvrez le terminal.
+
 ### 4. Migrations
 
 ```bash

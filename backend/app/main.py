@@ -19,8 +19,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.exceptions import DomainError, domain_error_handler
 from app.database.session import check_health, verify_connection
-from app.features.citizen.chatbot.router import router as chatbot_router
-from app.features.citizen.profiling.routers import router as profiling_router
+from app.modules.chatbot.router import router as chatbot_router
+from app.modules.profiling.routers import router as profiling_router
 from app.modules.agent.router import router as agent_router
 from app.modules.ai.coherence.router import router as coherence_router
 from app.modules.audit.router import router as audit_router
@@ -39,7 +39,7 @@ def _warmup_chatbot() -> None:
     Best-effort: any failure here is swallowed — the assistant degrades
     gracefully at request time (see chatbot service safety net)."""
     try:
-        from app.features.citizen.chatbot.rag import orchestrator
+        from app.modules.chatbot.rag import orchestrator
 
         orchestrator.get_rag_pipeline()
     except Exception:  # noqa: BLE001 — warmup must never affect startup

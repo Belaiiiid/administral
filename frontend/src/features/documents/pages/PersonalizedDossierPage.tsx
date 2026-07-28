@@ -10,7 +10,7 @@ import {
   Send,
   UserRound,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -33,6 +33,8 @@ import {
 import { dossierService } from '@/services/dossierService';
 import type { DossierReview } from '@/services/documentService';
 import {
+  type CitizenDocument,
+  type DocumentClassification,
   DOSSIER_CATEGORY_LABEL,
   DOSSIER_STATUS_META,
   type DossierCategory,
@@ -83,48 +85,24 @@ function groupByCategory(
   return groups;
 }
 
-function ChecklistRow({
-  item,
-  applicationId,
-  onUploaded,
-}: {
-  item: DossierChecklistItem;
-  applicationId: string;
-  onUploaded: () => void;
-}) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function ChecklistRow({ item }: { item: DossierChecklistItem }) {
   const meta = DOSSIER_STATUS_META[item.status];
   const Icon = STATUS_ICON[item.status];
-
-  const upload = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    setIsUploading(true);
-    setError(null);
-    try {
-      await dossierService.upload(applicationId, file);
-      onUploaded();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'L’envoi a échoué.');
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  // A piece is "received" the moment a deposited file matched it — the row
+  // turns green right then, not only once an agent later validates it.
+  const isReceived = item.status !== 'missing';
 
   return (
-    <li className="rounded-lg border border-border p-4">
+    <li
+      className={cn(
+        'rounded-lg border p-4 transition-colors',
+        isReceived ? 'border-success/40 bg-success-surface' : 'border-border',
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 gap-3">
           <Icon
-            className={cn(
-              'mt-0.5 size-5 shrink-0',
-              item.status === 'validated'
-                ? 'text-success'
-                : item.status === 'uploaded'
-                  ? 'text-primary'
-                  : 'text-on-surface-variant',
-            )}
+            className={cn('mt-0.5 size-5 shrink-0', isReceived ? 'text-success' : 'text-on-surface-variant')}
             aria-hidden="true"
           />
           <div className="min-w-0">
@@ -142,24 +120,214 @@ function ChecklistRow({
         </div>
         <Badge tone={meta.tone}>{meta.label}</Badge>
       </div>
+    </li>
+  );
+}
 
-      {item.status === 'missing' && (
-        <div className="mt-3">
-          <Dropzone
-            compact
-            title={isUploading ? 'Envoi en cours…' : 'Déposer ce document'}
-            hint={`Formats acceptés : ${item.formatsAcceptes.join(', ').toUpperCase()}`}
-            disabled={isUploading}
-            onFilesSelected={upload}
-          />
-          {error && (
-            <p role="alert" className="mt-2 text-body-sm text-destructive">
-              {error}
-            </p>
+/**
+ * The one place documents come in. A single drop target rather than one per
+ * checklist line: the citizen does not have to know in advance which piece a
+ * file is before dropping it — the backend's classifier reads it and matches
+ * it to the right checklist item (or flags it for review), so guessing right
+ * is the server's job, not the burden of the person filling a form.
+ *
+ * Each deposited document keeps its own match score and its own extraction
+ * result — carried over from the former `DocumentUploadPage`, but per document
+ * rather than "the latest one", since a citizen dropping several files at once
+ * needs to check each one individually, not just the last.
+ */
+const QUEUE_STATUS_STYLE: Record<
+  CitizenDocument['status'],
+  { icon: typeof FileText; className: string }
+> = {
+  uploading: { icon: FileText, className: 'bg-primary-fixed text-primary' },
+  analysing: { icon: FileText, className: 'bg-primary-fixed text-primary' },
+  validated: { icon: CheckCircle2, className: 'bg-success-surface text-success' },
+  rejected: { icon: AlertTriangle, className: 'bg-destructive-surface text-destructive' },
+};
+
+const CLASSIFICATION_LABEL: Record<DocumentClassification['decision'], string> = {
+  match: 'Associé à une pièce de la checklist',
+  example_or_template: 'Document fictif ou modèle détecté',
+  not_expected: 'Document non attendu',
+  insufficient: 'Contenu insuffisant pour classer ce document',
+};
+
+function DocumentRow({ document }: { document: CitizenDocument }) {
+  const { icon: Icon, className } = QUEUE_STATUS_STYLE[document.status];
+  const classification = document.classification;
+
+  return (
+    <li className="rounded-lg border border-border bg-surface-lowest p-4">
+      <div className="flex items-center gap-4">
+        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', className)}>
+          <Icon className="size-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-label-md text-on-surface">{document.fileName}</p>
+          {document.status === 'uploading' && (
+            <p className="text-body-sm text-on-surface-variant">Envoi en cours…</p>
+          )}
+          {document.status === 'validated' &&
+            (classification ? (
+              <p className="text-body-sm text-on-surface-variant">
+                {CLASSIFICATION_LABEL[classification.decision]}
+                {classification.decision === 'match' &&
+                  ` (${classification.matched_checklist_document_id})`}
+                {' — score de correspondance '}
+                {Math.round(classification.confidence * 100)} %
+              </p>
+            ) : (
+              <p className="text-body-sm text-on-surface-variant">
+                Classification indisponible
+                {document.classificationError ? ` : ${document.classificationError}` : ''}
+              </p>
+            ))}
+          {document.status === 'rejected' && (
+            <p className="text-body-sm text-destructive">{document.errorMessage}</p>
           )}
         </div>
+      </div>
+
+      {document.status === 'validated' && document.extractedTextPreview && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-body-sm text-primary">
+            Texte extrait (
+            {document.extractionMethod === 'native_pdf' ? 'PDF texte' : 'OCR Mistral'})
+          </summary>
+          <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-low p-3 text-body-sm text-on-surface">
+            {document.extractedTextPreview}
+          </pre>
+        </details>
       )}
     </li>
+  );
+}
+
+/** A file mid-upload has no server id yet — tracked separately from the
+ *  persisted list so a failed request never needs to be reconciled with it. */
+interface PendingUpload {
+  id: string;
+  fileName: string;
+}
+
+function DocumentsColumn({
+  applicationId,
+  onUploaded,
+}: {
+  applicationId: string;
+  onUploaded: () => void;
+}) {
+  const [documents, setDocuments] = useState<CitizenDocument[]>([]);
+  const [pending, setPending] = useState<PendingUpload[]>([]);
+  const [failures, setFailures] = useState<string[]>([]);
+
+  // Kept alongside `documents` so a catch block can read "what existed right
+  // before this upload" without capturing a stale closure over React state.
+  const documentsRef = useRef<CitizenDocument[]>([]);
+  useEffect(() => {
+    documentsRef.current = documents;
+  }, [documents]);
+
+  const refresh = useCallback(
+    () => dossierService.listDocuments(applicationId).then(setDocuments).catch(() => undefined),
+    [applicationId],
+  );
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const upload = async (files: File[]) => {
+    setFailures([]);
+    for (const file of files) {
+      const tempId = crypto.randomUUID();
+      const knownIds = new Set(documentsRef.current.map((document) => document.id));
+      setPending((current) => [...current, { id: tempId, fileName: file.name }]);
+
+      try {
+        await dossierService.upload(applicationId, file);
+        await refresh();
+        onUploaded();
+      } catch (cause) {
+        // The request may have actually succeeded server-side even though the
+        // response never made it back (a dropped connection, not a rejection
+        // from the API). Check before telling the citizen their file is lost —
+        // a false "échec" would send them re-uploading a file already safely
+        // stored, only to be turned away next time by the duplicate check.
+        const reconciled = await dossierService.listDocuments(applicationId).catch(() => null);
+        const actuallyLanded = reconciled?.find(
+          (document) =>
+            !knownIds.has(document.id) &&
+            document.fileName === file.name &&
+            document.sizeBytes === file.size,
+        );
+
+        if (actuallyLanded && reconciled) {
+          setDocuments(reconciled);
+          onUploaded();
+        } else {
+          setFailures((current) => [
+            ...current,
+            `${file.name} : ${cause instanceof Error ? cause.message : 'l’envoi a échoué.'}`,
+          ]);
+        }
+      } finally {
+        setPending((current) => current.filter((item) => item.id !== tempId));
+      }
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader title="Documents déposés" as="h2" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-body-sm text-on-surface-variant">
+          Déposez vos justificatifs dans n’importe quel ordre : chaque fichier est analysé et
+          associé automatiquement à la bonne pièce de la checklist, à droite.
+        </p>
+        <Dropzone
+          title="Glissez vos fichiers ici"
+          hint="Ou cliquez pour parcourir votre ordinateur — PDF, JPG, PNG"
+          onFilesSelected={upload}
+        />
+
+        {failures.length > 0 && (
+          <ul className="space-y-1">
+            {failures.map((message) => (
+              <li key={message} role="alert" className="text-body-sm text-destructive">
+                {message}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {(pending.length > 0 || documents.length > 0) && (
+          <ul className="flex flex-col gap-3">
+            {pending.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center gap-4 rounded-lg border border-border bg-surface-lowest p-4"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                  <FileText className="size-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-label-md text-on-surface">{item.fileName}</p>
+                  <p className="text-body-sm text-on-surface-variant">Envoi en cours…</p>
+                </div>
+              </li>
+            ))}
+            {/* Most recent first — the file just dropped is what the citizen wants to check. */}
+            {[...documents].reverse().map((document) => (
+              <DocumentRow key={document.id} document={document} />
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -504,7 +672,7 @@ export default function PersonalizedDossierPage() {
   return (
     <div className="mx-auto max-w-container">
       <PageHeader
-        title="Mon dossier personnalisé"
+        title="Déposer un dossier"
         description="Vos pièces justificatives adaptées à votre situation, jusqu’à la transmission à l’administration."
       />
 
@@ -577,37 +745,43 @@ export default function PersonalizedDossierPage() {
           {/* État civil (NIR + date de naissance) */}
           <CivilStatusCard profile={profile} onSaved={setProfile} />
 
-          {/* Checklist by category */}
-          {dossier.items.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="Aucune pièce requise pour le moment"
-              description="Complétez votre profil pour générer la liste de vos justificatifs."
-            />
-          ) : (
-            groups.map((group) => (
-              <Card key={group.categorie}>
-                <CardHeader>
-                  <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h2" />
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {group.items.map((item) => (
-                      <ChecklistRow
-                        key={item.documentType}
-                        item={item}
-                        applicationId={dossier.applicationId}
-                        onUploaded={() => {
-                          refreshDossier();
-                          refreshReview();
-                        }}
-                      />
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))
-          )}
+          {/* Documents (left) / Checklist (right) */}
+          <div className="grid gap-gutter lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <DocumentsColumn
+                applicationId={dossier.applicationId}
+                onUploaded={() => {
+                  refreshDossier();
+                  refreshReview();
+                }}
+              />
+            </div>
+
+            <aside className="flex flex-col gap-gutter">
+              {dossier.items.length === 0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title="Aucune pièce requise pour le moment"
+                  description="Complétez votre profil pour générer la liste de vos justificatifs."
+                />
+              ) : (
+                groups.map((group) => (
+                  <Card key={group.categorie}>
+                    <CardHeader>
+                      <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h2" />
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {group.items.map((item) => (
+                          <ChecklistRow key={item.documentType} item={item} />
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </aside>
+          </div>
 
           {/* Transmission + instruction */}
           <SubmissionCard

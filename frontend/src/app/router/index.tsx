@@ -19,20 +19,9 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswo
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 
-const ServiceSelectionPage = lazy(() => import('@/features/portal/pages/ServiceSelectionPage'));
-const AccessibilityOnboardingPage = lazy(
-  () => import('@/features/portal/pages/AccessibilityOnboardingPage'),
-);
 const CitizenDashboardPage = lazy(() => import('@/features/portal/pages/CitizenDashboardPage'));
 const NotificationsPage = lazy(() => import('@/features/portal/pages/NotificationsPage'));
 const CitizenSettingsPage = lazy(() => import('@/features/portal/pages/CitizenSettingsPage'));
-
-const AplHomePage = lazy(() => import('@/features/apl/pages/AplHomePage'));
-const AplSimulatorPage = lazy(() => import('@/features/apl/pages/AplSimulatorPage'));
-const AplApplicationFormPage = lazy(() => import('@/features/apl/pages/AplApplicationFormPage'));
-const AplApplicationDetailPage = lazy(
-  () => import('@/features/apl/pages/AplApplicationDetailPage'),
-);
 
 const ProfilePage = lazy(() => import('@/features/citizen/profiling/pages/ProfilePage'));
 const ProfilageOnboardingPage = lazy(
@@ -66,14 +55,6 @@ const router = createBrowserRouter([
     ],
   },
   {
-    // Onboarding — centred, distraction-free.
-    element: <FocusLayout />,
-    children: [
-      { path: ROUTES.onboardingServices, element: <ServiceSelectionPage /> },
-      { path: ROUTES.onboardingAccessibility, element: <AccessibilityOnboardingPage /> },
-    ],
-  },
-  {
     // Signup-first profiling. Same distraction-free shell, but authenticated:
     // it lands a freshly-registered citizen here and persists their answers, so
     // it must run with a session (and bounce to login if opened without one).
@@ -95,13 +76,7 @@ const router = createBrowserRouter([
           { path: ROUTES.home, element: <Navigate to={ROUTES.portal} replace /> },
 
           { path: ROUTES.portal, element: <CitizenDashboardPage /> },
-          { path: ROUTES.portalServices, element: <ServiceSelectionPage /> },
           { path: ROUTES.portalNotifications, element: <NotificationsPage /> },
-
-          { path: ROUTES.apl, element: <AplHomePage /> },
-          { path: ROUTES.aplSimulator, element: <AplSimulatorPage /> },
-          { path: ROUTES.aplApplication, element: <AplApplicationFormPage /> },
-          { path: ROUTES.aplApplicationDetail(), element: <AplApplicationDetailPage /> },
 
           { path: ROUTES.profile, element: <ProfilePage /> },
           { path: ROUTES.profileAccessibility, element: <AccessibilityPreferencesPage /> },

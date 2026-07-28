@@ -79,6 +79,11 @@ class Application(TimestampMixin, Base):
         default=ApplicationStatus.incomplete,
     )
     checklist_version: Mapped[str] = mapped_column(String(32), nullable=False, default="apl-v1")
+    #: SHA-256 of the profile that produced the current checklist items. The
+    #: checklist is resynced on every dossier read (self-healing), and the
+    #: generator now calls Mistral — this is what lets a read stay cheap when
+    #: the profile has not changed, instead of re-asking the model every time.
+    checklist_profile_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     documents: Mapped[list[ApplicationDocument]] = relationship(
         back_populates="application", cascade="all, delete-orphan"
@@ -109,6 +114,11 @@ class ApplicationDocument(TimestampMixin, Base):
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     #: Path on the storage backend. Never served to the client; only metadata is.
     stored_path: Mapped[str] = mapped_column(String(512), nullable=False)
+    #: SHA-256 of the file's bytes, hex-encoded. Lets the upload flow refuse a
+    #: file already deposited on this application without re-reading every
+    #: stored file from disk to compare — nullable because rows written before
+    #: this column existed have no hash and must never match one.
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, name="app_document_status"), nullable=False

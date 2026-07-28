@@ -13,6 +13,7 @@ from app.modules.citizen.models import (
     Application,
     ApplicationDocument,
     ApplicationStatus,
+    ChecklistItem,
 )
 
 
@@ -83,6 +84,18 @@ def list_documents(db: Session, application_id: str) -> list[ApplicationDocument
 
 def get_document(db: Session, document_id: str) -> ApplicationDocument | None:
     return db.get(ApplicationDocument, document_id)
+
+
+def find_document_by_hash(
+    db: Session, application_id: str, content_hash: str
+) -> ApplicationDocument | None:
+    """An existing document on this application with identical content, if any."""
+    return db.execute(
+        select(ApplicationDocument).where(
+            ApplicationDocument.application_id == application_id,
+            ApplicationDocument.content_hash == content_hash,
+        )
+    ).scalar_one_or_none()
 
 
 def add_document(db: Session, document: ApplicationDocument) -> ApplicationDocument:

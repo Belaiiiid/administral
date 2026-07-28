@@ -7,4 +7,3 @@ export * from './PageHeader';
 export * from './SectionHeader';
 export * from './StatusBadge';
 export * from './Stepper';
-export * from './Timeline';

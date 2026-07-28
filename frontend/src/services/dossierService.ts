@@ -1,4 +1,4 @@
-import type { PersonalizedDossier } from '@/types';
+import type { CitizenDocument, PersonalizedDossier } from '@/types';
 import { apiClient } from './apiClient';
 import type { DossierReview, SubmitDossierResult } from './documentService';
 
@@ -16,8 +16,11 @@ import type { DossierReview, SubmitDossierResult } from './documentService';
 export interface DossierService {
   /** The citizen's personalised dossier. `GET /citizen/dossier`. */
   getDossier(): Promise<PersonalizedDossier>;
-  /** Upload one document to the personalised dossier's application. */
-  upload(applicationId: string, file: File): Promise<void>;
+  /** Documents already deposited against this application, in upload order. */
+  listDocuments(applicationId: string): Promise<CitizenDocument[]>;
+  /** Upload one document to the personalised dossier's application. Returns
+   *  the stored document, extraction and classification result. */
+  upload(applicationId: string, file: File): Promise<CitizenDocument>;
   /** Submit the dossier — emits an agent Case from the citizen Application. */
   submit(applicationId: string, profile?: Record<string, unknown>): Promise<SubmitDossierResult>;
   /** Where the submitted dossier stands in agent review (status + decision). */
@@ -27,12 +30,15 @@ export interface DossierService {
 export const dossierService: DossierService = {
   getDossier: () => apiClient.get<PersonalizedDossier>('/citizen/dossier'),
 
+  listDocuments: (applicationId) =>
+    apiClient.get<CitizenDocument[]>('/documents', { params: { applicationId } }),
+
   upload: (applicationId, file) => {
     // Same multipart endpoint the document upload page uses; FormData sets its
     // own Content-Type, so apiClient must not force JSON.
     const form = new FormData();
     form.append('file', file);
-    return apiClient.post<void>('/documents', form, {
+    return apiClient.post<CitizenDocument>('/documents', form, {
       params: { applicationId },
     });
   },
