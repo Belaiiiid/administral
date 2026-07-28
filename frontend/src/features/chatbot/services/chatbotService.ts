@@ -49,6 +49,10 @@ export const httpChatbotService: ChatbotService = {
             conversationHistory: (context.conversationHistory ?? [])
               .slice(-HISTORY_TURNS)
               .map(({ role, content }) => ({ role, content })),
+            // Renvoyés tels quels : le backend n'a pas de session, l'état de la
+            // clarification en cours vit ici le temps d'un aller-retour.
+            pendingClarification: context.pendingClarification,
+            isClarificationReply: context.isClarificationReply ?? false,
           }
         : undefined,
     }),

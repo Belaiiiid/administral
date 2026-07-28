@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { chatbotService } from '@/features/chatbot/services';
-import type { ChatbotContext, ChatbotMessage } from '@/features/chatbot/types/chatbot';
+import type {
+  ChatbotContext,
+  ChatbotMessage,
+  ChatbotPendingClarification,
+} from '@/features/chatbot/types/chatbot';
 
 export interface ChatbotController {
   /** The thread, oldest first. Empty until the citizen asks something. */
@@ -12,6 +16,14 @@ export interface ChatbotController {
   error: Error | null;
   /** Ask a question. No-op on empty input or while a reply is in flight. */
   send: (message: string) => void;
+  /**
+   * Répondre à la question de l'assistant en choisissant un des `options` du
+   * dernier tour. Distinct de `send` : ce chemin est marqué comme réponse de
+   * clarification, ce qui court-circuite la classification d'intention côté
+   * backend — un « je suis locataire, mon loyer est de 400 € » cliqué ne peut
+   * donc pas être pris pour une nouvelle demande.
+   */
+  selectOption: (option: string) => void;
 }
 
 /**
@@ -22,6 +34,14 @@ export interface ChatbotController {
  * answer, rank a source, or decide when the assistant should decline. Those live
  * behind `chatbotService`, and behind it the backend that retrieves the sources
  * and composes the answer.
+ *
+ * Une seule règle de conversation vit ici, et elle est délibérée : quand
+ * l'assistant pose une question **à choix**, un texte tapé dans le composeur est
+ * traité comme un changement de sujet (il repasse par la classification), tandis
+ * qu'un clic sur un choix est une réponse. Quand la question attend une **valeur
+ * libre** (un montant, une date — pas d'`options`), le texte tapé EST la réponse.
+ * Le backend ne devine jamais cette distinction : c'est l'UI qui sait d'où vient
+ * le message.
  *
  * @param context What is known about the citizen's situation, forwarded with
  *                every question. Pass only values that are genuinely known;
@@ -48,8 +68,13 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
   messagesRef.current = messages;
   isSendingRef.current = isSending;
 
-  const send = useCallback((message: string) => {
-    const question = message.trim();
+  // L'état de la clarification en cours. Volontairement dans des refs et non
+  // dans le state : rien ne s'affiche à partir de lui, il ne sert qu'à décrire
+  // le message suivant.
+  const pendingRef = useRef<ChatbotPendingClarification | null>(null);
+  const pendingHasOptionsRef = useRef(false);
+
+  const ask = useCallback((question: string, isClarificationReply: boolean) => {
     if (!question || isSendingRef.current) return;
 
     /*
@@ -58,6 +83,7 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
      * question, never the question twice.
      */
     const conversationHistory = messagesRef.current;
+    const pendingClarification = pendingRef.current ?? undefined;
 
     setMessages((current) => [
       ...current,
@@ -74,8 +100,16 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
     setError(null);
 
     chatbotService
-      .sendMessage(question, { ...contextRef.current, conversationHistory })
+      .sendMessage(question, {
+        ...contextRef.current,
+        conversationHistory,
+        pendingClarification,
+        isClarificationReply,
+      })
       .then((response) => {
+        pendingRef.current = response.pendingClarification ?? null;
+        pendingHasOptionsRef.current = (response.options?.length ?? 0) > 0;
+
         setMessages((current) => [
           ...current,
           {
@@ -84,6 +118,7 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
             content: response.answer,
             createdAt: new Date().toISOString(),
             sources: response.sources,
+            options: response.options ?? undefined,
           },
         ]);
       })
@@ -93,5 +128,23 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
       .finally(() => setIsSending(false));
   }, []);
 
-  return { messages, isSending, error, send };
+  const send = useCallback(
+    (message: string) => {
+      const question = message.trim();
+      // Réponse libre attendue (clarification sans choix) → c'est une réponse.
+      // Question à choix en attente → un texte tapé change de sujet.
+      const answersFreeValue = pendingRef.current !== null && !pendingHasOptionsRef.current;
+      ask(question, answersFreeValue);
+    },
+    [ask],
+  );
+
+  const selectOption = useCallback(
+    (option: string) => {
+      ask(option.trim(), pendingRef.current !== null);
+    },
+    [ask],
+  );
+
+  return { messages, isSending, error, send, selectOption };
 }

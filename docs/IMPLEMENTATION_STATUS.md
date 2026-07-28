@@ -9,6 +9,82 @@ Legend: ✅ complete · 🟡 partial / diverges · ❌ missing.
 
 ---
 
+## Iteration 6 — Citizen assistant: engine re-synced, structured clarification, real checklist (2026-07-28)
+
+The assistant's engine (migrated APL RAG, `app/modules/chatbot/rag/`) was a
+snapshot of an older upstream version. It is now re-synced with the current one,
+and the two MonParcours-specific mocks it shipped with are gone.
+
+### Three intents instead of four — the assistant no longer reads the account
+
+- Upstream merged `depot_dossier` (my dossier) and `autre_profil` (someone
+  else's) into a single **`documents_necessaires`**: with no authentication on
+  the target channel, both start from zero knowledge, so both are answered the
+  same way — by asking. The classifier now has three intents
+  (`documents_necessaires`, `rag_general`, `fallback`).
+- Consequence here, and it is deliberate: the assistant **does not read the
+  signed-in citizen's dossier or profile any more**. The account is used for one
+  thing only — the caller's *role* (`citizen`/`agent`), which widens the corpus
+  the retrieval may search (`legislation` for agents; filter in place, corpus not
+  yet populated). Dossier tracking stays in the citizen space, which is
+  untouched; `citizen`/`submission` services are unchanged, simply not called
+  from the chatbot. Behaviour is therefore identical for a signed-in web user and
+  for a channel with no account at all.
+- Greetings ("Bonjour") are detected by keyword and answered with a welcome
+  message — no LLM call, no misrouting.
+
+### Structured clarification (the answer options are now buttons)
+
+- When an answer depends on the citizen's situation, the assistant asks instead
+  of guessing, and the question comes back as `options` + `pendingClarification`.
+  Answering by clicking an option **bypasses intent classification** (the reply
+  carries `isClarificationReply`, set by the UI — never inferred from the text),
+  which is what stops "je suis locataire, mon loyer est 400 €" from being read as
+  a brand-new request.
+- Two options are appended **by code, not by prompt**, to every choice list:
+  « Je ne comprends pas, expliquez-moi » and « Passer cette question ».
+- No session is added: like `conversationHistory`, the clarification state makes
+  a round trip through the client.
+
+### `documents_necessaires` is no longer a mock — it returns the real checklist
+
+- Upstream ends its profiling flow on a `[MOCK]` for lack of a personalised
+  checklist generator. MonParcours has one, so it is wired in
+  (`chatbot/checklist_answer.py` → `ai.checklist.service.generate_checklist`,
+  Mistral with the deterministic `checklist_rules` as its safety net).
+- The profile driving it is **declarative**: only what the person stated during
+  the conversation. Nothing is read from the account, and the LLM only fills
+  profile fields (bounded by the `ProfilPartiel` enums) — it never decides which
+  documents are required. Unknown fields or values are dropped, so an empty or
+  hallucinated profile degrades to the core checklist rather than an error.
+
+### Validation
+
+- Backend **109/109 pass**. Live round-trips: greeting → welcome; "quels
+  documents pour la demande d'APL de mon fils étudiant ?" → 3 profiling questions
+  (with the two guaranteed options) → real checklist including *certificat de
+  scolarité*, *notification de bourse (CROUS)* and *contrat de location*;
+  "comment est calculée l'APL ?" → clarification, then a sourced answer;
+  off-topic → fallback. HTTP contract checked on `/api/citizen/chatbot/message`,
+  including a forged `pendingClarification.intent` → **422** (the intent is
+  bounded, a client cannot name an arbitrary node). Frontend `tsc -b --noEmit`
+  clean.
+
+### Files
+
+- Backend: `app/modules/chatbot/rag/*` (engine re-synced: 3 intents, structured
+  clarification, role-based corpus filter, multi-provider LLM client with
+  `@traceable`), `app/modules/chatbot/checklist_answer.py` (**new** — declarative
+  profile → real checklist), `chatbot/{service,schemas,router}.py`,
+  `requirements.txt` (+langsmith), `.env.example` (optional assistant vars). No
+  schema/migration change.
+- Frontend: `features/chatbot/` — `types/chatbot.ts`, `services/chatbotService.ts`,
+  `hooks/useChatbot.ts` (`selectOption`, clarification bookkeeping),
+  `components/{MessageBubble,ChatWindow,SourceCitation}.tsx` (option buttons,
+  multi-line answers, `legislation` category).
+
+---
+
 ## Iteration 5 — Coherent citizen workflow: live checklist, working assistant, one dossier (2026-07-27)
 
 Fixes to the citizen path so it is dynamic and coherent end to end, per user
@@ -423,7 +499,7 @@ Harness layer), previously absent.
 | Harness | Output validation (strict schema, retry max 2, json_object) | 🟡 | Per-AI-service, fail-safe; no unified harness with enforced retry |
 | Harness | **Log immuable SHA-256** | ✅ | **completed this iteration** |
 | Orchestration | LangGraph | ✅ | profiling + chatbot |
-| Orchestration | LangSmith observability | ❌ | Not wired |
+| Orchestration | LangSmith observability | 🟡 | Assistant's LLM calls are `@traceable` (Iteration 6); inactive unless `LANGSMITH_*` set. Other AI modules not instrumented |
 | Agent d'analyse | 8 phases | 🟡 | OCR/completeness/coherence/reports ✅; voice + reserve simulator ❌ |
 | Outils | OCR multimodal (Pixtral) | 🟡 | Extraction present; confirm Pixtral wiring |
 | Outils | RAG réglementaire | ✅¹ | Qdrant + BM25 hybrid (spec named ChromaDB) — divergence kept, superior |

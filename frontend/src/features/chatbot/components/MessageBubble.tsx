@@ -17,9 +17,19 @@ export interface MessageBubbleProps {
   message: ChatbotMessage;
   /** Fills the composer with a quick-reply chip. Chips are inert without it. */
   onSuggestionSelect?: (suggestion: string) => void;
+  /**
+   * Répond à une question de clarification. Fourni uniquement pour le dernier
+   * tour : les choix d'une question déjà passée ne sont plus proposés, on ne
+   * répond pas deux tours plus tard à une question qui n'attend plus rien.
+   */
+  onOptionSelect?: (option: string) => void;
 }
 
-export function MessageBubble({ message, onSuggestionSelect }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  onSuggestionSelect,
+  onOptionSelect,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
@@ -39,7 +49,10 @@ export function MessageBubble({ message, onSuggestionSelect }: MessageBubbleProp
       <div className={cn('flex max-w-[80%] flex-col gap-3', isUser && 'items-end')}>
         <div
           className={cn(
-            'rounded-xl px-4 py-3 text-body-md',
+            // `whitespace-pre-line` : certaines réponses sont des listes (la
+            // checklist de documents, une pièce par ligne). Sans ça, tout se
+            // recolle en un pavé.
+            'whitespace-pre-line rounded-xl px-4 py-3 text-body-md',
             isUser
               ? 'bg-primary text-primary-foreground'
               : 'border border-border bg-surface-low text-on-surface',
@@ -50,6 +63,23 @@ export function MessageBubble({ message, onSuggestionSelect }: MessageBubbleProp
         </div>
 
         {message.sources && <SourceCitation sources={message.sources} />}
+
+        {message.options && onOptionSelect && (
+          <ul className="flex flex-wrap gap-2">
+            {message.options.map((option) => (
+              <li key={option}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => onOptionSelect(option)}
+                >
+                  {option}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {message.suggestions && (
           <ul className="flex flex-wrap gap-2">

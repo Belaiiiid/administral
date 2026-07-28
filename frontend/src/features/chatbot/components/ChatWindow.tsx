@@ -35,7 +35,7 @@ export interface ChatWindowProps {
 }
 
 export function ChatWindow({ controller }: ChatWindowProps) {
-  const { messages, isSending, error, send } = controller;
+  const { messages, isSending, error, send, selectOption } = controller;
   const [draft, setDraft] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,8 +55,17 @@ export function ChatWindow({ controller }: ChatWindowProps) {
 
       {messages.length > 0 ? (
         <ul className="flex flex-1 flex-col gap-6" aria-live="polite" aria-busy={isSending}>
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} onSuggestionSelect={submit} />
+          {messages.map((message, index) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onSuggestionSelect={submit}
+              // Seuls les choix du dernier tour restent cliquables : une question
+              // de clarification déjà dépassée n'attend plus de réponse.
+              onOptionSelect={
+                index === messages.length - 1 && !isSending ? selectOption : undefined
+              }
+            />
           ))}
 
           {isSending && (

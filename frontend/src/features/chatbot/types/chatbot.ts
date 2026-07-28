@@ -26,7 +26,25 @@ export interface ChatbotSource {
  * The corpus a source belongs to. Drives the label shown next to a citation, so
  * a citizen can tell an official regulation from a practical how-to.
  */
-export type ChatbotSourceCategory = 'demarche' | 'reglementation' | 'document' | 'faq';
+export type ChatbotSourceCategory =
+  | 'demarche'
+  | 'reglementation'
+  | 'document'
+  | 'faq'
+  /** Corpus juridique, réservé au rôle agent côté backend. */
+  | 'legislation';
+
+/**
+ * La question de clarification à laquelle le prochain message répond.
+ *
+ * Émise par le backend avec la question, renvoyée telle quelle avec la réponse.
+ * Le backend ne garde aucune session : cet état fait l'aller-retour par le
+ * client, exactement comme `conversationHistory`.
+ */
+export interface ChatbotPendingClarification {
+  originalQuestion: string;
+  intent: 'rag_general' | 'documents_necessaires';
+}
 
 /**
  * Everything the frontend sends alongside a question.
@@ -49,6 +67,15 @@ export interface ChatbotContext {
    * conversation storage.
    */
   conversationHistory?: ChatMessage[];
+  /** La clarification en attente, telle que reçue au tour précédent. */
+  pendingClarification?: ChatbotPendingClarification;
+  /**
+   * `true` seulement quand le message répond à la clarification (clic sur une
+   * option, ou saisie alors qu'une question à réponse libre est posée). Le
+   * backend s'y fie pour court-circuiter sa classification d'intention : c'est
+   * l'UI qui sait d'où vient la réponse, il ne le devine jamais du texte.
+   */
+  isClarificationReply?: boolean;
 }
 
 /**
@@ -68,6 +95,15 @@ export interface ChatbotResponse {
    * (no citations block), not an error.
    */
   sources: ChatbotSource[];
+  /**
+   * Choix proposés quand la réponse est une question de clarification. `null`
+   * (ou absent) = réponse finale, ou question attendant une valeur libre.
+   * Les deux derniers choix sont toujours « Je ne comprends pas, expliquez-moi »
+   * et « Passer cette question » : le backend les garantit.
+   */
+  options?: string[] | null;
+  /** Non nul tant que l'assistant attend une réponse à sa question. */
+  pendingClarification?: ChatbotPendingClarification | null;
 }
 
 /**
@@ -80,4 +116,10 @@ export interface ChatbotResponse {
 export interface ChatbotMessage extends ChatMessage {
   /** Present on assistant turns that were grounded in retrieved documents. */
   sources?: ChatbotSource[];
+  /**
+   * Présent sur les tours où l'assistant pose une question à choix. Distinct de
+   * `suggestions` (relances libres) : répondre par un de ces choix est routé
+   * comme une réponse de clarification, pas comme un nouveau message.
+   */
+  options?: string[];
 }
