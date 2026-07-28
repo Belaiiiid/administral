@@ -1,45 +1,64 @@
-import {
-  ArrowRight,
-  Bell,
-  CalendarClock,
-  FileText,
-  HomeIcon,
-  Inbox,
-  Plus,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowRight, Bell, Landmark } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
 import { ROUTES } from '@/app/router/paths';
-import { AiSuggestionCard, DataRow, EmptyState, PageHeader, SectionHeader } from '@/components/shared';
+import { PageHeader, SectionHeader } from '@/components/shared';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
+import { dossierService } from '@/services/dossierService';
 
 /**
- * Citizen portal home — the cross-administration entry point.
+ * "Mes services" — the citizen's landing page once their profile is filled.
  *
- * Layout only. Every widget below renders its empty state until
- * `portalService` provides real data; nothing here fabricates a value.
+ * Doubles as the landing gate: a citizen whose profile is not yet complete
+ * (housing + professional status unanswered) is sent straight to the
+ * profiling assistant instead of seeing a hub with nothing behind it yet.
+ * `profileComplete` is computed server-side (`PersonalizedDossierSchema`),
+ * the same flag the dossier page already trusts — one definition, not two.
+ *
+ * Only `caf` (APL) is wired to a real backend; the rest render as disabled
+ * tiles rather than pretending to be functional — consistent with dropping
+ * the old fake "active services" dashboard widgets this replaces.
  */
 export default function CitizenDashboardPage() {
-  useDocumentTitle('Tableau de bord');
-  const { displayName, activatedServices } = useSessionStore();
+  useDocumentTitle('Mes services');
+  const { displayName } = useSessionStore();
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
-  const activeServices = SERVICES.filter((service) => activatedServices.includes(service.id));
-  const inactiveServices = SERVICES.filter((service) => !activatedServices.includes(service.id));
+  useEffect(() => {
+    dossierService
+      .getDossier()
+      .then((dossier) => setProfileComplete(dossier.profileComplete))
+      .catch(() => setProfileComplete(true)); // fail open: never trap a citizen on an error
+  }, []);
+
+  if (profileComplete === null) {
+    return (
+      <div className="mx-auto max-w-container space-y-gutter">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (!profileComplete) {
+    return <Navigate to={ROUTES.onboardingProfilage} replace />;
+  }
 
   return (
     <div className="mx-auto max-w-container">
       <PageHeader
-        title="Tableau de bord"
+        title="Mes services"
         description={
           displayName
-            ? `Bienvenue ${displayName}, voici l’état de vos démarches en cours.`
-            : 'Retrouvez ici l’état de vos démarches en cours.'
+            ? `Bienvenue ${displayName}, choisissez le service que vous souhaitez utiliser.`
+            : 'Choisissez le service que vous souhaitez utiliser.'
         }
         actions={
           <Button asChild variant="outline">
@@ -51,185 +70,54 @@ export default function CitizenDashboardPage() {
         }
       />
 
-      <div className="bento-grid">
-        {/* Assistant slot */}
-        <div className="md:col-span-12">
-          <AiSuggestionCard title="Assistant" showFeedback={false}>
-            Aucune suggestion pour le moment. L’assistant analysera vos démarches dès qu’elles
-            seront disponibles.
-          </AiSuggestionCard>
-        </div>
-
-        {/* Active services */}
-        <section className="md:col-span-8" aria-labelledby="active-services">
-          <SectionHeader
-            title="Mes services actifs"
-            as="h2"
-            id="active-services"
-            className="mb-4"
-            action={
-              <Button asChild variant="link" size="sm">
-                <Link to={ROUTES.dossier}>Gérer mes services</Link>
-              </Button>
-            }
-          />
-
-          {activeServices.length > 0 ? (
-            <ul className="flex flex-col gap-4">
-              {activeServices.map((service) => (
-                <li key={service.id}>
-                  <Card>
-                    <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
-                      <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                        <HomeIcon className="size-6" aria-hidden="true" />
-                      </span>
-                      <div className="flex-1">
-                        <h3 className="text-headline-md text-primary">{service.name}</h3>
-                        <p className="text-body-sm text-on-surface-variant">
-                          {service.description}
-                        </p>
-                      </div>
-                      <Button asChild variant="outline-primary">
-                        <Link to={service.basePath}>
-                          Ouvrir
-                          <span className="sr-only"> {service.name}</span>
-                          <ArrowRight aria-hidden="true" />
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <EmptyState
-                  icon={Inbox}
-                  title="Aucun service activé"
-                  description="Rattachez une administration à votre compte pour suivre vos démarches ici."
-                  actions={
-                    <Button asChild>
-                      <Link to={ROUTES.dossier}>
-                        <Plus aria-hidden="true" />
-                        Activer un service
-                      </Link>
-                    </Button>
-                  }
-                />
+      <SectionHeader title="Services publics" as="h2" className="mb-4" />
+      <ul className="grid gap-4 sm:grid-cols-2">
+        {SERVICES.map((service) => {
+          const isAvailable = service.status === 'available';
+          const content = (
+            <Card
+              className={
+                isAvailable
+                  ? 'h-full transition-colors hover:border-primary'
+                  : 'h-full opacity-60'
+              }
+            >
+              <CardContent className="flex h-full flex-col gap-4 p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                    <Landmark className="size-6" aria-hidden="true" />
+                  </span>
+                  {!isAvailable && <Badge tone="neutral">Bientôt disponible</Badge>}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-headline-md text-primary">{service.name}</h3>
+                  <p className="mt-1 text-body-sm text-on-surface-variant">
+                    {service.description}
+                  </p>
+                </div>
+                {isAvailable && (
+                  <span className="flex items-center gap-1 text-label-md text-primary">
+                    Ouvrir
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </span>
+                )}
               </CardContent>
             </Card>
-          )}
-        </section>
+          );
 
-        {/* Profile summary */}
-        <aside className="md:col-span-4" aria-labelledby="profile-summary">
-          <Card className="h-full">
-            <CardHeader>
-              <SectionHeader title="Mon profil citoyen" as="h2" id="profile-summary" />
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <DataRow label="Situation familiale" />
-              <DataRow label="Enfants à charge" />
-              <DataRow label="Dernière mise à jour" />
-              <Button asChild variant="outline" block className="mt-4">
-                <Link to={ROUTES.profile}>Compléter mon profil</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-
-        {/* Upcoming deadlines */}
-        <section className="md:col-span-4" aria-labelledby="deadlines">
-          <Card className="flex h-full flex-col">
-            <CardHeader className="flex-row items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-full bg-primary-fixed text-primary">
-                <CalendarClock className="size-5" aria-hidden="true" />
-              </span>
-              <h2 id="deadlines" className="text-label-md text-on-surface">
-                Prochaines échéances
-              </h2>
-            </CardHeader>
-            <CardContent className="flex flex-1 items-center justify-center p-0">
-              <EmptyState
-                size="compact"
-                icon={CalendarClock}
-                title="Aucune échéance"
-                description="Vos prochaines dates limites apparaîtront ici."
-              />
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Recent documents */}
-        <section className="md:col-span-4" aria-labelledby="recent-docs">
-          <Card className="flex h-full flex-col">
-            <CardHeader className="flex-row items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-full bg-secondary-fixed text-secondary-on-fixed">
-                <FileText className="size-5" aria-hidden="true" />
-              </span>
-              <h2 id="recent-docs" className="text-label-md text-on-surface">
-                Documents récents
-              </h2>
-            </CardHeader>
-            <CardContent className="flex flex-1 flex-col p-0">
-              <EmptyState
-                size="compact"
-                icon={FileText}
-                title="Aucun document"
-                description="Les pièces que vous déposez s’afficheront ici."
-                className="flex-1 justify-center"
-              />
-              <div className="px-6 pb-6">
-                <Button asChild variant="link" size="sm" className="px-0">
-                  <Link to={ROUTES.documents}>Tous mes documents</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Household */}
-        <section className="md:col-span-4" aria-labelledby="household">
-          <Card className="h-full">
-            <CardHeader className="flex-row items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-full bg-primary-fixed text-primary">
-                <Users className="size-5" aria-hidden="true" />
-              </span>
-              <h2 id="household" className="text-label-md text-on-surface">
-                Composition du foyer
-              </h2>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <DataRow label="Adultes" />
-              <DataRow label="Enfants à charge" />
-              <Button asChild variant="link" size="sm" className="mt-2 self-start px-0">
-                <Link to={ROUTES.profile}>Renseigner ma situation</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Suggestive empty state — additional services */}
-        {inactiveServices.length > 0 && (
-          <div className="md:col-span-12">
-            <EmptyState
-              variant="suggestive"
-              icon={Sparkles}
-              title="Activez d’autres services publics"
-              description={`${inactiveServices.length} administrations peuvent être rattachées à votre compte pour pré-remplir automatiquement vos démarches.`}
-              actions={
-                <Button asChild>
-                  <Link to={ROUTES.dossier}>
-                    <Plus aria-hidden="true" />
-                    Ajouter un service
-                  </Link>
-                </Button>
-              }
-            />
-          </div>
-        )}
-      </div>
+          return (
+            <li key={service.id}>
+              {isAvailable ? (
+                <Link to={service.basePath} aria-label={`Ouvrir ${service.name}`}>
+                  {content}
+                </Link>
+              ) : (
+                <div aria-disabled="true">{content}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

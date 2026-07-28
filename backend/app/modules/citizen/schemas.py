@@ -132,3 +132,15 @@ class PersonalizedDossierSchema(_CamelBase):
     required_received_count: int
     required_document_count: int
     items: list[DossierChecklistItemSchema]
+
+
+class EstimationAideSchema(_CamelBase):
+    """A rough, explainable monthly APL estimate — see `citizen/estimation.py`."""
+
+    montant_estime: int
+    loyer_retenu: float
+    participation_personnelle: float
+    #: False when the profile does not yet have enough to attempt an estimate
+    #: (housing status or rent still unknown) — distinct from a genuine 0 €.
+    estimation_possible: bool
+    avertissement: str

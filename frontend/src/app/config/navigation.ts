@@ -1,4 +1,13 @@
-import { Bot, ClipboardList, FolderOpen, LayoutDashboard, LogOut, Plus, UserRound } from 'lucide-react';
+import {
+  Bot,
+  FolderOpen,
+  LayoutGrid,
+  LogOut,
+  Plus,
+  Route,
+  Send,
+  UserRound,
+} from 'lucide-react';
 
 import {
   isNavItemActive,
@@ -18,26 +27,33 @@ export type { NavCta, NavItem, NavSections };
 /**
  * Primary sidebar navigation.
  *
- * Demo-readiness: the APL entries (Mes demandes, Simulateur APL) and the old
- * "Nouvelle demande" target were unbuilt front-end skeletons (no backend), so
- * they are removed from the rail — the dossier is built and tracked under
- * Documents, which is fully wired end to end. The `/apl/*` routes still exist
- * (reachable by URL) but are no longer surfaced.
+ * "Mes services" is the hub (all CAF services — only APL is wired). Once a
+ * citizen is on an APL surface, the rail always offers both directions: send
+ * a dossier and check one already sent — each renders its own empty state
+ * when there is nothing yet to show, rather than being hidden conditionally,
+ * so the rail's shape never shifts under the citizen's feet.
  */
 export const PRIMARY_NAV: NavItem[] = [
   {
     id: 'portal',
-    label: 'Tableau de bord',
+    label: 'Mes services',
     to: ROUTES.portal,
-    icon: LayoutDashboard,
+    icon: LayoutGrid,
     match: (pathname) => pathname === ROUTES.portal,
   },
   {
     id: 'dossier',
-    label: 'Mon dossier personnalisé',
+    label: 'Envoyer un dossier',
     to: ROUTES.dossier,
-    icon: ClipboardList,
-    match: isSelfOrChild(ROUTES.dossier),
+    icon: Send,
+    match: (pathname) => isSelfOrChild(ROUTES.dossier)(pathname) && pathname !== ROUTES.suivi,
+  },
+  {
+    id: 'suivi',
+    label: 'Suivre un dossier déposé',
+    to: ROUTES.suivi,
+    icon: Route,
+    match: (pathname) => pathname === ROUTES.suivi,
   },
   {
     id: 'documents',
@@ -57,7 +73,7 @@ export const SECONDARY_NAV: NavItem[] = [
 
 /** The citizen rail's primary action — opens the unified personalised dossier. */
 const CITIZEN_CTA: NavCta = {
-  label: 'Déposer un dossier',
+  label: 'Envoyer un dossier',
   to: ROUTES.dossier,
   icon: Plus,
 };

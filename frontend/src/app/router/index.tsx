@@ -36,6 +36,7 @@ const DocumentUploadPage = lazy(() => import('@/features/documents/pages/Documen
 const PersonalizedDossierPage = lazy(
   () => import('@/features/documents/pages/PersonalizedDossierPage'),
 );
+const SuiviDossierPage = lazy(() => import('@/features/documents/pages/SuiviDossierPage'));
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
@@ -83,6 +84,7 @@ const router = createBrowserRouter([
           { path: ROUTES.settings, element: <CitizenSettingsPage /> },
 
           { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
+          { path: ROUTES.suivi, element: <SuiviDossierPage /> },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
 

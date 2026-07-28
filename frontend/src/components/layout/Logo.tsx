@@ -27,17 +27,23 @@ export function Logo({ markOnly = false, className }: LogoProps) {
   );
 }
 
-/** The tricolore block of the République Française identity. */
+/**
+ * The tricolore block of the République Française identity.
+ *
+ * Vertical bands, blue-white-red left to right — the French flag. Horizontal
+ * bands would be the Dutch one; easy to get backwards since both use the same
+ * three colours, so it's worth this note.
+ */
 export function RepublicMark({ className }: { className?: string }) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
       <span
         aria-hidden="true"
-        className="flex h-4 w-6 flex-col overflow-hidden rounded-sm border border-border"
+        className="flex h-4 w-6 flex-row overflow-hidden rounded-sm border border-border"
       >
-        <span className="h-1/3 bg-rf-blue" />
-        <span className="h-1/3 bg-rf-white" />
-        <span className="h-1/3 bg-rf-red" />
+        <span className="w-1/3 bg-rf-blue" />
+        <span className="w-1/3 bg-rf-white" />
+        <span className="w-1/3 bg-rf-red" />
       </span>
       <span className="text-label-sm uppercase tracking-tight text-on-surface">
         République Française

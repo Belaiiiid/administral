@@ -25,7 +25,10 @@ export const ROUTES = {
   profile: '/profile',
   profileAccessibility: '/profile/accessibilite',
   settings: '/parametres',
+  // "Envoyer un dossier" — checklist, dépôt de pièces, estimation, soumission.
   dossier: '/mon-dossier',
+  // "Suivre un dossier déposé" — où en est l'instruction du dossier déjà envoyé.
+  suivi: '/mon-dossier/suivi',
   documents: '/documents',
   documentsUpload: '/documents/depot',
   chat: '/chat',

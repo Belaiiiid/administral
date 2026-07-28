@@ -54,3 +54,16 @@ export const DOSSIER_STATUS_META: Record<
   uploaded: { label: 'Déposé', tone: 'info' },
   validated: { label: 'Validé', tone: 'success' },
 };
+
+/**
+ * A rough, explainable monthly APL estimate — mirrors the backend
+ * `EstimationAideSchema`. Deliberately simplified, never the official CAF
+ * barème; `avertissement` is meant to be shown, not discarded.
+ */
+export interface EstimationAide {
+  montantEstime: number;
+  loyerRetenu: number;
+  participationPersonnelle: number;
+  estimationPossible: boolean;
+  avertissement: string;
+}

@@ -18,12 +18,14 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.modules.auth.dependencies import get_current_user, require_citizen
 from app.modules.auth.models import User
-from app.modules.citizen import dossier, profile, service, submission
+from app.modules.profiling.schemas.profil import ProfilPartiel
+from app.modules.citizen import dossier, estimation, profile, service, submission
 from app.modules.citizen.profile import CitizenProfileResponse, CitizenProfileUpdate
 from app.modules.citizen.schemas import (
     ApplicationStatusSchema,
     CitizenDocumentSchema,
     DocumentClassificationSchema,
+    EstimationAideSchema,
     PersonalizedChecklistSchema,
     PersonalizedDossierSchema,
 )
@@ -215,6 +217,24 @@ def get_personalized_dossier(
 ) -> PersonalizedDossierSchema:
     citizen = profile.resolve_citizen(db, current_user)
     return dossier.get_dossier(db, citizen, actor=current_user)
+
+
+@router.get(
+    "/citizen/estimation",
+    response_model=EstimationAideSchema,
+    summary="Estimation indicative de l'aide au logement",
+    description=(
+        "Montant mensuel approximatif calculé à partir du profil déclaré — "
+        "indicatif et simplifié, ne remplace pas le calcul officiel de la CAF."
+    ),
+)
+def get_estimation_aide(
+    current_user: User = Depends(require_citizen),
+    db: Session = Depends(get_db),
+) -> EstimationAideSchema:
+    citizen = profile.resolve_citizen(db, current_user)
+    profil = ProfilPartiel.model_validate(citizen.profile_data or {})
+    return EstimationAideSchema.model_validate(estimation.estimer_aide(profil).__dict__)
 
 
 @router.patch(
