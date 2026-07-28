@@ -1,0 +1,98 @@
+[
+  {
+    "id": "infographie-q1",
+    "question": "L’APL est-elle due dès l’ouverture de mes droits ?",
+    "answer": "Non. L’APL est due à partir du 1er jour qui suit le mois de votre demande. Le paiement a lieu quant à lui tous les 5 du mois. Par exemple, vous emménagez le 15 octobre, l’ouverture des droits se fera en novembre et le 1erversement aura lieu le 5 décembre.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q2",
+    "question": "Puis-je demander l’APL pour ma résidence secondaire ?",
+    "answer": "Non. L’APL est attribuée uniquement pour votre résidence principale, c’est-à-dire celle que vous occupez au minimum 8 mois par an (sauf exceptions).",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q3",
+    "question": "Ai-je droit à l’APL si le logement appartient à ma famille ?",
+    "answer": "Non si votre propriétaire est un ascendant (père, mère, grand-père, grand-mère…) ou un descendant (enfant, petit-fils, petite-fille…) de vous-même ou de votre conjoint ou de votre partenaire de Pacs. Oui si vous avez un autre lien de parenté direct avec le propriétaire du logement (frère, soeur, oncle, tante, cousin, cousine, neveu, nièce…).",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q4",
+    "question": "Puis-je toucher l’APL si je suis étudiant(e) ?",
+    "answer": "Oui. Vous pouvez toucher l’APL si vous louez un logement. Lors de votre demande, vous devez indiquer vos ressources personnelles imposables (salaires, bourses, revenus d’épargne…). Attention : si vous bénéficiez de l’APL, vos parents ne recevront plus de prestations familiales vous concernant. Par contre, vous pouvez continuer à être rattaché(e) au foyer fiscal de vos parents.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q5",
+    "question": "Puis-je toucher l’APL si je suis en colocation ?",
+    "answer": "Oui. Chaque colocataire peut toucher l’APL. Chacun doit avoir son nom sur le bail et déclarer ses revenus personnels lors de la demande d’APL. Le calcul de l’aide tient compte de la part de loyer versée par chacun.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q6",
+    "question": "Puis-je toucher l’APL si je suis en sous-location ?",
+    "answer": "Oui. Le locataire et le sous-locataire d’une partie du logement peuvent tous deux toucher l’APL à condition de respecter certains critères : • le sous-locataire doit avoir moins de 30 ans ou plus de 60 ans ou être en situation de handicap • le propriétaire du logement doit avoir été informé de la sous-location À noter : ces règles ne s’appliquent pas pour une sous-location de l’intégralité du logement.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q7",
+    "question": "Mon APL augmente-t-elle si mon loyer augmente ?",
+    "answer": "Non. L’augmentation de votre loyer ne sera pas prise en compte immédiatement dans le calcul de votre APL en cours d’année. Cependant, au 1erjanvier de l’année suivante, votre Caf recalculera automatiquement votre APL en se fondant sur le montant de votre loyer du mois de juillet précédent.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q8",
+    "question": "Le versement de l’APL est-il maintenu si je ne peux plus payer mon loyer ?",
+    "answer": "Non, sauf exceptions. Si vous ne payez plus votre loyer depuis au moins 2 mois, le versement de votre APL peut être interrompu.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q9",
+    "question": "Si ma situation familiale ou professionnelle change, le montant de mon APL sera-t-il modifié ?",
+    "answer": "Oui. Tout changement de situation de chaque membre du foyer peut modifier le montant de votre APL. Vous devez en informer rapidement votre Caf pour permettre le calcul de vos nouveaux droits.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q10",
+    "question": "Je me sépare. Puis-je continuer de toucher l’APL en cas de garde alternée de mon enfant ?",
+    "answer": "Oui. Chaque parent peut obtenir l'APL mais uniquement pour la période où il accueille l'enfant à son domicile au cours de l'année (règle du prorata).",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q11",
+    "question": "Puis-je conserver l’APL si je déménage ?",
+    "answer": "Oui, mais vous devez faire une nouvelle demande d’APL pour ce nouveau logement.",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  },
+  {
+    "id": "infographie-q12",
+    "question": "Le saviez-vous ?",
+    "answer": "Vous pouvez utiliser un simulateur pour estimer vos droits à l’APL. Tous les détails sont sur Service-Public.fr",
+    "source_url": "https://www.service-public.fr/particuliers/vosdroits/F12006",
+    "source_title": "10 questions clés sur l'APL (infographie) - Service-Public.fr",
+    "category": "demarche"
+  }
+]

@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — see docs/design-analysis.md §3.
+ * Exposed as CSS variables so runtime accessibility preferences can override
+ * them (high contrast, enlarged text) without touching component code.
+ */
+@layer base {
+  :root {
+    /* Brand */
+    --primary: #000929;
+    --on-primary: #ffffff;
+    --primary-container: #001d59;
+    --primary-fixed: #dbe1ff;
+    --primary-fixed-dim: #b4c5ff;
+    --on-primary-fixed: #00174b;
+
+    --secondary: #a1385f;
+    --on-secondary: #ffffff;
+    --secondary-fixed: #ffd9e1;
+    --secondary-fixed-dim: #ffb1c6;
+    --on-secondary-fixed: #3f001c;
+
+    /* AI accent */
+    --accent-ai: #003593;
+    --accent-ai-surface: #f0f4ff;
+
+    /* Surfaces */
+    --background: #f9f9f9;
+    --surface: #f9f9f9;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f3f3f4;
+    --surface-container: #eeeeee;
+    --surface-container-high: #e8e8e8;
+    --surface-container-highest: #e2e2e2;
+    --inverse-surface: #2f3131;
+
+    /* Text */
+    --on-surface: #1a1c1c;
+    --on-surface-variant: #45464f;
+    --text-muted: #6b7280;
+
+    /* Borders */
+    --border-subtle: #e5e7eb;
+    --outline: #757680;
+    --outline-variant: #c5c6d0;
+
+    /* Status */
+    --success: #16a34a;
+    --success-surface: #dcfce7;
+    --on-success: #ffffff;
+    --warning: #b45309;
+    --warning-surface: #fef3c7;
+    --on-warning: #ffffff;
+    --error: #ba1a1a;
+    --status-error: #c00327;
+    --error-surface: #ffdad6;
+    --on-error: #ffffff;
+
+    /* Root font size — driven by the "texte agrandi" preference (+20%) */
+    --app-font-scale: 1;
+  }
+
+  /*
+   * Accessibility preference: high contrast.
+   * Toggled by the `contrastEleve` preference in the UI store.
+   */
+  .a11y-high-contrast {
+    --on-surface: #000000;
+    --on-surface-variant: #1a1c1c;
+    --text-muted: #3f3f46;
+    --border-subtle: #757680;
+    --outline-variant: #45464f;
+    --background: #ffffff;
+    --surface: #ffffff;
+    --surface-container-low: #f3f3f4;
+  }
+
+  /* Accessibility preference: enlarged text (+20%). */
+  .a11y-large-text {
+    --app-font-scale: 1.2;
+  }
+
+  html {
+    font-size: calc(16px * var(--app-font-scale));
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background font-sans text-body-md text-on-surface antialiased;
+  }
+
+  /*
+   * Focus is never removed. Radix and native elements both route through
+   * :focus-visible so pointer users don't see the ring.
+   */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+
+  /* Preference: reinforced keyboard navigation — thicker, always-on ring. */
+  .a11y-keyboard-nav :focus-visible {
+    @apply ring-4;
+  }
+
+  /*
+   * Preference: simplified interface, plus the OS-level reduced-motion setting.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  .a11y-reduced-motion *,
+  .a11y-reduced-motion *::before,
+  .a11y-reduced-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  ::selection {
+    @apply bg-primary-fixed text-primary;
+  }
+}
+
+@layer components {
+  /* Section titles: label-md, uppercase, wide tracking (see analysis §3.2). */
+  .section-title {
+    @apply text-label-md uppercase tracking-wider text-on-surface;
+  }
+
+  /* The 12-column bento grid used by dashboards. */
+  .bento-grid {
+    @apply grid grid-cols-1 gap-gutter md:grid-cols-12;
+  }
+}

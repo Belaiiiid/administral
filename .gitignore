@@ -1,0 +1,25 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+.vite
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Uploaded files (local storage)
+backend/uploads/
+
+# Citizen AI Assistant — RAG indexes rebuilt at runtime from the committed
+# chunks (data/chunks/*.json). Regenerated on first use; not source.
+backend/app/modules/chatbot/rag/qdrant_data/
+backend/app/modules/chatbot/rag/bm25_index.pkl
+backend/app/modules/chatbot/rag/qdrant_index.fingerprint
