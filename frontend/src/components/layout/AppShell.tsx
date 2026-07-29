@@ -1,11 +1,16 @@
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { Footer } from '@/components/layout/Footer';
+import { ROUTES } from '@/app/router/paths';
+import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { Header } from '@/components/layout/Header';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
+import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
+import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
+import { VoiceAssistantPanel } from '@/features/voice/components/VoiceAssistantPanel';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
 
@@ -20,11 +25,20 @@ export function AppShell() {
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   // The assistant is a citizen feature only — the agent portal shares this shell
   // but has its own Assistant IA page, so the launcher is never mounted there.
-  const isCitizen = useSessionStore((state) => state.role === 'citizen');
+  const role = useSessionStore((state) => state.role);
+  const hasSeenVoiceOnboarding = useVoiceStore((state) => state.hasSeenVoiceOnboarding);
+  const location = useLocation();
+
+  // Voice onboarding guard: redirect if citizen hasn't seen the voice onboarding
+  if (role === 'citizen' && !hasSeenVoiceOnboarding && location.pathname !== ROUTES.voiceOnboarding) {
+    return <Navigate to={ROUTES.voiceOnboarding} replace />;
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <SkipLink />
+    <VoicePageProvider>
+      <VoiceAssistantProvider>
+        <div className="min-h-screen bg-background">
+          <SkipLink />
 
       {/* Desktop rail */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-sidebar lg:block">
@@ -53,7 +67,10 @@ export function AppShell() {
         <Footer />
       </div>
 
-      {isCitizen && <FloatingChatbot />}
+      {role === 'citizen' && <FloatingChatbot />}
+      <VoiceAssistantPanel />
     </div>
+      </VoiceAssistantProvider>
+    </VoicePageProvider>
   );
 }

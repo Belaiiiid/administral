@@ -20,7 +20,7 @@ BASE_URL = getattr(settings, "voice_base_url", None) or "https://api.mistral.ai/
 # Models (optional overrides)
 STT_MODEL = getattr(settings, "voice_stt_model", None) or "voxtral-mini-latest"
 TTS_MODEL = getattr(settings, "voice_tts_model", None) or "voxtral-mini-tts-latest"
-TTS_VOICE_ID = getattr(settings, "voice_tts_voice", None) or "en_paul_neutral"
+TTS_VOICE_ID = getattr(settings, "voice_tts_voice", None) or "fr_marie_neutral"
 
 
 class VoiceAPIError(Exception):

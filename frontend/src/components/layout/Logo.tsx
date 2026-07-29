@@ -33,11 +33,11 @@ export function RepublicMark({ className }: { className?: string }) {
     <div className={cn('flex items-center gap-2', className)}>
       <span
         aria-hidden="true"
-        className="flex h-4 w-6 flex-col overflow-hidden rounded-sm border border-border"
+        className="flex h-4 w-6 overflow-hidden rounded-sm border border-border"
       >
-        <span className="h-1/3 bg-rf-blue" />
-        <span className="h-1/3 bg-rf-white" />
-        <span className="h-1/3 bg-rf-red" />
+        <span className="w-1/3 bg-rf-blue" />
+        <span className="w-1/3 bg-rf-white" />
+        <span className="w-1/3 bg-rf-red" />
       </span>
       <span className="text-label-sm uppercase tracking-tight text-on-surface">
         République Française

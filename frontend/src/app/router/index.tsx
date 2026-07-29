@@ -38,6 +38,7 @@ const PersonalizedDossierPage = lazy(
 );
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
+const VoiceOnboardingPage = lazy(() => import('@/features/voice/pages/VoiceOnboardingPage').then(m => ({ default: m.VoiceOnboardingPage })));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
 const router = createBrowserRouter([
@@ -85,6 +86,8 @@ const router = createBrowserRouter([
           { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
+
+          { path: ROUTES.voiceOnboarding, element: <VoiceOnboardingPage /> },
 
           { path: ROUTES.chat, element: <ChatPage /> },
         ],

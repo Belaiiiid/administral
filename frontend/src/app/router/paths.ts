@@ -30,6 +30,9 @@ export const ROUTES = {
   documentsUpload: '/documents/depot',
   chat: '/chat',
 
+  // Voice onboarding (exactly as original)
+  voiceOnboarding: '/accessibilite-vocale',
+
   // Back-office
   agent: '/agent',
 

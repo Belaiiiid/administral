@@ -47,8 +47,8 @@ export default function LoginPage() {
       if (role === 'agent') {
         navigate(ROUTES.agent, { replace: true });
       } else {
-        const from = (location.state as LocationState | null)?.from?.pathname;
-        navigate(from ?? ROUTES.portal, { replace: true });
+        // After login, take citizens to voice onboarding
+        navigate(ROUTES.voiceOnboarding, { replace: true });
       }
     } catch {
       // The store holds the error message; the form renders it below.
