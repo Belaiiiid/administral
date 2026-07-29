@@ -124,6 +124,43 @@ export interface FraudLlmAnalysis {
   recommandation: string;
 }
 
+/** A localised ELA anomaly and the image page on which it was found. */
+export interface FraudRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidencePct: number;
+}
+
+export interface FraudVisual {
+  pageNumber: number;
+  isSuspicious: boolean;
+  regions: FraudRegion[];
+  /** Annotated document page with red bounding boxes, sent by the API. */
+  markedImageBase64: string;
+  metrics: { anomalyScore: number; maxBrightness: number };
+}
+
+export interface DocumentIntegrity {
+  contentHash: string;
+  exactDuplicateInDossier: boolean;
+  qrCodesDetected: number;
+  mrzDetected: boolean;
+  mrzChecksumValid?: boolean | null;
+  pdfSignatureState: string;
+  issuerVerificationStatus: string;
+}
+
+export interface VisionModelAnalysis {
+  provider: string;
+  status: string;
+  score?: number | null;
+  message: string;
+  device?: string | null;
+  pages: FraudVisual[];
+}
+
 /**
  * Document metadata forensics (Agent C4).
  *
@@ -142,6 +179,9 @@ export interface FraudAnalysis {
   analyseLlm?: FraudLlmAnalysis;
   niveauRisque: string;
   aDesSignaux: boolean;
+  elaVisuals: FraudVisual[];
+  integrity?: DocumentIntegrity;
+  visionModel?: VisionModelAnalysis;
   erreur?: string;
 }
 

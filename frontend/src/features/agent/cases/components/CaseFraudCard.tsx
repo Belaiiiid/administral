@@ -77,64 +77,112 @@ export function CaseFraudCard({ documents }: CaseFraudCardProps) {
                     Métadonnées cohérentes — aucun signal de falsification.
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {/* Metadata the signals rest on. */}
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-body-sm">
-                      {fraud.logiciel && (
-                        <>
-                          <dt className="text-on-surface-variant">Logiciel</dt>
-                          <dd className="text-on-surface">{fraud.logiciel}</dd>
-                        </>
-                      )}
-                      {fraud.dateCreation && (
-                        <>
-                          <dt className="text-on-surface-variant">Création</dt>
-                          <dd className="text-on-surface">{fraud.dateCreation}</dd>
-                        </>
-                      )}
-                      {fraud.dateModification && (
-                        <>
-                          <dt className="text-on-surface-variant">Modification</dt>
-                          <dd className="text-on-surface">{fraud.dateModification}</dd>
-                        </>
-                      )}
-                    </dl>
+                  <div className="space-y-4">
+                    {/* Visual Evidence (Always shown if suspicious) */}
+                    <div className="space-y-3">
+                      {fraud.visionModel?.pages.filter((page) => page.regions.length > 0).map((page) => (
+                        <div key={`trufor-${page.pageNumber}`} className="space-y-2">
+                          <p className="text-label-md text-on-surface">Zones suspectes (Vision) — page {page.pageNumber}</p>
+                          <img src={page.markedImageBase64} alt={`Analyse visuelle de la page ${page.pageNumber}`} className="max-h-[36rem] w-full rounded-md border border-border object-contain" />
+                        </div>
+                      ))}
 
-                    {fraud.signauxAVerifier.length > 0 && (
-                      <ul className="space-y-1">
-                        {fraud.signauxAVerifier.map((signal, index) => (
-                          <li key={index} className="flex gap-2 text-body-sm text-on-surface">
-                            <span aria-hidden="true" className="text-warning">
-                              •
-                            </span>
-                            {signal}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                      {fraud.visionModel?.pages.length === 0 && fraud.elaVisuals.filter((visual) => visual.isSuspicious).map((visual) => (
+                        <div key={visual.pageNumber} className="space-y-2">
+                          <p className="text-label-md text-on-surface">
+                            Zones suspectes (ELA) — page {visual.pageNumber}
+                          </p>
+                          <img
+                            src={visual.markedImageBase64}
+                            alt={`Page ${visual.pageNumber}, zones suspectes encadrées`}
+                            className="max-h-[36rem] w-full rounded-md border border-border object-contain"
+                          />
+                        </div>
+                      ))}
+                    </div>
 
-                    {fraud.analyseLlm && (
-                      <Alert tone="ai">
-                        <AlertTitle>
-                          Analyse forensique — {fraud.analyseLlm.niveauRisque}
-                        </AlertTitle>
-                        <AlertDescription className="space-y-2">
-                          <p>{fraud.analyseLlm.verdict}</p>
-                          {fraud.analyseLlm.signauxLlm.length > 0 && (
-                            <ul className="ml-4 list-disc space-y-1">
-                              {fraud.analyseLlm.signauxLlm.map((signal, index) => (
-                                <li key={index}>{signal}</li>
-                              ))}
-                            </ul>
+                    <details className="group space-y-3 rounded-lg border border-border p-3">
+                      <summary className="cursor-pointer text-label-md text-on-surface-variant font-medium hover:text-on-surface">
+                        Voir les explications de la fraude
+                      </summary>
+                      
+                      <div className="pt-3 space-y-4">
+                        {/* Metadata the signals rest on. */}
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-body-sm">
+                          {fraud.logiciel && (
+                            <>
+                              <dt className="text-on-surface-variant">Logiciel</dt>
+                              <dd className="text-on-surface">{fraud.logiciel}</dd>
+                            </>
                           )}
-                          {fraud.analyseLlm.recommandation && (
-                            <p className="font-medium">
-                              Recommandation : {fraud.analyseLlm.recommandation}
-                            </p>
+                          {fraud.dateCreation && (
+                            <>
+                              <dt className="text-on-surface-variant">Création</dt>
+                              <dd className="text-on-surface">{fraud.dateCreation}</dd>
+                            </>
                           )}
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                          {fraud.dateModification && (
+                            <>
+                              <dt className="text-on-surface-variant">Modification</dt>
+                              <dd className="text-on-surface">{fraud.dateModification}</dd>
+                            </>
+                          )}
+                        </dl>
+
+                        {fraud.signauxAVerifier.length > 0 && (
+                          <ul className="space-y-1">
+                            {fraud.signauxAVerifier.map((signal, index) => (
+                              <li key={index} className="flex gap-2 text-body-sm text-on-surface">
+                                <span aria-hidden="true" className="text-warning">
+                                  •
+                                </span>
+                                {signal}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {fraud.integrity && (
+                          <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-body-sm sm:grid-cols-2">
+                            <dt className="text-on-surface-variant">Empreinte du fichier</dt>
+                            <dd className="break-all text-on-surface">{fraud.integrity.contentHash.slice(0, 16)}…</dd>
+                            <dt className="text-on-surface-variant">QR code</dt>
+                            <dd className="text-on-surface">{fraud.integrity.qrCodesDetected || 'Aucun détecté'}</dd>
+                            <dt className="text-on-surface-variant">MRZ</dt>
+                            <dd className="text-on-surface">
+                              {!fraud.integrity.mrzDetected
+                                ? 'Non détectée'
+                                : fraud.integrity.mrzChecksumValid ? 'Checksum valide' : 'Checksum à vérifier'}
+                            </dd>
+                            <dt className="text-on-surface-variant">Signature PDF</dt>
+                            <dd className="text-on-surface">{fraud.integrity.pdfSignatureState}</dd>
+                          </dl>
+                        )}
+
+                        {fraud.analyseLlm && (
+                          <Alert tone="ai">
+                            <AlertTitle>
+                              Analyse forensique — {fraud.analyseLlm.niveauRisque}
+                            </AlertTitle>
+                            <AlertDescription className="space-y-2">
+                              <p>{fraud.analyseLlm.verdict}</p>
+                              {fraud.analyseLlm.signauxLlm.length > 0 && (
+                                <ul className="ml-4 list-disc space-y-1">
+                                  {fraud.analyseLlm.signauxLlm.map((signal, index) => (
+                                    <li key={index}>{signal}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {fraud.analyseLlm.recommandation && (
+                                <p className="font-medium">
+                                  Recommandation : {fraud.analyseLlm.recommandation}
+                                </p>
+                              )}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
+                    </details>
                   </div>
                 )}
               </div>
