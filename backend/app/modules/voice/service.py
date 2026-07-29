@@ -14,11 +14,14 @@ import httpx
 
 from app.core.config import settings
 
+# Vendor selection: 'mistral' (default) or 'whisper'
+VOICE_VENDOR = getattr(settings, "voice_vendor", None) or os.getenv("VOICE_VENDOR", "mistral").lower()
+
 # Prefer dedicated voice base URL if provided; otherwise default to Mistral's /v1 root
 BASE_URL = getattr(settings, "voice_base_url", None) or "https://api.mistral.ai/v1"
 
 # Models (optional overrides)
-STT_MODEL = getattr(settings, "voice_stt_model", None) or "voxtral-mini-latest"
+STT_MODEL = getattr(settings, "voice_stt_model", None) or ("whisper-1" if VOICE_VENDOR == "whisper" else "voxtral-mini-latest")
 TTS_MODEL = getattr(settings, "voice_tts_model", None) or "voxtral-mini-tts-latest"
 TTS_VOICE_ID = getattr(settings, "voice_tts_voice", None) or "fr_marie_neutral"
 
@@ -39,29 +42,67 @@ MistralAPIError = VENDOR_API_ERROR  # for test compatibility if referenced
 
 async def transcribe(audio_bytes: bytes, content_type: str = "audio/wav") -> str:
     """Send raw audio bytes to /v1/audio/transcriptions and return the transcribed text."""
+    # Debug: print active vendor and model once per request
+    print(f"[voice] vendor={VOICE_VENDOR} stt_model={STT_MODEL}")
+    # Log pre-transcode info
+    try:
+        print(f"[voice] pre: ct={content_type} bytes={len(audio_bytes)}")
+    except Exception:
+        pass
+
+    # Try to normalize first; some tiny webm chunks expand after transcode
     converted = maybe_transcode_to_wav(audio_bytes, content_type)
     if converted is not None:
         audio_bytes, content_type = converted
 
+    # Log post-transcode info
+    try:
+        print(f"[voice] post: ct={content_type} bytes={len(audio_bytes)}")
+    except Exception:
+        pass
+
+    # Size guard: only reject truly empty payloads; allow tiny clips to attempt STT once
+    if not audio_bytes or len(audio_bytes) == 0:
+        raise VoiceAPIError(400, "Audio chunk too small or empty.")
+
     ext = _mime_to_ext(content_type)
     filename = f"audio.{ext}"
 
-    api_key = getattr(settings, "voice_api_key", None) or getattr(settings, "mistral_api_key", None)
-    if not BASE_URL or not api_key:
-        raise VoiceAPIError(503, "Voice API not configured")
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"{BASE_URL}/audio/transcriptions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            files={"file": (filename, audio_bytes, content_type)},
-            data={"model": STT_MODEL, "language": "fr"},
-        )
+    if VOICE_VENDOR == "whisper":
+        api_key = getattr(settings, "openai_api_key", None) or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise VoiceAPIError(503, "Whisper API key not configured")
+        # OpenAI transcription endpoint
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={
+                    "file": (filename, audio_bytes, content_type),
+                },
+                data={
+                    "model": STT_MODEL,  # e.g., whisper-1 or large-v3-turbo when available
+                    "language": "fr",
+                    # force single-channel 16k mono wav is already done above when needed
+                },
+            )
+    else:
+        api_key = getattr(settings, "voice_api_key", None) or getattr(settings, "mistral_api_key", None)
+        if not BASE_URL or not api_key:
+            raise VoiceAPIError(503, "Voice API not configured")
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{BASE_URL}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={"file": (filename, audio_bytes, content_type)},
+                data={"model": STT_MODEL, "language": "fr"},
+            )
 
     if response.status_code != 200:
         _raise_voice_error(response)
 
     payload = response.json()
+    # OpenAI returns { text: "..." }. Keep behavior identical across vendors
     return payload.get("text", "")
 
 

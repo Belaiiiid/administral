@@ -40,7 +40,7 @@ export const VoiceOnboardingPage: React.FC = () => {
     tts.current = new MistralTtsProvider();
     // Keep streaming on this page, but use longer slices to reduce partial-chunk decode errors
     // Faster response for short "oui/non" without too many partials
-    stt.current = new MistralSttProvider({ sliceMs: 2000, minSliceBytes: 12000, coalesceTargetBytes: 40000, coalesceMinSlices: 2 });
+    stt.current = new MistralSttProvider({ sliceMs: 2500, minSliceBytes: 40000, coalesceTargetBytes: 120000, coalesceMinSlices: 3, deferUpload: true });
 
     // Register TTS end handler before speaking, then speak once (guard StrictMode remount).
     let speakTimer: number | null = null;
@@ -49,6 +49,8 @@ export const VoiceOnboardingPage: React.FC = () => {
       if (stt.current && stt.current.isSupported()) {
         setIsListening(true);
         stt.current.start();
+        // Auto-stop after ~2.8s to ensure one decodable upload for short replies
+        window.setTimeout(() => stt.current?.stop(), 2800);
       }
     });
 

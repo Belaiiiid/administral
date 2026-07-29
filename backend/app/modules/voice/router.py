@@ -40,8 +40,9 @@ async def transcribe(file: UploadFile = File(...)) -> TranscribeResponse:
             content_type=file.content_type or "audio/wav",
         )
     except VoiceAPIError as exc:
-        # Propagate vendor rate limits; otherwise map to 502
-        status = 429 if getattr(exc, 'status_code', 0) == 429 else 502
+        # Propagate vendor rate limits and decode failures; otherwise map to 502
+        status_code = getattr(exc, 'status_code', 0)
+        status = 429 if status_code == 429 else (400 if status_code == 400 else 502)
         raise HTTPException(
             status_code=status,
             detail=f"Service de transcription indisponible : {exc.detail}",
