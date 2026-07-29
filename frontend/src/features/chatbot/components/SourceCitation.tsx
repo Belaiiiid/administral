@@ -18,6 +18,7 @@ const CATEGORY_LABEL: Record<ChatbotSourceCategory, string> = {
   reglementation: 'Réglementation',
   document: 'Document',
   faq: 'Question fréquente',
+  legislation: 'Texte de loi',
 };
 
 const CATEGORY_ICON: Record<ChatbotSourceCategory, LucideIcon> = {
@@ -25,6 +26,7 @@ const CATEGORY_ICON: Record<ChatbotSourceCategory, LucideIcon> = {
   reglementation: Scale,
   document: FileText,
   faq: HelpCircle,
+  legislation: Scale,
 };
 
 export interface SourceCitationProps {

@@ -1,6 +1,6 @@
 import { ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,17 @@ import { useProfilageStore } from '@/features/citizen/profiling/store/profilageS
  *
  * The assistant's answers live in the in-memory session store until this point;
  * saving here is what first commits them to the citizen's `citizens` row.
+ *
+ * Reached from two places now: straight after registration (no `from` state,
+ * so "Continuer" opens the hub), or from `RequireApplProfile` when a citizen
+ * opens a service that needs profiling first (`from` set to that service, so
+ * "Continuer" returns them there instead of back to the hub they already left).
  */
 export default function ProfilageOnboardingPage() {
   useDocumentTitle('Personnalisons votre parcours');
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
 
   const profilPartiel = useProfilageStore((state) => state.profilPartiel);
   const profilComplet = useProfilageStore((state) => state.profilComplet);
@@ -43,7 +50,7 @@ export default function ProfilageOnboardingPage() {
       if (Object.keys(payload).length > 0) {
         await citizenProfileService.mettreAJour(payload);
       }
-      navigate(ROUTES.portal, { replace: true });
+      navigate(from ?? ROUTES.portal, { replace: true });
     } catch (cause) {
       // Persistence failed (e.g. the API is down). Rather than trap the citizen
       // on the onboarding step, surface the error and let them proceed — their

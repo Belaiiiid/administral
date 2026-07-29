@@ -1,35 +1,42 @@
 """Citizen AI Assistant service.
 
 The single seam between the migrated APL RAG engine and MonParcours. Every turn
-goes through the RAG LangGraph orchestrator (which classifies intent and, for a
-general APL question, runs the hybrid retrieval + grounded generation). The two
-intents the engine ships as mocks — questions about the citizen's OWN dossier
-(`depot_dossier`) and about a different profile (`autre_profil`) — are answered
-here from existing MonParcours services instead, so no MonParcours logic is
-duplicated and the engine stays untouched.
+goes through the RAG LangGraph orchestrator, which classifies the message into
+one of three intents and answers it:
 
-Routing (as the engine's classifier decides):
-    rag_general   → migrated RAG (answer + structured citations)
-    depot_dossier → MonParcours dossier workflow (status + missing pieces)
-    autre_profil  → MonParcours profiling feature (redirect)
-    fallback      → the engine's static out-of-scope reply
+    rag_general           → retrieval hybride + génération sourcée (moteur RAG)
+    documents_necessaires → profiling structuré, puis la VRAIE checklist
+                            MonParcours (`checklist_answer.render_checklist`)
+    fallback              → hors-sujet, ou accueil si le message est une salutation
+
+Deux points structurants, hérités des décisions du moteur (voir le CLAUDE.md
+d'`apl_rag`) :
+
+- **L'assistant est aveugle à l'authentification.** Le compte connecté ne sert
+  qu'à une chose ici : déterminer le RÔLE (citoyen ou agent), qui élargit le
+  corpus interrogeable. Aucun dossier, aucun `citizen_id`, aucun profil stocké
+  n'entre dans la conversation : le profil utilisé pour la checklist est
+  uniquement celui que la personne déclare pendant l'échange. Le comportement est
+  donc identique sur le portail web et sur un canal sans compte (WhatsApp), et
+  poser une question "pour mon fils étudiant" marche exactement comme pour soi.
+  Le suivi du dossier réel reste dans l'espace citoyen, qui n'est pas touché.
+- **Le backend ne garde aucune session.** L'historique ET l'état de clarification
+  font l'aller-retour par le client (voir `schemas`).
 """
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-
+from app.modules.auth.models import Role, User
+from app.modules.chatbot.checklist_answer import render_checklist
 from app.modules.chatbot.rag import orchestrator
 from app.modules.chatbot.schemas import (
     ChatbotContextSchema,
     ChatbotResponseSchema,
     ChatbotSourceSchema,
+    PendingClarificationSchema,
     SourceCategory,
 )
-from app.modules.auth.models import User
 
-# The dossier a citizen assembles in the demo (auto-created on first reference).
-_DEFAULT_APPLICATION = "TEST-DOSSIER-0001"
 _VALID_CATEGORIES = {c.value for c in SourceCategory}
 
 # The compiled LangGraph is built once (it wires the nodes); the heavy RAG
@@ -42,6 +49,17 @@ def _get_graph():
     if _graph is None:
         _graph = orchestrator.build_graph()
     return _graph
+
+
+def _user_role(user: User | None) -> str:
+    """Rôle au sens du moteur RAG : il ne pilote que l'étendue du corpus.
+
+    Un agent (ou un admin, admis partout où un agent l'est) peut interroger le
+    corpus juridique en plus des sources vulgarisées ; un visiteur non connecté
+    est traité comme un citoyen. C'est le seul usage fait du compte."""
+    if user is not None and user.role in (Role.AGENT, Role.ADMIN):
+        return "agent"
+    return "citizen"
 
 
 def _to_sources(raw: list | None) -> list[ChatbotSourceSchema]:
@@ -59,14 +77,31 @@ def _to_sources(raw: list | None) -> list[ChatbotSourceSchema]:
     return sources
 
 
+def _unavailable() -> ChatbotResponseSchema:
+    return ChatbotResponseSchema(
+        answer=(
+            "L’assistant est momentanément indisponible. Merci de réessayer dans "
+            "un instant."
+        ),
+        sources=[],
+    )
+
+
 def answer_question(
     message: str,
     context: ChatbotContextSchema | None,
-    db: Session,
     user: User | None,
 ) -> ChatbotResponseSchema:
     ctx = context or ChatbotContextSchema()
     history = [{"role": m.role, "content": m.content} for m in ctx.conversation_history]
+    pending = (
+        {
+            "original_question": ctx.pending_clarification.original_question,
+            "intent": ctx.pending_clarification.intent,
+        }
+        if ctx.pending_clarification
+        else None
+    )
 
     # Safety net: intent routing already falls back on LLM failure, but the
     # generation step (Mistral) can still raise if the API is unavailable. The
@@ -80,70 +115,43 @@ def answer_question(
                 "citizen_profile": None,
                 "intent": None,
                 "response": None,
+                "response_options": None,
+                "pending_clarification": pending,
+                # Le flag vient de l'UI telle quelle : c'est elle qui sait si le
+                # message est une réponse au popup, et lui seul fait contourner le
+                # classifieur (décision 7).
+                "is_clarification_reply": ctx.is_clarification_reply,
+                "user_role": _user_role(user),
                 "answer": None,
                 "sources": None,
+                "collected_profile": None,
             }
         )
     except Exception:  # noqa: BLE001 — any engine failure degrades, never crashes
-        return ChatbotResponseSchema(
-            answer=(
-                "L’assistant est momentanément indisponible. Merci de réessayer dans "
-                "un instant."
-            ),
-            sources=[],
-        )
+        return _unavailable()
+
     intent = state.get("intent")
+    answer = state.get("answer") or state.get("response") or ""
 
-    if intent == "rag_general":
-        return ChatbotResponseSchema(
-            answer=state.get("answer") or state.get("response") or "",
-            sources=_to_sources(state.get("sources")),
-        )
-    if intent == "depot_dossier":
-        return ChatbotResponseSchema(answer=_answer_dossier(db, user), sources=[])
-    if intent == "autre_profil":
-        return ChatbotResponseSchema(answer=_answer_autre_profil(), sources=[])
+    # Profiling terminé : le profil déclaré devient la vraie checklist MonParcours.
+    # `collected_profile` vaut None tant que le profiling pose encore des questions.
+    if intent == "documents_necessaires" and state.get("collected_profile") is not None:
+        try:
+            answer = render_checklist(state["collected_profile"], intro=answer)
+        except Exception:  # noqa: BLE001 — la checklist ne doit pas casser la réponse
+            return _unavailable()
 
-    # fallback (and any unexpected intent) → the engine's static reply.
-    return ChatbotResponseSchema(answer=state.get("response") or "", sources=[])
-
-
-def _answer_dossier(db: Session, user: User | None) -> str:
-    """Reconnect the `depot_dossier` intent to the existing dossier workflow.
-
-    Reuses `submission.get_dossier_review` (status + coherence + decision) and, for
-    a dossier not yet submitted, `citizen.service.get_checklist` for the pieces
-    still missing. No dossier logic is reimplemented here.
-    """
-    from app.modules.citizen import service as citizen_service, submission
-
-    review = submission.get_dossier_review(db, _DEFAULT_APPLICATION)
-
-    if not review.submitted:
-        checklist = citizen_service.get_checklist(db, _DEFAULT_APPLICATION)
-        missing = [doc.libelle for doc in checklist.documents if doc.obligatoire and not doc.received]
-        if missing:
-            return (
-                "Votre dossier n’est pas encore transmis. Il vous manque les pièces "
-                "obligatoires suivantes : " + ", ".join(missing) + "."
+    next_pending = state.get("pending_clarification")
+    return ChatbotResponseSchema(
+        answer=answer,
+        sources=_to_sources(state.get("sources")),
+        options=state.get("response_options"),
+        pending_clarification=(
+            PendingClarificationSchema(
+                original_question=next_pending["original_question"],
+                intent=next_pending["intent"],
             )
-        return "Votre dossier est complet et prêt à être soumis à l’administration."
-
-    parts = [f"Votre dossier {review.application_number} est au statut « {review.status} »."]
-    if review.coherence is not None and review.coherence.score is not None:
-        parts.append(f"Score de cohérence du dossier : {review.coherence.score}/100.")
-    if review.decision is not None:
-        verdict = "validé" if review.decision.outcome == "validated" else "rejeté"
-        parts.append(f"Décision de l’agent : dossier {verdict}. {review.decision.explanation}")
-    else:
-        parts.append("Un agent instruit actuellement votre demande.")
-    return " ".join(parts)
-
-
-def _answer_autre_profil() -> str:
-    """Reconnect the `autre_profil` intent to the existing Profiling feature."""
-    return (
-        "Pour connaître les documents nécessaires à une autre situation que la vôtre "
-        "(par exemple pour un proche), utilisez l’assistant de profilage : il construit "
-        "une checklist personnalisée à partir du profil que vous décrivez."
+            if next_pending
+            else None
+        ),
     )

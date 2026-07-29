@@ -30,10 +30,11 @@ export default function RegisterPage() {
         email: String(form.get('email') ?? '').trim(),
         password: String(form.get('password') ?? ''),
       });
-      // Signup-first profiling: a new citizen goes through the guided profiling
-      // step before the dashboard (see ProfilageOnboardingPage). It is a soft
-      // gate — they can finish later — but this is where the journey starts.
-      navigate(ROUTES.onboardingProfilage, { replace: true });
+      // Services first, profiling per service: a new citizen picks what they
+      // want to do before answering any question — the profiling assistant
+      // only appears once they open a service that needs it (see
+      // `RequireApplProfile`), since the questions differ from one to another.
+      navigate(ROUTES.portal, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La création du compte a échoué.');
     }

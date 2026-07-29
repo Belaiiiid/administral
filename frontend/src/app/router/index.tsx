@@ -2,12 +2,14 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
+import { RequireApplProfile } from '@/app/router/RequireApplProfile';
 import { ROUTES } from '@/app/router/paths';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
+import { useSessionStore } from '@/store/sessionStore';
 
 /*
  * Each feature module is code-split at the route boundary, so a new
@@ -36,12 +38,26 @@ const DocumentUploadPage = lazy(() => import('@/features/documents/pages/Documen
 const PersonalizedDossierPage = lazy(
   () => import('@/features/documents/pages/PersonalizedDossierPage'),
 );
+const SuiviDossierPage = lazy(() => import('@/features/documents/pages/SuiviDossierPage'));
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
 const VoiceOnboardingPage = lazy(() => import('@/features/voice/pages/VoiceOnboardingPage').then(m => ({ default: m.VoiceOnboardingPage })));
+const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLandingPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
+/**
+ * `/` — public by default. A signed-in visitor is sent straight to their
+ * portal (there is nothing for them at a marketing/assistant landing they
+ * have already moved past); everyone else meets the assistant first and
+ * "Se connecter" second, never the other way around.
+ */
+function HomeRoute() {
+  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
+}
+
 const router = createBrowserRouter([
+  { path: ROUTES.home, element: <HomeRoute /> },
   {
     // Entry journey — no application chrome.
     element: <AuthLayout />,
@@ -72,18 +88,30 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
+        // Services hub — reached before a service is picked, so no sidebar:
+        // there is nothing yet for one to navigate (see `AppShell`).
+        element: <AppShell hideSidebar />,
+        children: [{ path: ROUTES.portal, element: <CitizenDashboardPage /> }],
+      },
+      {
+        // Inside a service (APL today) — the sidebar applies.
         element: <AppShell />,
         children: [
-          { path: ROUTES.home, element: <Navigate to={ROUTES.portal} replace /> },
-
-          { path: ROUTES.portal, element: <CitizenDashboardPage /> },
           { path: ROUTES.portalNotifications, element: <NotificationsPage /> },
 
           { path: ROUTES.profile, element: <ProfilePage /> },
           { path: ROUTES.profileAccessibility, element: <AccessibilityPreferencesPage /> },
           { path: ROUTES.settings, element: <CitizenSettingsPage /> },
 
-          { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
+          {
+            // APL's own profiling gate — see `RequireApplProfile`. Scoped to
+            // just these two routes, not the whole citizen area.
+            element: <RequireApplProfile />,
+            children: [
+              { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
+              { path: ROUTES.suivi, element: <SuiviDossierPage /> },
+            ],
+          },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
 

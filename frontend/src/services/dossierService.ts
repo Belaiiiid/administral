@@ -1,4 +1,4 @@
-import type { CitizenDocument, PersonalizedDossier } from '@/types';
+import type { CitizenDocument, EstimationAide, PersonalizedDossier } from '@/types';
 import { apiClient } from './apiClient';
 import type { DossierReview, SubmitDossierResult } from './documentService';
 
@@ -25,6 +25,8 @@ export interface DossierService {
   submit(applicationId: string, profile?: Record<string, unknown>): Promise<SubmitDossierResult>;
   /** Where the submitted dossier stands in agent review (status + decision). */
   getReview(applicationId: string): Promise<DossierReview>;
+  /** Rough, indicative monthly amount from the profile declared so far. */
+  getEstimation(): Promise<EstimationAide>;
 }
 
 export const dossierService: DossierService = {
@@ -51,4 +53,6 @@ export const dossierService: DossierService = {
 
   getReview: (applicationId) =>
     apiClient.get<DossierReview>(`/applications/${encodeURIComponent(applicationId)}/review`),
+
+  getEstimation: () => apiClient.get<EstimationAide>('/citizen/estimation'),
 };

@@ -1,13 +1,22 @@
-import type { ChatbotContext, ChatbotResponse } from '@/features/chatbot/types/chatbot';
+import type {
+  ChatbotContext,
+  ChatbotResponse,
+  ChatHistoryMessage,
+} from '@/features/chatbot/types/chatbot';
 import { apiClient } from '@/services/apiClient';
 
 /**
  * Citizen assistant contract.
  *
- * One method, because the assistant does one thing: answer a question. It does
- * not modify an application, compute an entitlement, decide eligibility, or
- * stand in for CAF rules — and there is no method here through which it could.
- * The narrow surface is the guarantee, not a comment asking for restraint.
+ * `sendMessage` because the assistant does one thing: answer a question. It
+ * does not modify an application, compute an entitlement, decide eligibility,
+ * or stand in for CAF rules — and there is no method here through which it
+ * could. The narrow surface is the guarantee, not a comment asking for
+ * restraint.
+ *
+ * `getHistory` is the one addition: it lets a signed-in citizen's thread
+ * survive leaving `/chat` and coming back. It reads what `sendMessage` already
+ * persisted server-side for them — it does not itself decide what gets stored.
  *
  * Interface first, transport second — same shape as `AgentCaseService`. The UI
  * depends on this type and never on where the answer comes from.
@@ -21,6 +30,12 @@ export interface ChatbotService {
    *                 see {@link ChatbotContext}.
    */
   sendMessage(message: string, context?: ChatbotContext): Promise<ChatbotResponse>;
+
+  /**
+   * The citizen's persisted thread so far, oldest first. Requires a session —
+   * call it only when signed in; an anonymous visitor has nothing to fetch.
+   */
+  getHistory(): Promise<ChatHistoryMessage[]>;
 }
 
 /**
@@ -49,7 +64,13 @@ export const httpChatbotService: ChatbotService = {
             conversationHistory: (context.conversationHistory ?? [])
               .slice(-HISTORY_TURNS)
               .map(({ role, content }) => ({ role, content })),
+            // Renvoyés tels quels : le backend n'a pas de session, l'état de la
+            // clarification en cours vit ici le temps d'un aller-retour.
+            pendingClarification: context.pendingClarification,
+            isClarificationReply: context.isClarificationReply ?? false,
           }
         : undefined,
     }),
+
+  getHistory: () => apiClient.get<ChatHistoryMessage[]>('/citizen/chatbot/history'),
 };

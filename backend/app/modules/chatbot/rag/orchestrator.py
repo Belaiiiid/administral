@@ -1,37 +1,63 @@
-"""
-Squelette de l'orchestrateur D4, version 1 : routeur PROVISOIRE à base de
-règles simples (mots-clés), sans appel LLM. But : valider que le câblage
-des 4 branches fonctionne avant de brancher le vrai classifieur Mistral.
+"""Orchestrateur LangGraph de l'assistant citoyen (moteur APL RAG migré).
 
-A remplacer à l'étape 2 par une vraie classification LLM.
+Version portée depuis le repo `apl_rag`. Trois adaptations MonParcours, toutes
+signalées par un commentaire `MonParcours` dans le code :
+
+1. Imports relatifs (le moteur est un sous-paquet, plus un script à la racine).
+2. Champs de state additifs `answer` / `sources` : la couche API a besoin de la
+   réponse sans le suffixe "Sources: ..." et de citations structurées
+   {title, category}. Le chat CLI, lui, continue d'utiliser `response`.
+3. `documents_necessaires` ne renvoie plus un `[MOCK]` : le profiling collecte un
+   profil DÉCLARATIF (jamais authentifié, cf. `checklist_answer`) que la couche
+   service transforme en vraie checklist MonParcours.
 """
-from typing import TypedDict, Literal, Optional
+
 import json
+import re
+from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
-from .llm_client import call_llm
+from .llm_client import call_llm, call_llm_structured
 from . import rag_pipeline
 
-VALID_INTENTS = {"depot_dossier", "autre_profil", "rag_general", "fallback"}
+# MonParcours : vocabulaire de profil dérivé de `ProfilPartiel`, pour que le
+# profiling remplisse exactement les champs dont les règles de checklist se servent.
+from ..checklist_answer import PROFILE_FIELDS_DOC
+
+# Pas d'authentification (canal WhatsApp notamment) : le chat est un espace ouvert, aucun
+# profil connu à l'avance. "Mon dossier" et "le dossier d'un tiers" (ex: mon fils étudiant)
+# demandent donc exactement le même traitement - questions de profiling puis documents
+# nécessaires - d'où une seule intention `documents_necessaires` au lieu de deux.
+VALID_INTENTS = {"documents_necessaires", "rag_general", "fallback"}
 
 CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour un chatbot d'aide au logement (APL).
-Classe le message du citoyen dans EXACTEMENT une de ces 4 catégories :
+Classe le message du citoyen dans EXACTEMENT une de ces 3 catégories :
 
-- depot_dossier: le citoyen parle de SON PROPRE dossier/sa propre demande : où le déposer,
-  quels documents LUI sont demandés, quelle est SON estimation de montant.
-  Exemples: "quels documents pour mon dossier ?", "où déposer ma demande ?", "combien je vais toucher ?"
+- documents_necessaires: le citoyen demande quels documents sont nécessaires pour une demande d'APL
+  (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas d'authentification,
+  donc les deux cas sont traités pareil).
+  Exemples: "quels documents pour mon dossier ?", "quels documents pour mon fils étudiant ?",
+  "je suis propriétaire, il me faudrait quoi ?"
 
-- autre_profil: le citoyen décrit une situation qui n'est PAS la sienne (une autre personne,
-  un profil hypothétique) et demande des documents/infos pour CE profil.
-  Exemples: "quels documents pour mon fils étudiant ?", "et si j'étais propriétaire, il faudrait quoi ?"
-
-- rag_general: question générale sur la réglementation, les règles, le fonctionnement de l'APL,
-  sans lien avec un dossier précis (soi ou un tiers).
+- rag_general: question générale sur la réglementation, les règles, le fonctionnement de l'APL.
   Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?"
 
 - fallback: tout le reste (hors-sujet, ambigu, pas lié au logement).
 
-Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "depot_dossier"}
+Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "documents_necessaires"}
 """
+
+GREETING_WORDS = {
+    "bonjour", "bonsoir", "salut", "coucou", "hello", "hi", "hey",
+    "bjr", "slt", "cc", "yo",
+}
+
+
+def is_greeting(message: str) -> bool:
+    """Détection légère par mots-clés (pas de LLM) - le message doit être court et
+    essentiellement composé d'un mot de salutation, pour ne pas confondre avec une vraie
+    question qui contiendrait accidentellement un mot proche."""
+    words = re.findall(r"[a-zà-ÿ]+", message.lower())
+    return 0 < len(words) <= 4 and any(w in GREETING_WORDS for w in words)
 
 
 class D4State(TypedDict):
@@ -39,12 +65,32 @@ class D4State(TypedDict):
     conversation_history: list[dict]     # tours précédents [{"role": "user"|"assistant", "content": ...}]
     citizen_profile: Optional[dict]      # profil du citoyen si connu (injecté par le flux principal)
     intent: Optional[str]                # rempli par l'orchestrateur
-    response: Optional[str]              # réponse finale
-    # Champs additifs pour la couche API MonParcours (le chat CLI n'en dépend
-    # pas) : réponse "propre" sans le suffixe "Sources: ..." et citations
-    # structurées {title, category}. Renseignés seulement par rag_general.
+    response: Optional[str]              # réponse finale (texte affiché au citoyen)
+    response_options: Optional[list]     # options de clarification (popup), ou None si réponse finale
+    pending_clarification: Optional[dict]  # {"original_question": str, "intent": str} si le tour
+                                            # précédent attend une réponse de clarification, sinon None
+                                            # ("intent" indique vers quel nœud renvoyer la réponse)
+    is_clarification_reply: bool         # True si CE message est une réponse structurée au popup de
+                                          # clarification (injecté par l'appelant/UI, pas déduit du texte)
+    user_role: Optional[str]             # "citizen" (défaut) ou "agent" - injecté par l'appelant/UI,
+                                          # jamais déduit du contenu du message. Détermine les catégories
+                                          # de chunks accessibles, voir CATEGORIES_BY_ROLE.
+    # MonParcours (additif, le chat CLI n'en dépend pas) : réponse "propre" sans le
+    # suffixe "Sources: ...", citations structurées {title, category}, et profil
+    # déclaratif collecté par le profiling `documents_necessaires`.
     answer: Optional[str]
     sources: Optional[list]
+    collected_profile: Optional[dict]
+
+
+# Catégories de chunks accessibles selon le rôle. "legislation" (Legifrance) est réservé aux agents -
+# contenu trop complexe/juridique pour le prompt citoyen (vulgarisé, voir décision 8 du CLAUDE.md).
+# Pas encore de chunks "legislation" dans le corpus (corpus enrichi progressivement) : le filtre est
+# déjà en place, prêt à s'appliquer dès qu'ils seront ajoutés.
+CATEGORIES_BY_ROLE = {
+    "citizen": ["demarche"],
+    "agent": ["demarche", "legislation"],
+}
 
 
 def route_intent_llm(state: D4State) -> str:
@@ -73,33 +119,91 @@ def route_intent_llm(state: D4State) -> str:
 
 # --- Noeuds ---
 def orchestrator_node(state: D4State) -> D4State:
+    pending = state.get("pending_clarification")
+    # Reponse structuree au popup de clarification -> on ne reclassifie pas, on renvoie
+    # directement au noeud qui avait pose la question (rag_general OU documents_necessaires).
+    if state.get("is_clarification_reply") and pending:
+        return {**state, "intent": pending["intent"]}
+    # Salutation ("Bonjour" etc.) -> pas la peine d'appeler le classifieur LLM, tres frequent
+    # en ouverture de conversation WhatsApp et jamais ambigu.
+    if is_greeting(state["message"]):
+        return {**state, "intent": "fallback"}
     intent = route_intent_llm(state)
     return {**state, "intent": intent}
 
 
-# NOTE: in MonParcours these two intents are answered by the service layer
-# (`chatbot/service.py` → `_answer_dossier` / `_answer_autre_profil`), which reads
-# the citizen's real dossier and the profiling feature. The graph still routes to
-# these nodes, but `service.answer_question` overrides their output for the API —
-# so the strings below are only ever seen by the standalone dev CLI in `__main__`.
-# They are honest guidance, not mock data.
-def depot_dossier_node(state: D4State) -> D4State:
-    return {
-        **state,
-        "response": (
-            "Le suivi de votre dossier (statut, cohérence, décision) est disponible "
-            "dans votre espace citoyen."
-        ),
-    }
+# MonParcours : la fin du prompt diffère du repo `apl_rag`. Là-bas, le nœud conclut par
+# un "[MOCK]" faute de générateur de checklist ; ici il conclut en renvoyant le profil
+# collecté, que la couche service passe aux règles de checklist MonParcours. Le LLM
+# collecte des faits déclarés, il ne choisit JAMAIS les documents.
+DOCUMENTS_SYSTEM_PROMPT = f"""Tu aides un citoyen à savoir quels documents sont nécessaires pour une
+demande d'aide au logement (APL) - pour lui-même OU pour une autre personne (ex: son fils étudiant),
+les deux cas se traitent pareil.
+
+Le chat n'a pas d'authentification : tu ne connais RIEN sur la situation de la personne concernée au
+départ. Avant de pouvoir lister les documents nécessaires, pose des questions de profiling courtes sur
+sa situation (statut logement, statut professionnel, situation familiale).
+
+RÈGLES :
+- Pose une question de profiling à la fois, jamais plusieurs en même temps.
+- Ne pose jamais plus de 4 questions de profiling au total sur une même conversation (regarde
+  l'historique fourni pour savoir combien tu en as déjà posées). Si le citoyen répond "Passer cette
+  question", ce n'est pas la peine d'insister sur CE point précis - tu peux poser une AUTRE question
+  de profiling si une autre info manque encore, dans la limite des 4.
+- Priorise les questions qui changent vraiment la liste des documents : le statut du logement, puis
+  le statut professionnel, puis la situation familiale.
+- Si le citoyen répond "Je ne comprends pas, expliquez-moi" à une question de profiling, explique-la
+  en langage très simple (un exemple concret aide), PUIS repose la même question (reformulée plus
+  simplement si possible) - ne l'ignore pas et ne devine pas sa situation à sa place.
+- Ne liste JAMAIS toi-même les documents : la liste est établie ensuite à partir du profil que tu as
+  collecté. Ta réponse finale se limite à une phrase d'introduction courte.
+
+FORMAT DE SORTIE :
+Réponds UNIQUEMENT avec un JSON de la forme :
+{{"type": "clarification", "text": "la question posée", "options": [...] ou null}}
+tant qu'il te manque des informations, ou, quand tu en as assez (ou après la limite) :
+{{"type": "answer", "text": "une phrase d'introduction courte", "profil": {{...}}}}
+- "options": liste de choix courts (2 à 4) si la question a un nombre limité de réponses plausibles.
+  Mets "options": null si la réponse attendue est une valeur libre.
+- Ne mets PAS toi-même d'option "passer cette question" ou "je ne comprends pas" dans ta liste -
+  elles sont ajoutées automatiquement, inutile de les dupliquer.
+- "profil": UNIQUEMENT les champs ci-dessous, et uniquement ceux que le citoyen a réellement indiqués
+  (n'invente rien, ne devine rien - un champ absent est traité comme "inconnu") :
+{PROFILE_FIELDS_DOC}
+"""
 
 
-def autre_profil_node(state: D4State) -> D4State:
+def documents_necessaires_node(state: D4State) -> D4State:
+    pending = state.get("pending_clarification")
+    is_reply = state.get("is_clarification_reply") and pending is not None
+    original_question = pending["original_question"] if is_reply else state["message"]
+
+    messages = [{"role": "system", "content": DOCUMENTS_SYSTEM_PROMPT}]
+    messages.extend(state["conversation_history"])
+    messages.append({"role": "user", "content": state["message"]})
+
+    result = call_llm_structured(messages=messages, temperature=0.2)
+
+    if result["type"] == "clarification":
+        return {
+            **state,
+            "response": result["text"],
+            "answer": result["text"],
+            "response_options": result["options"],
+            "pending_clarification": {"original_question": original_question, "intent": "documents_necessaires"},
+            "collected_profile": None,
+        }
+
+    # MonParcours : le profil déclaré part vers la couche service, qui produit la vraie
+    # checklist. `response` reste la phrase d'introduction du LLM (ce que voit le CLI).
+    profile = result.get("profil")
     return {
         **state,
-        "response": (
-            "Pour une autre situation que la vôtre, utilisez l’assistant de profilage : "
-            "il construit une checklist personnalisée à partir du profil décrit."
-        ),
+        "response": result["text"],
+        "answer": result["text"],
+        "response_options": None,
+        "pending_clarification": None,
+        "collected_profile": profile if isinstance(profile, dict) else {},
     }
 
 
@@ -115,13 +219,43 @@ def get_rag_pipeline():
     return _rag_pipeline_instance
 
 
+SHOW_SOURCES = True  # bascule simple : afficher ou non les sources au citoyen
+
+
 def rag_general_node(state: D4State) -> D4State:
-    result = get_rag_pipeline().answer(state["message"], conversation_history=state["conversation_history"])
-    sources_str = ", ".join(result["sources"])
-    response = f"{result['answer']}\n\nSources: {sources_str}"
-    # Additif : citations structurées {title, category} dédupliquées par source,
-    # dérivées des chunks retrouvés — consommées par la couche API (le chat CLI
-    # continue d'utiliser `response` avec les URLs en suffixe, inchangé).
+    pending = state.get("pending_clarification")
+    is_reply = state.get("is_clarification_reply") and pending is not None
+
+    if is_reply:
+        # on combine la question d'origine (pour un bon retrieval) avec la reponse au popup
+        original_question = pending["original_question"]
+        query = f"{original_question} {state['message']}"
+    else:
+        original_question = state["message"]
+        query = state["message"]
+
+    role = state.get("user_role") or "citizen"
+    categories = CATEGORIES_BY_ROLE.get(role, CATEGORIES_BY_ROLE["citizen"])
+    result = get_rag_pipeline().answer(query, category=categories, conversation_history=state["conversation_history"])
+
+    if result["type"] == "clarification":
+        return {
+            **state,
+            "response": result["text"],
+            "answer": result["text"],
+            "sources": [],  # une clarification n'est pas une réponse sourcée
+            "response_options": result["options"],
+            "pending_clarification": {"original_question": original_question, "intent": "rag_general"},
+        }
+
+    response = result["text"]
+    if SHOW_SOURCES:
+        sources_str = ", ".join(result["sources"])
+        response = f"{response}\n\nSources: {sources_str}"
+
+    # MonParcours (additif) : citations structurées {title, category} dédupliquées par
+    # source, dérivées des chunks retrouvés - consommées par la couche API, qui les
+    # affiche à part plutôt qu'en suffixe de texte.
     structured = {}
     for chunk, _score in result["retrieved_chunks"]:
         url = chunk.get("source_url")
@@ -130,11 +264,37 @@ def rag_general_node(state: D4State) -> D4State:
                 "title": chunk.get("source_title") or url,
                 "category": chunk.get("category", "demarche"),
             }
-    return {**state, "response": response, "answer": result["answer"], "sources": list(structured.values())}
+
+    return {
+        **state,
+        "response": response,
+        "answer": result["text"],
+        "sources": list(structured.values()),
+        "response_options": None,
+        "pending_clarification": None,
+    }
+
+
+GREETING_RESPONSE = (
+    "Bonjour ! Je peux vous aider sur l'aide au logement (APL) : questions générales sur la "
+    "réglementation, ou documents nécessaires pour une demande. Que puis-je faire pour vous ?"
+)
+FALLBACK_RESPONSE = (
+    "Je ne peux pas répondre à cette question. Je peux vous aider sur les documents nécessaires "
+    "pour une demande d'APL, ou des questions générales sur l'aide au logement."
+)
 
 
 def fallback_node(state: D4State) -> D4State:
-    return {**state, "response": "Je ne peux pas répondre à cette question. Je peux vous aider sur votre dossier APL, les documents nécessaires, ou des questions générales sur l'aide au logement."}
+    response = GREETING_RESPONSE if is_greeting(state["message"]) else FALLBACK_RESPONSE
+    return {
+        **state,
+        "response": response,
+        "answer": response,
+        "sources": [],
+        "response_options": None,
+        "pending_clarification": None,
+    }
 
 
 # --- Construction du graphe ---
@@ -142,8 +302,7 @@ def build_graph():
     graph = StateGraph(D4State)
 
     graph.add_node("orchestrator", orchestrator_node)
-    graph.add_node("depot_dossier", depot_dossier_node)
-    graph.add_node("autre_profil", autre_profil_node)
+    graph.add_node("documents_necessaires", documents_necessaires_node)
     graph.add_node("rag_general", rag_general_node)
     graph.add_node("fallback", fallback_node)
 
@@ -153,32 +312,72 @@ def build_graph():
         "orchestrator",
         lambda state: state["intent"],
         {
-            "depot_dossier": "depot_dossier",
-            "autre_profil": "autre_profil",
+            "documents_necessaires": "documents_necessaires",
             "rag_general": "rag_general",
             "fallback": "fallback",
         },
     )
 
-    for node_name in ["depot_dossier", "autre_profil", "rag_general", "fallback"]:
+    for node_name in ["documents_necessaires", "rag_general", "fallback"]:
         graph.add_edge(node_name, END)
 
     return graph.compile()
 
 
 if __name__ == "__main__":
+    # Chat CLI de développement (équivalent de celui du repo `apl_rag`) : simule le popup
+    # de clarification en mode texte. Lancer depuis backend/ :
+    #     python -m app.modules.chatbot.rag.orchestrator
+    from ..checklist_answer import render_checklist
+
     app = build_graph()
+    get_rag_pipeline()  # init eager : le chargement (BM25+Qdrant+embeddings) se paie ici,
+                        # au demarrage, pas silencieusement pendant la 1ere question du citoyen
 
     print("Chat interactif (orchestrateur D4). Tapez exit() pour quitter.")
+    print("(Simulation du popup de clarification en mode texte : si des options sont proposees,")
+    print(" tape le numero de ton choix, ou autre chose pour changer de sujet.)")
+
+    role_input = input("Role (citizen/agent, defaut citizen): ").strip().lower()
+    user_role = role_input if role_input in CATEGORIES_BY_ROLE else "citizen"
+    print(f"-> role={user_role} (categories accessibles: {CATEGORIES_BY_ROLE[user_role]})")
+
     conversation_history = []
+    pending_clarification = None
+    response_options = None
 
     while True:
-        message = input("\nVous: ").strip()
+        is_clarification_reply = False
+
+        if response_options:
+            print("\nOptions :")
+            for i, opt in enumerate(response_options, 1):
+                print(f"  {i}. {opt}")
+            raw = input("\nVous (numero, ou texte libre pour changer de sujet): ").strip()
+            if raw.lower() in ("exit()", "exit", "quit", "quit()"):
+                print("Fin de la session.")
+                break
+            if raw.isdigit() and 1 <= int(raw) <= len(response_options):
+                message = response_options[int(raw) - 1]
+                is_clarification_reply = True
+            else:
+                message = raw  # pas une option valide -> traite comme un message libre (nouvelle intention possible)
+        elif pending_clarification:
+            # clarification a reponse libre (pas d'options) - simulateur du champ texte du popup
+            message = input("\nVous (reponds a la clarification, ou tape 'annuler' pour changer de sujet): ").strip()
+            if message.lower() in ("exit()", "exit", "quit", "quit()"):
+                print("Fin de la session.")
+                break
+            if message.lower() not in ("annuler",):
+                is_clarification_reply = True
+        else:
+            message = input("\nVous: ").strip()
+            if message.lower() in ("exit()", "exit", "quit", "quit()"):
+                print("Fin de la session.")
+                break
+
         if not message:
             continue
-        if message.lower() in ("exit()", "exit", "quit", "quit()"):
-            print("Fin de la session.")
-            break
 
         result = app.invoke({
             "message": message,
@@ -186,10 +385,24 @@ if __name__ == "__main__":
             "citizen_profile": None,
             "intent": None,
             "response": None,
+            "response_options": None,
+            "pending_clarification": pending_clarification,
+            "is_clarification_reply": is_clarification_reply,
+            "user_role": user_role,
+            "answer": None,
+            "sources": None,
+            "collected_profile": None,
         })
 
-        print(f"[intent={result['intent']}]")
-        print(f"Assistant: {result['response']}")
+        response = result["response"]
+        # MonParcours : profiling terminé -> vraie checklist (même rendu que l'API).
+        if result["intent"] == "documents_necessaires" and result.get("collected_profile") is not None:
+            response = render_checklist(result["collected_profile"], intro=result["response"])
+
+        print(f"\n[intent={result['intent']}]")
+        print(f"Assistant: {response}")
 
         conversation_history.append({"role": "user", "content": message})
-        conversation_history.append({"role": "assistant", "content": result["response"]})
+        conversation_history.append({"role": "assistant", "content": response})
+        pending_clarification = result["pending_clarification"]
+        response_options = result["response_options"]

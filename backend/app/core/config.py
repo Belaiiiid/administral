@@ -115,6 +115,16 @@ class Settings(BaseSettings):
     # Whisper key (used when VOICE_VENDOR=whisper)
     openai_api_key: str | None = None
 
+    # Optional referentials used by the coherence analysis.  Empty values mean
+    # that no external source is consulted; document-only verification remains
+    # the default and does not make unsolicited network calls.
+    coherence_site_web_url: str | None = None
+    coherence_api_caf_url: str | None = None
+    coherence_base_loyers_url: str | None = None
+    coherence_verification_cin_url: str | None = None
+    coherence_codes_postaux_url: str | None = None
+    coherence_plafonds_revenus_url: str | None = None
+
     # -- Document storage --------------------------------------------------
     # Where uploaded files are written. Local filesystem for development; a
     # deployment swaps this for object storage behind the same repository
