@@ -49,6 +49,22 @@ uvicorn app.main:app --reload  # http://localhost:8000
 | Swagger | http://localhost:8000/docs |
 | Santé | http://localhost:8000/api/health |
 
+### Voix (optionnel)
+
+Un bouton de test du micro est disponible côté frontend :
+
+```tsx
+import { VoiceButton } from '@/features/voice'
+
+export function HeaderExtras() {
+  return <VoiceButton />
+}
+```
+
+Endpoints backend (si configurés) :
+- POST /api/voice/transcribe (multipart `file`)
+- POST /api/voice/speak (JSON `{ text }` → WAV)
+
 ## Stack
 
 **Frontend** — React 18 · TypeScript · Vite 6 · Tailwind CSS 3 · Radix UI (primitives de style

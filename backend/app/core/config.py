@@ -103,6 +103,18 @@ class Settings(BaseSettings):
     # the assistant offline (local dev without a key, tests).
     mistral_allow_fallback: bool = False
 
+    # -- Voice (vendor-agnostic: Mistral or Whisper) -----------------------
+    # Switch STT vendor without code changes. Values: 'mistral' (default) | 'whisper'
+    voice_vendor: str = "mistral"
+    # Optional overrides used by the voice service
+    voice_base_url: str | None = None
+    voice_api_key: str | None = None
+    voice_stt_model: str | None = None
+    voice_tts_model: str | None = None
+    voice_tts_voice: str | None = None
+    # Whisper key (used when VOICE_VENDOR=whisper)
+    openai_api_key: str | None = None
+
     # Optional referentials used by the coherence analysis.  Empty values mean
     # that no external source is consulted; document-only verification remains
     # the default and does not make unsolicited network calls.

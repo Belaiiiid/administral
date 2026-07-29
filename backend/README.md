@@ -162,3 +162,37 @@ mocks, basculer un binding de service du mock vers HTTP ne doit **rien** changer
 3. `app.include_router(...)` dans `app/main.py`.
 4. `alembic revision --autogenerate -m "add <nom>"` puis relire le fichier
    généré avant de l'appliquer.
+
+---
+
+## Voix (STT/TTS) — passerelle minimale
+
+Deux endpoints sont exposés pour la dictée (STT) et la synthèse vocale (TTS).
+
+| Méthode | Chemin                    | Corps                         | Réponse |
+|---|---|---|---|
+| `POST` | `/api/voice/transcribe`   | `multipart/form-data` avec `file` (audio webm/ogg/wav) | `{ "text": "…" }` |
+| `POST` | `/api/voice/speak`        | JSON `{ "text": "…" }`      | `audio/wav` (octets) |
+
+Exemples rapides
+
+```bash
+# Transcription (webm ou wav). Remplacez sample.webm par votre fichier
+curl -sS -F file=@sample.webm http://localhost:8000/api/voice/transcribe | jq
+
+# Synthèse (retourne un WAV)
+curl -sS -X POST http://localhost:8000/api/voice/speak \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Bonjour, comment puis-je vous aider ?"}' \
+  --output out.wav
+```
+
+Configuration requise (`.env`)
+
+- `VOICE_API_KEY` — clé API Mistral (ou fournisseur compatible)
+- `VOICE_BASE_URL` — par défaut `https://api.mistral.ai/v1`
+- `VOICE_STT_MODEL` — ex. `voxtral-mini-latest`
+- `VOICE_TTS_MODEL` — ex. `voxtral-mini-tts-latest`
+- `VOICE_TTS_VOICE` — ex. `fr_marie_neutral`
+
+Conseillé : installez `ffmpeg` localement. Le backend transcode si besoin (webm/ogg → wav, 16 kHz mono) et supprime les silences de tête.

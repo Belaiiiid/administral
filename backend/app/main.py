@@ -122,6 +122,15 @@ app.include_router(audit_router, prefix="/api")
 # Every transition is written into the audit trail above.
 app.include_router(contestation_router, prefix="/api")
 
+# Voice assistant (STT/TTS proxy) — productized minimal gateway
+try:
+    from app.modules.voice.router import router as voice_router  # type: ignore
+
+    app.include_router(voice_router, prefix="/api")
+except Exception:
+    # Optional: if module missing, the rest of the app must continue to work
+    pass
+
 # Not yet mounted — these modules exist as folders with no routes. Each is
 # added when its slice is built, not speculatively:
 #
