@@ -123,3 +123,19 @@ export interface ChatbotMessage extends ChatMessage {
    */
   options?: string[];
 }
+
+/**
+ * One turn as persisted server-side (`GET /citizen/chatbot/history`).
+ *
+ * Only for a signed-in citizen — an anonymous visitor has nothing to fetch,
+ * since nothing was ever stored for them. Deliberately narrower than
+ * `ChatbotMessage`: `options`/clarification state is never persisted, so a
+ * restored thread never carries a stale choice popup.
+ */
+export interface ChatHistoryMessage {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: ChatbotSource[] | null;
+  createdAt: string;
+}

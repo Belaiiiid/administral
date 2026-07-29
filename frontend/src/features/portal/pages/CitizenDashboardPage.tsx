@@ -1,6 +1,5 @@
 import { ArrowRight, Bell, Landmark } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
 import { ROUTES } from '@/app/router/paths';
@@ -8,48 +7,22 @@ import { PageHeader, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
-import { dossierService } from '@/services/dossierService';
 
 /**
- * "Mes services" — the citizen's landing page once their profile is filled.
- *
- * Doubles as the landing gate: a citizen whose profile is not yet complete
- * (housing + professional status unanswered) is sent straight to the
- * profiling assistant instead of seeing a hub with nothing behind it yet.
- * `profileComplete` is computed server-side (`PersonalizedDossierSchema`),
- * the same flag the dossier page already trusts — one definition, not two.
+ * "Mes services" — the first thing a citizen sees after registering, and the
+ * landing page for every later visit. No profile gate here any more: the
+ * questions to ask depend on *which* service is opened (APL's are not
+ * France Travail's), so profiling now happens per service, on entering it
+ * (see `RequireApplProfile`), not once globally before this hub even shows.
  *
  * Only `caf` (APL) is wired to a real backend; the rest render as disabled
- * tiles rather than pretending to be functional — consistent with dropping
- * the old fake "active services" dashboard widgets this replaces.
+ * tiles rather than pretending to be functional.
  */
 export default function CitizenDashboardPage() {
   useDocumentTitle('Mes services');
   const { displayName } = useSessionStore();
-  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    dossierService
-      .getDossier()
-      .then((dossier) => setProfileComplete(dossier.profileComplete))
-      .catch(() => setProfileComplete(true)); // fail open: never trap a citizen on an error
-  }, []);
-
-  if (profileComplete === null) {
-    return (
-      <div className="mx-auto max-w-container space-y-gutter">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-48 w-full" />
-      </div>
-    );
-  }
-
-  if (!profileComplete) {
-    return <Navigate to={ROUTES.onboardingProfilage} replace />;
-  }
 
   return (
     <div className="mx-auto max-w-container">

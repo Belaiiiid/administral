@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
+import { RequireApplProfile } from '@/app/router/RequireApplProfile';
 import { ROUTES } from '@/app/router/paths';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
@@ -101,8 +102,15 @@ const router = createBrowserRouter([
           { path: ROUTES.profileAccessibility, element: <AccessibilityPreferencesPage /> },
           { path: ROUTES.settings, element: <CitizenSettingsPage /> },
 
-          { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
-          { path: ROUTES.suivi, element: <SuiviDossierPage /> },
+          {
+            // APL's own profiling gate — see `RequireApplProfile`. Scoped to
+            // just these two routes, not the whole citizen area.
+            element: <RequireApplProfile />,
+            children: [
+              { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
+              { path: ROUTES.suivi, element: <SuiviDossierPage /> },
+            ],
+          },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
 

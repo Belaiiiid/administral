@@ -31,6 +31,7 @@ from app.modules.citizen.models import (
     ChecklistItem,
 )
 from app.modules.auth.models import AuthToken, User
+from app.modules.chatbot.models import ChatbotMessage
 from app.modules.notifications.models import Notification
 from app.modules.settings.models import UserSettings
 
@@ -56,6 +57,8 @@ __all__ = [
     "AuthToken",
     # Notifications module
     "Notification",
+    # Chatbot module
+    "ChatbotMessage",
     # Settings module
     "UserSettings",
     # Audit module

@@ -19,6 +19,7 @@ moteur de servir le portail web et un canal sans session (WhatsApp).
 from __future__ import annotations
 
 import enum
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -96,3 +97,19 @@ class ChatbotResponseSchema(CamelModel):
     options: list[str] | None = None
     #: Non nul tant que l'assistant attend une réponse à sa question.
     pending_clarification: PendingClarificationSchema | None = None
+
+
+class ChatHistoryMessageSchema(CamelModel):
+    """One turn of a citizen's persisted conversation (see `history.py`).
+
+    Distinct from `ChatMessageSchema`: that one is the minimal shape the
+    client resends as context on the *next* question, this one is what the
+    client reads back to redraw the thread (id for React keys, sources for
+    the citation block, a timestamp).
+    """
+
+    id: int
+    role: Literal["user", "assistant"]
+    content: str
+    sources: list[ChatbotSourceSchema] | None = None
+    created_at: datetime

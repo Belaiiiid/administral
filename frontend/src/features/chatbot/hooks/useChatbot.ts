@@ -1,11 +1,23 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { chatbotService } from '@/features/chatbot/services';
 import type {
   ChatbotContext,
   ChatbotMessage,
   ChatbotPendingClarification,
+  ChatHistoryMessage,
 } from '@/features/chatbot/types/chatbot';
+import { useSessionStore } from '@/store/sessionStore';
+
+function fromHistory(item: ChatHistoryMessage): ChatbotMessage {
+  return {
+    id: `history-${item.id}`,
+    role: item.role,
+    content: item.content,
+    createdAt: item.createdAt,
+    sources: item.sources ?? undefined,
+  };
+}
 
 export interface ChatbotController {
   /** The thread, oldest first. Empty until the citizen asks something. */
@@ -43,14 +55,40 @@ export interface ChatbotController {
  * Le backend ne devine jamais cette distinction : c'est l'UI qui sait d'où vient
  * le message.
  *
+ * Signed-in citizens get one more thing for free: on mount, their persisted
+ * thread (`GET /citizen/chatbot/history`) seeds `messages`, so leaving `/chat`
+ * and coming back shows the conversation instead of a blank thread. An
+ * anonymous visitor never triggers that fetch — nothing was stored for them,
+ * so there is nothing to restore, and their thread stays exactly as ephemeral
+ * as it already was.
+ *
  * @param context What is known about the citizen's situation, forwarded with
  *                every question. Pass only values that are genuinely known;
  *                omitted fields mean "unknown" (see {@link ChatbotContext}).
  */
 export function useChatbot(context?: ChatbotContext): ChatbotController {
+  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
   const [messages, setMessages] = useState<ChatbotMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    chatbotService
+      .getHistory()
+      .then((history) => {
+        if (cancelled || history.length === 0) return;
+        setMessages((current) => (current.length > 0 ? current : history.map(fromHistory)));
+      })
+      .catch(() => {
+        // Best-effort restore: a failed fetch just leaves the thread empty,
+        // exactly as it already is before any question is asked.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   /*
    * Three render-synced mirrors, so `send` can be created once and stay stable
