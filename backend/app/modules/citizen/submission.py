@@ -187,22 +187,21 @@ def _find_or_create_citizen(db: Session, user: User, profile: ProfileSnapshotIn)
 
 def _build_completeness_report(application: Application, now: datetime) -> CompletenessReport:
     """Derive the case completeness report from the application's real checklist."""
-    items: list[CompletenessItem] = []
-    required_total = 0
-    required_received = 0
+    items_by_key = {}
     for ci in application.checklist_items:
-        items.append(
-            CompletenessItem(
-                item_key=ci.item_key,
-                label=ci.libelle,
-                received=ci.received,
-                required=ci.obligatoire,
-            )
+        if ci.item_key in items_by_key:
+            items_by_key[ci.item_key].received = items_by_key[ci.item_key].received or ci.received
+            continue
+        items_by_key[ci.item_key] = CompletenessItem(
+            item_key=ci.item_key,
+            label=ci.libelle,
+            received=ci.received,
+            required=ci.obligatoire,
         )
-        if ci.obligatoire:
-            required_total += 1
-            if ci.received:
-                required_received += 1
+
+    items = list(items_by_key.values())
+    required_total = sum(1 for item in items if item.required)
+    required_received = sum(1 for item in items if item.required and item.received)
 
     completion_rate = round(100 * required_received / required_total) if required_total else 100
     if required_total == 0 or required_received == required_total:

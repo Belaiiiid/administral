@@ -102,3 +102,38 @@ def test_service_produces_risk_badge_value(tmp_path, monkeypatch) -> None:
 
     assert analyze_document(str(flagged)).niveau_risque == "À VÉRIFIER"
     assert analyze_document(str(clean)).niveau_risque == "FAIBLE"
+
+
+def test_image_analysis_keeps_ela_disabled_by_default(tmp_path, monkeypatch) -> None:
+    """ELA is not used by default, even for JPEG files."""
+    import cv2
+    import numpy as np
+
+    from app.core.config import settings
+    from app.modules.ai.fraud.service import analyze_document
+
+    monkeypatch.setattr(settings, "mistral_api_key", None)
+    monkeypatch.setattr(settings, "fraud_vision_endpoint", None)
+    image_path = tmp_path / "scan.jpg"
+    assert cv2.imwrite(str(image_path), np.full((160, 240, 3), 255, dtype=np.uint8))
+
+    analysis = analyze_document(str(image_path))
+    assert analysis.ela_visuals == []
+    assert analysis.vision_model is not None
+    assert analysis.vision_model.status == "NON_CONFIGURE"
+
+
+def test_duplicate_document_is_an_explicit_review_signal(tmp_path, monkeypatch) -> None:
+    from app.core.config import settings
+    from app.modules.ai.fraud.service import analyze_document
+
+    monkeypatch.setattr(settings, "mistral_api_key", None)
+    pdf = _write_pdf(
+        tmp_path, "duplicate.pdf", producer="Microsoft Word",
+        create="20260101090000", modify="20260101090000",
+    )
+    analysis = analyze_document(str(pdf), duplicate_count=2)
+
+    assert analysis.integrity is not None
+    assert analysis.integrity.exact_duplicate_in_dossier is True
+    assert any("mÃªme empreinte" in signal for signal in analysis.signaux_a_verifier)

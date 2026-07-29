@@ -23,6 +23,45 @@ class FraudLlmSchema(CamelModel):
     recommandation: str
 
 
+class FraudRegionSchema(CamelModel):
+    """One ELA-suspicious area in pixels of the displayed page image."""
+
+    x: int
+    y: int
+    width: int
+    height: int
+    confidence_pct: float
+
+
+class FraudVisualSchema(CamelModel):
+    """ELA result for one page, with an agent-ready annotated image."""
+
+    page_number: int
+    is_suspicious: bool
+    regions: list[FraudRegionSchema]
+    marked_image_base64: str
+    metrics: dict[str, float | int]
+
+
+class DocumentIntegritySchema(CamelModel):
+    content_hash: str
+    exact_duplicate_in_dossier: bool
+    qr_codes_detected: int
+    mrz_detected: bool
+    mrz_checksum_valid: bool | None = None
+    pdf_signature_state: str
+    issuer_verification_status: str
+
+
+class VisionModelSchema(CamelModel):
+    provider: str
+    status: str
+    score: float | None = None
+    message: str
+    device: str | None = None
+    pages: list[FraudVisualSchema] = []
+
+
 class FraudAnalysisSchema(CamelModel):
     """Full metadata-forensics result for one document."""
 
@@ -41,5 +80,11 @@ class FraudAnalysisSchema(CamelModel):
     niveau_risque: str
     #: Convenience flag for the UI.
     a_des_signaux: bool
+    #: ELA page visuals. Empty when the file cannot be decoded as a PDF/image.
+    ela_visuals: list[FraudVisualSchema] = []
+    #: Structural facts (hash, QR, MRZ and PDF signature field) that an agent can verify.
+    integrity: DocumentIntegritySchema | None = None
+    #: Optional deep-learning localisation service. Non-configured is explicit, never hidden.
+    vision_model: VisionModelSchema | None = None
     #: Set when the file could not be analysed (unsupported format, unreadable).
     erreur: str | None = None
