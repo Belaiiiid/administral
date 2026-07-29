@@ -32,6 +32,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.logger import logger
+from app.modules.ai.coherence.sources_externes import consulter_sources_externes
 
 SYSTEM_PROMPT = """Tu es un agent expert de vérification documentaire pour un dossier d'aide au logement.
 Analyse le profil déclaré et tous les documents fournis, puis produis une
@@ -130,12 +131,31 @@ def _normaliser(verification: dict[str, Any], documents: list[dict]) -> dict:
     }
 
 
+def _alertes_sources(sources: list[dict]) -> list[dict]:
+    """Turn unavailable configured referentials into reviewable checks."""
+    return [
+        _resultat_hors_ligne(
+            [],
+            (
+                f"La source externe {source.get('nom', 'inconnue')} est "
+                f"indisponible : {source.get('erreur', 'erreur inconnue')}"
+            ),
+            source=str(source.get("nom", "source_externe")),
+        )
+        for source in sources
+        if source.get("statut") == "indisponible"
+    ]
+
+
 def verifier_coherence_llm(profil: dict, documents: list[dict]) -> list[dict]:
     """Ask Mistral to verify a dossier. Never raises — failure is a result.
 
     Returns a list of raw verification dicts (already normalised). The caller
     builds `Verification` objects and aggregates them.
     """
+    sources = consulter_sources_externes(profil, documents)
+    alertes_sources = _alertes_sources(sources)
+
     if not settings.mistral_api_key:
         logger.warn("Analyse de cohérence hors ligne : MISTRAL_API_KEY absente")
         return [
@@ -143,10 +163,15 @@ def verifier_coherence_llm(profil: dict, documents: list[dict]) -> list[dict]:
                 documents,
                 "Vérification LLM non effectuée : MISTRAL_API_KEY absente.",
                 source="systeme",
-            )
+            ),
+            *alertes_sources,
         ]
 
-    payload = {"profil_declare": profil, "documents_extraits": documents}
+    payload = {
+        "profil_declare": profil,
+        "documents_extraits": documents,
+        "sources_externes": sources,
+    }
 
     try:
         response = httpx.post(
@@ -177,7 +202,7 @@ def verifier_coherence_llm(profil: dict, documents: list[dict]) -> list[dict]:
         if not isinstance(verifications, list) or not verifications:
             raise ValueError("Réponse LLM sans liste de vérifications")
 
-        return [_normaliser(v, documents) for v in verifications]
+        return [_normaliser(v, documents) for v in verifications] + alertes_sources
 
     except Exception as erreur:  # noqa: BLE001 — any failure must degrade, not raise
         logger.error("Vérification de cohérence LLM impossible", {"error": str(erreur)})
@@ -186,5 +211,6 @@ def verifier_coherence_llm(profil: dict, documents: list[dict]) -> list[dict]:
                 documents,
                 f"Vérification LLM impossible : {erreur}",
                 source="systeme",
-            )
+            ),
+            *alertes_sources,
         ]
