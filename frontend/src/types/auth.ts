@@ -24,6 +24,8 @@ export interface AuthTokenResponse {
 export interface LoginCredentials {
   email: string;
   password: string;
+  /** Cloudflare Turnstile token — verified server-side. */
+  turnstileToken?: string;
 }
 
 export interface RegisterPayload {
@@ -31,6 +33,8 @@ export interface RegisterPayload {
   lastName: string;
   email: string;
   password: string;
+  /** Cloudflare Turnstile token — verified server-side. */
+  turnstileToken?: string;
 }
 
 /**

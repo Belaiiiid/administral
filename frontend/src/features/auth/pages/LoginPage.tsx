@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import Turnstile from '@/components/shared/Turnstile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const login = useSessionStore((state) => state.login);
   const isLoggingIn = useSessionStore((state) => state.isLoggingIn);
@@ -41,7 +43,7 @@ export default function LoginPage() {
     event.preventDefault();
     setResent(false);
     try {
-      const role = await login({ email, password });
+      const role = await login({ email, password, turnstileToken: turnstileToken ?? undefined });
       if (role === 'admin') {
         navigate(ROUTES.admin, { replace: true });
       } else if (role === 'agent') {
@@ -197,7 +199,12 @@ export default function LoginPage() {
             </Label>
           </div>
 
-          <Button type="submit" block size="lg" disabled={isLoggingIn}>
+          <Turnstile
+            onVerify={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken(null)}
+          />
+
+          <Button type="submit" block size="lg" disabled={isLoggingIn || !turnstileToken}>
             {isLoggingIn ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>

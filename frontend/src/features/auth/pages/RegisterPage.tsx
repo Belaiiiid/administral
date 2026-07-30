@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import Turnstile from '@/components/shared/Turnstile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -66,6 +67,7 @@ export default function RegisterPage() {
   const [confirmation, setConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cguAccepted, setCguAccepted] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -79,6 +81,7 @@ export default function RegisterPage() {
     password.length >= MIN_PASSWORD_LENGTH &&
     password === confirmation &&
     cguAccepted &&
+    !!turnstileToken &&
     !isLoggingIn;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -90,6 +93,7 @@ export default function RegisterPage() {
         lastName: lastName.trim(),
         email: email.trim(),
         password,
+        turnstileToken: turnstileToken ?? undefined,
       });
 
       // Services first, profiling per service: a new citizen picks what they
@@ -309,6 +313,11 @@ export default function RegisterPage() {
               protection des données personnelles.
             </Label>
           </div>
+
+          <Turnstile
+            onVerify={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken(null)}
+          />
 
           <Button type="submit" block size="lg" disabled={!canSubmit}>
             {isLoggingIn ? 'Création du compte…' : 'Créer mon compte'}

@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.captcha import verify_turnstile
 from app.database.session import get_db
 from app.modules.auth import service
 from app.modules.auth.dependencies import get_current_user, require_admin
@@ -33,11 +34,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     summary="Créer un compte citoyen et se connecter",
 )
 def register(body: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    verify_turnstile(body.turnstile_token)
     return service.register_citizen(db, body)
 
 
 @router.post("/login", response_model=TokenResponse, summary="Se connecter (citoyen ou agent)")
 def login(body: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    verify_turnstile(body.turnstile_token)
     return service.login(db, body)
 
 
