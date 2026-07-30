@@ -21,7 +21,9 @@ agent computes/records those. Nothing here invents a verdict.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, date, datetime
+from pathlib import Path
 
 from fastapi import BackgroundTasks
 from pydantic import BaseModel, ConfigDict, Field
@@ -187,22 +189,21 @@ def _find_or_create_citizen(db: Session, user: User, profile: ProfileSnapshotIn)
 
 def _build_completeness_report(application: Application, now: datetime) -> CompletenessReport:
     """Derive the case completeness report from the application's real checklist."""
-    items: list[CompletenessItem] = []
-    required_total = 0
-    required_received = 0
+    items_by_key = {}
     for ci in application.checklist_items:
-        items.append(
-            CompletenessItem(
-                item_key=ci.item_key,
-                label=ci.libelle,
-                received=ci.received,
-                required=ci.obligatoire,
-            )
+        if ci.item_key in items_by_key:
+            items_by_key[ci.item_key].received = items_by_key[ci.item_key].received or ci.received
+            continue
+        items_by_key[ci.item_key] = CompletenessItem(
+            item_key=ci.item_key,
+            label=ci.libelle,
+            received=ci.received,
+            required=ci.obligatoire,
         )
-        if ci.obligatoire:
-            required_total += 1
-            if ci.received:
-                required_received += 1
+
+    items = list(items_by_key.values())
+    required_total = sum(1 for item in items if item.required)
+    required_received = sum(1 for item in items if item.required and item.received)
 
     completion_rate = round(100 * required_received / required_total) if required_total else 100
     if required_total == 0 or required_received == required_total:
@@ -410,7 +411,7 @@ def submit_application(
     # after submission, so the citizen is not made to wait.
     checklist_by_id = {ci.id: ci for ci in application.checklist_items}
     case_documents: list[CaseDocument] = []
-    doc_sources: list[tuple[CaseDocument, str]] = []
+    doc_sources: list[tuple[CaseDocument, str, str | None]] = []
     for doc in application.documents:
         matched = checklist_by_id.get(doc.matched_checklist_item_id)
         case_doc = CaseDocument(
@@ -425,7 +426,7 @@ def submit_application(
             error_message=doc.error_message,
         )
         case_documents.append(case_doc)
-        doc_sources.append((case_doc, doc.stored_path))
+        doc_sources.append((case_doc, doc.stored_path, doc.extracted_text_preview))
 
     case = Case(
         application_number=application_number,
@@ -488,7 +489,20 @@ def submit_application(
     # analysis is still running or fails, the documents simply carry no fraud
     # badge yet (never an error). The seed cases already carry it.
     if background_tasks is not None:
-        specs = [(case_doc.id, stored_path, case_doc.file_name) for case_doc, stored_path in doc_sources]
+        hashes: dict[str, int] = {}
+        for _case_doc, stored_path, _ocr_text in doc_sources:
+            try:
+                digest = hashlib.sha256(Path(stored_path).read_bytes()).hexdigest()
+                hashes[digest] = hashes.get(digest, 0) + 1
+            except OSError:
+                continue
+        specs = []
+        for case_doc, stored_path, ocr_text in doc_sources:
+            try:
+                duplicate_count = hashes.get(hashlib.sha256(Path(stored_path).read_bytes()).hexdigest(), 1)
+            except OSError:
+                duplicate_count = 1
+            specs.append((case_doc.id, stored_path, case_doc.file_name, ocr_text, duplicate_count))
         if specs:
             background_tasks.add_task(run_fraud_analysis, specs)
 
@@ -503,10 +517,11 @@ def submit_application(
     )
 
 
-def run_fraud_analysis(specs: list[tuple[str, str, str]]) -> None:
+def run_fraud_analysis(specs: list[tuple[str, str, str, str | None, int]]) -> None:
     """Populate each case document's C4 fraud forensics, out of the request path.
 
-    ``specs`` is ``(case_document_id, stored_file_path, file_name)``. Reuses the
+    ``specs`` is ``(case_document_id, stored_file_path, file_name, ocr_text,
+    duplicate_count)``. Reuses the
     existing fraud service verbatim (``analyze_document`` — deterministic metadata
     + optional Mistral verdict, itself fail-safe). Runs in its own session; a
     failure on one document never affects the others or the submission.
@@ -516,9 +531,14 @@ def run_fraud_analysis(specs: list[tuple[str, str, str]]) -> None:
 
     db = SessionLocal()
     try:
-        for case_document_id, stored_path, file_name in specs:
+        for case_document_id, stored_path, file_name, ocr_text, duplicate_count in specs:
             try:
-                analysis = fraud_service.analyze_document(stored_path, display_name=file_name)
+                analysis = fraud_service.analyze_document(
+                    stored_path,
+                    display_name=file_name,
+                    extracted_text=ocr_text,
+                    duplicate_count=duplicate_count,
+                )
                 case_doc = db.get(CaseDocument, case_document_id)
                 if case_doc is not None:
                     case_doc.fraud_analysis = analysis.model_dump(by_alias=True)
