@@ -1,10 +1,18 @@
-import { CheckCircle2, Circle, CircleDashed, FileClock, Send } from 'lucide-react';
+import {
+  CheckCircle2,
+  Circle,
+  CircleDashed,
+  FileClock,
+  ScanSearch,
+  Send,
+  ShieldAlert,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { EmptyState, PageHeader, SectionHeader } from '@/components/shared';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,7 +20,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils';
 import { DecisionContestation } from '@/features/documents/components/DecisionContestation';
 import { dossierService } from '@/services/dossierService';
-import type { DossierReview } from '@/services/documentService';
+import type { DossierAnomaly, DossierReview } from '@/services/documentService';
 
 /**
  * "Suivre un dossier déposé" — the read-only counterpart to "Envoyer un
@@ -104,6 +112,94 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
   );
 }
 
+/**
+ * Cohérence — the cross-document analysis run at submission (`analyser_coherence`
+ * server-side, see `submission.py`). It is computed and returned by the review
+ * endpoint on every submitted dossier, but the outcome was never actually shown
+ * here: the citizen only ever saw the three tracking steps above, never why an
+ * agent might be double-checking a piece of information.
+ */
+const COHERENCE_OUTCOME_META: Record<string, { label: string; tone: BadgeProps['tone'] }> = {
+  passed: { label: 'Cohérent', tone: 'success' },
+  warning: { label: 'À vérifier', tone: 'warning' },
+  failed: { label: 'Incohérence détectée', tone: 'error' },
+};
+
+const ANOMALY_SEVERITY_META: Record<string, { label: string; tone: BadgeProps['tone'] }> = {
+  info: { label: 'Information', tone: 'info' },
+  warning: { label: 'Vigilance', tone: 'warning' },
+  error: { label: 'Erreur', tone: 'error' },
+};
+
+function AnomalyRow({ anomaly }: { anomaly: DossierAnomaly }) {
+  const meta = ANOMALY_SEVERITY_META[anomaly.severity] ?? ANOMALY_SEVERITY_META.warning;
+  return (
+    <li className="rounded-lg border border-border p-3">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-label-md text-on-surface">{anomaly.field}</p>
+        <Badge tone={meta.tone}>{meta.label}</Badge>
+      </div>
+      <p className="text-body-sm text-on-surface-variant">{anomaly.message}</p>
+      {(anomaly.declared_value || anomaly.observed_value) && (
+        <dl className="mt-2 grid gap-x-4 gap-y-1 text-body-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-on-surface-variant">Déclaré</dt>
+            <dd className="text-on-surface">{anomaly.declared_value || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-on-surface-variant">Constaté</dt>
+            <dd className="text-on-surface">{anomaly.observed_value || '—'}</dd>
+          </div>
+        </dl>
+      )}
+    </li>
+  );
+}
+
+function CoherenceCard({ coherence }: { coherence: NonNullable<DossierReview['coherence']> }) {
+  const meta = COHERENCE_OUTCOME_META[coherence.outcome] ?? {
+    label: coherence.outcome,
+    tone: 'neutral' as const,
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader
+          title="Analyse de cohérence"
+          as="h2"
+          action={<Badge tone={meta.tone}>{meta.label}</Badge>}
+        />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+          <ScanSearch className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {coherence.explanation ??
+            'Vos informations déclarées ont été comparées aux pièces déposées.'}
+        </p>
+
+        {coherence.anomalies.length > 0 ? (
+          <ul className="space-y-2">
+            {coherence.anomalies.map((anomaly, index) => (
+              <AnomalyRow key={index} anomaly={anomaly} />
+            ))}
+          </ul>
+        ) : (
+          <p className="flex items-center gap-2 text-body-sm text-success">
+            <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+            Aucune incohérence relevée entre vos informations et vos pièces.
+          </p>
+        )}
+
+        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          Cette analyse assiste l’instruction ; elle ne remplace pas la décision de l’agent CAF.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SuiviDossierPage() {
   useDocumentTitle('Suivre un dossier déposé');
   const [review, setReview] = useState<DossierReview | null>(null);
@@ -192,6 +288,8 @@ export default function SuiviDossierPage() {
               </ol>
             </CardContent>
           </Card>
+
+          {review.coherence && <CoherenceCard coherence={review.coherence} />}
 
           {review.decision && review.application_number && (
             <DecisionContestation applicationNumber={review.application_number} />

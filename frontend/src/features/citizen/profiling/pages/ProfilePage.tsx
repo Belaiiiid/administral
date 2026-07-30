@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { birthDateError, socialSecurityNumberError } from '@/lib/civilStatusValidation';
 import { cn } from '@/lib/utils';
 import { ProfilageAssistantPanel } from '@/features/citizen/profiling/components/ProfilageAssistantPanel';
 import {
@@ -132,6 +133,10 @@ export default function ProfilePage() {
   const prenomAffiche = profilPartiel?.prenom || form.firstName || undefined;
   const nomAffiche = profilPartiel?.nom || form.lastName || undefined;
 
+  const birthDateInvalid = birthDateError(form.birthDate);
+  const nirInvalid = form.socialSecurityNumber ? socialSecurityNumberError(form.socialSecurityNumber) : null;
+  const identityInvalid = Boolean(birthDateInvalid) || Boolean(nirInvalid);
+
   const estEnCouple = ['marie', 'pacse', 'concubinage'].includes(answers.statut_marital ?? '');
   const aDesEnfants = (answers.nombre_enfants_a_charge ?? 0) > 0;
 
@@ -197,6 +202,7 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
+    if (identityInvalid) return;
     setIsSaving(true);
     setFeedback(null);
     try {
@@ -236,7 +242,7 @@ export default function ProfilePage() {
         title="Mon profil citoyen"
         description="Gérez vos informations personnelles et vos préférences"
         actions={
-          <Button type="button" onClick={handleSave} disabled={isLoading || isSaving}>
+          <Button type="button" onClick={handleSave} disabled={isLoading || isSaving || identityInvalid}>
             {isSaving ? 'Enregistrement…' : 'Enregistrer les modifications'}
           </Button>
         }
@@ -322,6 +328,9 @@ function EditIdentityDialog({
 }) {
   const set = (patch: Partial<IdentityForm>) => setForm((current) => ({ ...current, ...patch }));
 
+  const birthDateInvalid = birthDateError(form.birthDate);
+  const nirInvalid = form.socialSecurityNumber ? socialSecurityNumberError(form.socialSecurityNumber) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -344,7 +353,18 @@ function EditIdentityDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-naissance">Date de naissance</Label>
-            <Input id="edit-naissance" type="date" value={form.birthDate} onChange={(e) => set({ birthDate: e.target.value })} />
+            <Input
+              id="edit-naissance"
+              type="date"
+              value={form.birthDate}
+              aria-invalid={Boolean(birthDateInvalid)}
+              onChange={(e) => set({ birthDate: e.target.value })}
+            />
+            {birthDateInvalid && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {birthDateInvalid}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-nir">Numéro de sécurité sociale</Label>
@@ -353,13 +373,19 @@ function EditIdentityDialog({
               inputMode="numeric"
               placeholder={hasNir ? 'Renseigné — laisser vide pour ne pas modifier' : '13 ou 15 chiffres'}
               value={form.socialSecurityNumber}
+              aria-invalid={Boolean(nirInvalid)}
               onChange={(e) => set({ socialSecurityNumber: e.target.value })}
             />
+            {nirInvalid && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {nirInvalid}
+              </p>
+            )}
           </div>
         </div>
 
         <DialogFooter>
-          <Button type="button" onClick={() => onOpenChange(false)}>
+          <Button type="button" onClick={() => onOpenChange(false)} disabled={Boolean(birthDateInvalid) || Boolean(nirInvalid)}>
             Appliquer
           </Button>
         </DialogFooter>

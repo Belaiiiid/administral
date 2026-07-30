@@ -63,12 +63,12 @@ class PendingClarificationSchema(CamelModel):
 
     Émise par le backend avec une question de clarification, puis renvoyée telle
     quelle par l'UI avec la réponse du citoyen. `intent` est volontairement borné
-    aux deux nœuds qui posent des questions : il vient du client et court-circuite
+    aux nœuds qui posent des questions : il vient du client et court-circuite
     le classifieur, il ne doit donc pas pouvoir désigner autre chose.
     """
 
     original_question: str
-    intent: Literal["rag_general", "documents_necessaires"]
+    intent: Literal["rag_general", "documents_necessaires", "estimation"]
 
 
 class ChatbotContextSchema(CamelModel):

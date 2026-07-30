@@ -26,12 +26,12 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from pydantic.alias_generators import to_camel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import mask_social_security_number
+from app.core.security import mask_social_security_number, social_security_number_error
 from app.modules.profiling.schemas.profil import ProfilPartiel, ProfilPatch
 from app.modules.agent.models import Citizen
 from app.modules.audit import service as audit_service
@@ -100,6 +100,27 @@ class CitizenProfileUpdate(_Base):
     social_security_number: str | None = Field(default=None, max_length=32)
     #: Profiling answers to merge. Omitted keys are left untouched.
     profile: ProfilPatch | None = None
+
+    @field_validator("birth_date")
+    @classmethod
+    def _valider_date_naissance(cls, v: date | None) -> date | None:
+        if v is None:
+            return v
+        if v > date.today():
+            raise ValueError("La date de naissance ne peut pas être dans le futur.")
+        if v.year < 1900:
+            raise ValueError("La date de naissance n’est pas plausible.")
+        return v
+
+    @field_validator("social_security_number")
+    @classmethod
+    def _valider_nir(cls, v: str | None) -> str | None:
+        if not v:
+            return v
+        error = social_security_number_error(v)
+        if error:
+            raise ValueError(error)
+        return v
 
 
 def resolve_citizen(db: Session, user: User) -> Citizen:

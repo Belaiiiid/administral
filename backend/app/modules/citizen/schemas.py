@@ -139,6 +139,7 @@ class EstimationAideSchema(_CamelBase):
 
     montant_estime: int
     loyer_retenu: float
+    charges_retenues: float
     participation_personnelle: float
     #: False when the profile does not yet have enough to attempt an estimate
     #: (housing status or rent still unknown) — distinct from a genuine 0 €.
