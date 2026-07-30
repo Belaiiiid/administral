@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -11,19 +11,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { authService } from '@/services/authService';
 import { useSessionStore } from '@/store/sessionStore';
 
 interface LocationState {
   from?: { pathname: string };
-  /** Set by the reset flow after a successful password change. */
   notice?: string;
 }
 
-/**
- * Login. Authenticates against the auth module and routes the user to their
- * journey: agents to the back-office, citizens to their portal (or back to the
- * page a guard bounced them from).
- */
 export default function LoginPage() {
   useDocumentTitle('Connexion');
   const [showPassword, setShowPassword] = useState(false);
@@ -33,6 +28,10 @@ export default function LoginPage() {
   const login = useSessionStore((state) => state.login);
   const isLoggingIn = useSessionStore((state) => state.isLoggingIn);
   const error = useSessionStore((state) => state.error);
+  const errorCode = useSessionStore((state) => state.errorCode);
+
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,30 +39,53 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setResent(false);
     try {
       const role = await login({ email, password });
-      // An agent always lands in the back-office. A citizen returns where a
-      // guard sent them from, or their portal by default.
-      if (role === 'agent') {
+      if (role === 'admin') {
+        navigate(ROUTES.admin, { replace: true });
+      } else if (role === 'agent') {
         navigate(ROUTES.agent, { replace: true });
       } else {
         // After login, take citizens to voice onboarding
         navigate(ROUTES.voiceOnboarding, { replace: true });
       }
     } catch {
-      // The store holds the error message; the form renders it below.
+      // error is in the store
     }
   };
 
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await authService.resendVerificationPublic(email);
+      setResent(true);
+    } catch {
+      // ignore
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const isEmailNotVerified = errorCode === 'EMAIL_NOT_VERIFIED';
+
   return (
-    <Card>
+    <Card className="shadow-soft">
       <CardContent className="p-6 sm:p-8">
-        <h1 className="mb-6 text-headline-md text-on-surface">Connexion</h1>
+        <div className="mb-8 text-center">
+          <h1 className="text-headline-md text-on-surface">Connexion</h1>
+          <p className="mt-1 text-body-sm text-on-surface-variant">
+            Accédez à votre espace personnel
+          </p>
+        </div>
 
         <FranceConnectButton />
         <p className="mt-3 text-center">
-          <Link to="/franceconnect" className="text-body-sm text-on-surface-variant hover:underline">
-            Qu’est-ce que FranceConnect ?
+          <Link
+            to="/franceconnect"
+            className="text-body-sm text-on-surface-variant hover:underline"
+          >
+            Qu'est-ce que FranceConnect ?
           </Link>
         </p>
 
@@ -79,11 +101,40 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        {error && (
+        {isEmailNotVerified ? (
+          <Alert tone="warning" className="mb-5">
+            <AlertDescription>
+              <span className="block">
+                Votre adresse e-mail n'a pas encore été confirmée. Vérifiez votre
+                messagerie (pensez aux courriers indésirables).
+              </span>
+              {resent ? (
+                <span className="mt-2 block font-medium text-success">
+                  Un nouveau lien de confirmation vous a été envoyé si votre
+                  adresse est associée à un compte non confirmé.
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="mt-2 flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  {resending ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                  )}
+                  Renvoyer le lien de confirmation
+                </button>
+              )}
+            </AlertDescription>
+          </Alert>
+        ) : error ? (
           <Alert tone="error" className="mb-5">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        )}
+        ) : null}
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-2">
@@ -153,8 +204,8 @@ export default function LoginPage() {
 
         <div className="mt-8 border-t border-border pt-6 text-center">
           <p className="text-body-sm text-on-surface-variant">
-            Vous n’avez pas de compte ?{' '}
-            <Link to={ROUTES.register} className="text-primary hover:underline">
+            Vous n'avez pas de compte ?{' '}
+            <Link to={ROUTES.register} className="font-medium text-primary hover:underline">
               Créer un espace personnel
             </Link>
           </p>

@@ -46,3 +46,11 @@ export interface ResetPasswordPayload {
   token: string;
   password: string;
 }
+
+export interface ProvisionStaffPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: 'AGENT' | 'ADMIN';
+}

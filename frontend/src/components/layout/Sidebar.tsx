@@ -11,6 +11,7 @@ import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/store/uiStore';
+import { useSessionStore } from '@/store/sessionStore';
 
 function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const { pathname } = useLocation();
@@ -46,6 +47,7 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   const onNavigate = inDrawer ? closeSidebar : undefined;
   const { pathname } = useLocation();
+  const userRole = useSessionStore((state) => state.user?.role);
   // Citizen rail or back-office rail, decided by the route (app/config/navigation.ts).
   const { primary, secondary, cta } = resolveNavSections(pathname);
 
@@ -62,9 +64,11 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <nav aria-label="Navigation principale" className="flex-1">
         <ul className="flex flex-col gap-1">
-          {primary.map((item) => (
-            <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
-          ))}
+          {primary
+            .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+            .map((item) => (
+              <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+            ))}
         </ul>
       </nav>
 
@@ -79,9 +83,11 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <div className="mt-6 border-t border-border pt-6">
         <ul className="flex flex-col gap-1">
-          {secondary.map((item) => (
-            <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
-          ))}
+          {secondary
+            .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+            .map((item) => (
+              <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+            ))}
           <li>
             <NavLink
               to={SIGN_OUT_ITEM.to}

@@ -39,5 +39,8 @@ export const ROUTES = {
   // Back-office
   agent: '/agent',
 
+  // Administration (admin only)
+  admin: '/admin',
+
   notFound: '*',
 } as const;

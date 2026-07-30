@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { ProtectedRoute } from '@/app/router/ProtectedRoute';
 import { RequireApplProfile } from '@/app/router/RequireApplProfile';
 import { ROUTES } from '@/app/router/paths';
+import { AdminLayout } from '@/components/layout/AdminLayout';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { FocusLayout } from '@/components/layout/FocusLayout';
@@ -11,10 +12,6 @@ import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
 import { useSessionStore } from '@/store/sessionStore';
 
-/*
- * Each feature module is code-split at the route boundary, so a new
- * administration module never inflates the initial bundle.
- */
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
@@ -44,6 +41,10 @@ const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
 const VoiceOnboardingPage = lazy(() => import('@/features/voice/pages/VoiceOnboardingPage').then(m => ({ default: m.VoiceOnboardingPage })));
 const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLandingPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
+
+const AdminDashboardPage = lazy(
+  () => import('@/features/agent/admin/pages/AdminDashboardPage'),
+);
 
 /**
  * `/` — public by default. A signed-in visitor is sent straight to their
@@ -130,6 +131,19 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [{ path: ROUTES.agent, children: agentRoutes }],
+      },
+    ],
+  },
+  {
+    // Administration — admin only. Completely separate from agent portal.
+    path: ROUTES.admin,
+    element: <ProtectedRoute role="admin" />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <AdminDashboardPage /> },
+        ],
       },
     ],
   },

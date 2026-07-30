@@ -37,6 +37,11 @@ class InvalidCredentialsError(DomainError):
     code = "INVALID_CREDENTIALS"
 
 
+class EmailNotVerifiedError(DomainError):
+    status_code = 403
+    code = "EMAIL_NOT_VERIFIED"
+
+
 class InvalidTokenError(DomainError):
     """A verification or reset link that is unknown, spent or expired.
 
@@ -120,6 +125,10 @@ def provision_staff_account(db: Session, data: ProvisionStaffRequest) -> User:
     existing ADMIN can mint one — the router enforces that with `require_admin`,
     and this function is never reachable from an unauthenticated route.
 
+    The account is created already verified — an admin provisioning a staff
+    member is an internal action, not a self-registration. The new agent can
+    sign in immediately through `/auth/login`.
+
     No token is issued. The admin is provisioning *someone else's* account, so
     logging that someone in here would be wrong; the new agent signs in through
     the ordinary `/auth/login` with the password the admin sets.
@@ -135,11 +144,10 @@ def provision_staff_account(db: Session, data: ProvisionStaffRequest) -> User:
             email=data.email,
             password_hash=hash_password(data.password),
             role=data.role,
+            is_verified=True,
+            verified_at=datetime.now(UTC),
         ),
     )
-    # Staff verify their address exactly like citizens do — same token, same
-    # email, same endpoint. Nothing about verification is role-specific.
-    _send_verification_email(db, user)
     return user
 
 
@@ -153,10 +161,21 @@ def login(db: Session, data: LoginRequest) -> TokenResponse:
 
     One error for both "no such email" and "wrong password" — distinguishing
     them tells an attacker which emails have accounts.
+
+    If the email is not yet verified, the login is refused with a specific
+    error code so the frontend can show a "verify your email" banner with
+    an option to resend the confirmation link. Staff accounts are exempted
+    (they are provisioned by an admin who already verified them).
     """
     user = repository.get_by_email(db, data.email)
     if user is None or not verify_password(data.password, user.password_hash):
         raise InvalidCredentialsError("Identifiants incorrects. Veuillez réessayer.")
+
+    if not user.is_verified and user.role != Role.ADMIN:
+        raise EmailNotVerifiedError(
+            "Votre adresse e-mail n'a pas encore été confirmée. "
+            "Vérifiez votre messagerie ou demandez un nouveau lien."
+        )
 
     return _issue(user)
 
@@ -195,6 +214,21 @@ def resend_verification_email(db: Session, user: User) -> None:
     """
     if user.is_verified:
         raise AlreadyVerifiedError("Cette adresse e-mail est déjà confirmée.")
+
+    _send_verification_email(db, user)
+
+
+def resend_verification_public(db: Session, email: str) -> None:
+    """Issue a fresh verification link without requiring a session.
+
+    Always returns 200 (same pattern as password-reset request) to avoid
+    email enumeration. If the address exists and is not yet verified, a
+    new link is sent; otherwise the request is silently ignored.
+    """
+    user = repository.get_by_email(db, email)
+    if user is None or user.is_verified:
+        logger.info("verification resend skipped (unknown or already verified)", {"email_known": user is not None})
+        return
 
     _send_verification_email(db, user)
 
