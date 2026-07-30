@@ -32,17 +32,17 @@ def verification_email(*, to: str, first_name: str, token: str) -> Email:
 
     return Email(
         to=to,
-        subject="Confirmez votre adresse e-mail — MonParcours",
+        subject="Confirmez votre adresse e-mail — Ad'Ministral",
         body=(
             f"Bonjour {first_name},\n\n"
-            "Votre compte MonParcours a bien été créé. Pour confirmer que cette "
+            "Votre compte Ad'Ministral a bien été créé. Pour confirmer que cette "
             "adresse e-mail vous appartient, ouvrez le lien ci-dessous :\n\n"
             f"{link}\n\n"
             f"Ce lien est valable {hours} heures. Passé ce délai, vous pourrez en "
             "demander un nouveau depuis votre espace personnel.\n\n"
             "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : "
             "aucun compte ne sera activé sans cette confirmation.\n\n"
-            "— L'équipe MonParcours\n"
+            "— L'équipe Ad'Ministral\n"
         ),
     )
 
@@ -53,15 +53,15 @@ def password_reset_email(*, to: str, first_name: str, token: str) -> Email:
 
     return Email(
         to=to,
-        subject="Réinitialisation de votre mot de passe — MonParcours",
+        subject="Réinitialisation de votre mot de passe — Ad'Ministral",
         body=(
             f"Bonjour {first_name},\n\n"
             "Vous avez demandé à réinitialiser le mot de passe de votre compte "
-            "MonParcours. Choisissez un nouveau mot de passe ici :\n\n"
+            "Ad'Ministral. Choisissez un nouveau mot de passe ici :\n\n"
             f"{link}\n\n"
             f"Ce lien est valable {minutes} minutes et ne peut servir qu'une seule fois.\n\n"
             "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message. "
             "Votre mot de passe actuel reste valable et personne n'a accès à votre compte.\n\n"
-            "— L'équipe MonParcours\n"
+            "— L'équipe Ad'Ministral\n"
         ),
     )

@@ -10,7 +10,7 @@ import type { CategoryAssessment, MonParcoursResult } from '@/features/agent/ser
 import { useCaseAssessment } from '@/features/agent/hooks';
 
 /**
- * The MonParcours Result — the unified, deterministic assessment.
+ * The Ad'Ministral Result — the unified, deterministic assessment.
  *
  * A pure projection of `GET /api/agent/cases/{id}/assessment`: it renders the
  * global score, the four categories (each with its score, explanation and
@@ -159,7 +159,7 @@ export function CaseAssessmentCard({ caseId }: CaseAssessmentCardProps) {
     <Card>
       <CardHeader>
         <SectionHeader
-          title="MonParcours Result"
+          title="Ad'Ministral Result"
           as="h2"
           action={
             <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
@@ -173,7 +173,7 @@ export function CaseAssessmentCard({ caseId }: CaseAssessmentCardProps) {
         {resource.isLoading && <Skeleton className="h-64 w-full" />}
         {resource.error && (
           <p className="text-body-sm text-on-surface-variant">
-            L’évaluation MonParcours n’a pas pu être chargée.
+            L’évaluation Ad'Ministral n’a pas pu être chargée.
           </p>
         )}
         {resource.data && <AssessmentView result={resource.data} />}

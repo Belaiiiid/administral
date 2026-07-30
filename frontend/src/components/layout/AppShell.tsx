@@ -26,8 +26,16 @@ import { useUiStore } from '@/store/uiStore';
  * own to navigate (it would just show whichever service's rail happened to be
  * last). The mobile drawer stays available either way: on a small screen the
  * rail is never persistent regardless, so there is nothing to hide there.
+ *
+ * `hideHeader` drops the top bar (notifications, account menu) — for the
+ * administrations list and the CAF services hub, reached before any account
+ * is required: there is no session-specific state to show there yet, and the
+ * page is reachable by a visitor with no account at all.
  */
-export function AppShell({ hideSidebar = false }: { hideSidebar?: boolean } = {}) {
+export function AppShell({
+  hideSidebar = false,
+  hideHeader = false,
+}: { hideSidebar?: boolean; hideHeader?: boolean } = {}) {
   const isSidebarOpen = useUiStore((state) => state.isSidebarOpen);
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   // The assistant is a citizen feature only — the agent portal shares this shell
@@ -65,7 +73,7 @@ export function AppShell({ hideSidebar = false }: { hideSidebar?: boolean } = {}
       </Dialog>
 
       <div className={cn('flex min-h-screen flex-col', !hideSidebar && 'lg:pl-sidebar')}>
-        <Header />
+        {!hideHeader && <Header />}
         <main
           id="main-content"
           tabIndex={-1}

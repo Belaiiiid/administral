@@ -18,6 +18,11 @@ export const ROUTES = {
   onboardingProfilage: '/onboarding/profilage',
 
   // Citizen portal
+  // List of administrations (CAF, France Travail, …) — reached right after
+  // voice onboarding, before any one of them is chosen. Public: browsing this
+  // list and the CAF services hub behind it requires no account; only opening
+  // an actual service (APL à l'Aide) checks authentication.
+  administrations: '/administrations',
   portal: '/portal',
   portalNotifications: '/portal/notifications',
 

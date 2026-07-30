@@ -1,76 +1,67 @@
-import { ArrowRight, Banknote, Building2, Home, Lock, Users } from 'lucide-react';
+import { ArrowRight, Briefcase, HeartPulse, Home, Lock, Receipt } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { CAF_SERVICES, type CafServiceId } from '@/app/config/cafServices';
-import { ROUTES } from '@/app/router/paths';
+import { SERVICES } from '@/app/config/services';
 import { PageHeader, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 import type { VoicePageAction } from '@/features/voice/types';
-import { useSessionStore } from '@/store/sessionStore';
+import type { AdministrationId } from '@/types';
 
-/** One recognisable icon per CAF service, rather than a single generic mark repeated on every card. */
-const CAF_SERVICE_ICONS: Record<CafServiceId, LucideIcon> = {
-  apl: Home,
-  af: Users,
-  alf: Building2,
-  'prime-activite': Banknote,
+/** One recognisable icon per administration, rather than a single generic mark repeated on every card. */
+const ADMINISTRATION_ICONS: Record<AdministrationId, LucideIcon> = {
+  caf: Home,
+  'france-travail': Briefcase,
+  'assurance-maladie': HeartPulse,
+  impots: Receipt,
 };
 
 /**
- * "Mes services" — CAF's own services, reached once CAF has been chosen on
- * `/administrations`. No profile gate here any more: the questions to ask
- * depend on *which* service is opened, so profiling now happens per service,
- * on entering it (see `RequireApplProfile`), not once globally before this
- * hub even shows.
- *
- * Only `apl` is wired to a real backend; the rest render as locked tiles
- * rather than pretending to be functional. Reachable without an account
- * (see `ROUTES.administrations`) — opening APL à l'Aide while unauthenticated
- * sends the citizen to the public chatbot (`ROUTES.home`) instead of the real
- * dossier, exactly like following any other link into the citizen area would.
+ * "Administrations" — the first choice a citizen makes, right after voice
+ * onboarding (see `VoiceOnboardingPage`), before any account is required.
+ * Only CAF is wired to a real backend today; the rest render as locked tiles
+ * rather than pretending to be usable.
  */
-export default function CitizenDashboardPage() {
-  useDocumentTitle('Mes services');
-  const { displayName, isAuthenticated } = useSessionStore();
+export default function AdministrationsPage() {
+  useDocumentTitle('Administrations');
   const navigate = useNavigate();
 
-  const aplAction: VoicePageAction = {
-    id: 'select_apl',
-    label: 'APL à l’Aide',
-    description: 'Ouvrir le service APL à l’Aide',
-    intent: { type: 'click_action', actionId: 'select_apl' },
-  };
+  const availableActions: VoicePageAction[] = SERVICES.filter(
+    (service) => service.status === 'available',
+  ).map((service) => ({
+    id: `select_${service.id}`,
+    label: service.name,
+    description: `Choisir l’administration ${service.name}`,
+    intent: { type: 'click_action', actionId: `select_${service.id}` },
+  }));
 
   useVoicePage({
     readableText:
-      'Page des services CAF. Seule l’APL à l’Aide est disponible pour le moment, les autres services arriveront bientôt.',
-    actions: [aplAction],
-    actionCallbacks: {
-      select_apl: () => navigate(isAuthenticated ? ROUTES.dossier : ROUTES.home),
-    },
+      'Page des administrations. Choisissez une administration pour accéder à ses services. Seule la CAF est disponible pour le moment, les autres arriveront bientôt.',
+    actions: availableActions,
+    actionCallbacks: Object.fromEntries(
+      SERVICES.filter((service) => service.status === 'available').map((service) => [
+        `select_${service.id}`,
+        () => navigate(service.basePath),
+      ]),
+    ),
   });
 
   return (
     <div className="mx-auto max-w-container">
       <PageHeader
-        title="Mes services"
-        description={
-          displayName
-            ? `Bienvenue ${displayName}, choisissez le service que vous souhaitez utiliser.`
-            : 'Choisissez le service que vous souhaitez utiliser.'
-        }
+        title="Administrations"
+        description="Choisissez l’administration avec laquelle vous souhaitez interagir."
       />
 
-      <SectionHeader title="Services CAF" as="h2" className="mb-4" />
+      <SectionHeader title="Administrations disponibles" as="h2" className="mb-4" />
       <ul className="grid gap-4 sm:grid-cols-2">
-        {CAF_SERVICES.map((service) => {
+        {SERVICES.map((service) => {
           const isAvailable = service.status === 'available';
-          const target = service.id === 'apl' && !isAuthenticated ? ROUTES.home : service.basePath;
-          const Icon = CAF_SERVICE_ICONS[service.id];
+          const Icon = ADMINISTRATION_ICONS[service.id];
           const content = (
             <Card
               className={
@@ -97,9 +88,9 @@ export default function CitizenDashboardPage() {
                     {service.description}
                   </p>
                 </div>
-                {/* Always reserved, just hidden when unavailable — every card keeps
-                    the same height instead of the grid's rows sizing unevenly
-                    depending on which services happen to share one. */}
+                {/* Always reserved, just hidden when unavailable — see
+                    `CitizenDashboardPage` for why every card keeps the same
+                    height regardless of which row it falls in. */}
                 <span
                   className={
                     isAvailable
@@ -118,7 +109,7 @@ export default function CitizenDashboardPage() {
           return (
             <li key={service.id}>
               {isAvailable ? (
-                <Link to={target} aria-label={`Ouvrir ${service.name}`}>
+                <Link to={service.basePath} aria-label={`Ouvrir ${service.name}`}>
                   {content}
                 </Link>
               ) : (

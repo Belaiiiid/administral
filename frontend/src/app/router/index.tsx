@@ -22,6 +22,7 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswo
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
 
+const AdministrationsPage = lazy(() => import('@/features/portal/pages/AdministrationsPage'));
 const CitizenDashboardPage = lazy(() => import('@/features/portal/pages/CitizenDashboardPage'));
 const NotificationsPage = lazy(() => import('@/features/portal/pages/NotificationsPage'));
 const CitizenSettingsPage = lazy(() => import('@/features/portal/pages/CitizenSettingsPage'));
@@ -47,10 +48,10 @@ const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLand
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
 /**
- * `/` — public by default. A signed-in visitor is sent straight to their
- * portal (there is nothing for them at a marketing/assistant landing they
- * have already moved past); everyone else meets the assistant first and
- * "Se connecter" second, never the other way around.
+ * `/` — public by default. A signed-in visitor is sent straight to the
+ * administrations list (there is nothing for them at a marketing/assistant
+ * landing they have already moved past); everyone else meets the assistant
+ * first and "Se connecter" second, never the other way around.
  */
 function HomeRoute() {
   const user = useSessionStore((state) => state.user);
@@ -60,7 +61,7 @@ function HomeRoute() {
     return <Navigate to={ROUTES.voiceOnboarding} replace />;
   }
 
-  return user ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
+  return user ? <Navigate to={ROUTES.administrations} replace /> : <PublicLandingPage />;
 }
 
 const router = createBrowserRouter([
@@ -92,15 +93,24 @@ const router = createBrowserRouter([
     ],
   },
   {
+    // Administrations list, then the CAF services hub behind it — public on
+    // purpose (see `ROUTES.administrations`): browsing needs no account, only
+    // opening APL à l'Aide while unauthenticated does (handled inside
+    // `CitizenDashboardPage`, which sends that case to the public chatbot
+    // instead of a login wall). No sidebar: there is nothing yet for one to
+    // navigate before a service is picked (see `AppShell`). No header either:
+    // no session-specific state to show, and a visitor with no account can
+    // reach both of these pages.
+    element: <AppShell hideSidebar hideHeader />,
+    children: [
+      { path: ROUTES.administrations, element: <AdministrationsPage /> },
+      { path: ROUTES.portal, element: <CitizenDashboardPage /> },
+    ],
+  },
+  {
     // Authenticated citizen area.
     element: <ProtectedRoute />,
     children: [
-      {
-        // Services hub — reached before a service is picked, so no sidebar:
-        // there is nothing yet for one to navigate (see `AppShell`).
-        element: <AppShell hideSidebar />,
-        children: [{ path: ROUTES.portal, element: <CitizenDashboardPage /> }],
-      },
       {
         // Inside a service (APL today) — the sidebar applies.
         element: <AppShell />,

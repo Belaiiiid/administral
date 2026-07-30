@@ -18,7 +18,7 @@ import { useVoiceStore } from '@/features/voice/store/voiceStore';
  * `useVoiceAssistant()` have the required context.
  */
 function PublicLandingPageContent() {
-  useDocumentTitle('MonParcours — Assistant');
+  useDocumentTitle("Ad'Ministral — Assistant");
   const controller = useChatbot();
 
   // ── Consume queued questions from the voice assistant ─────────────
