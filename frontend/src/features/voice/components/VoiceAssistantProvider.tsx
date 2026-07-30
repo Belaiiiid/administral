@@ -150,7 +150,7 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
 
   const startPushToTalk = () => {
     clearListenTimeout(); setTranscript(''); commandWindowActive.current = true;
-    const provider = new MistralSttProvider({ sliceMs: 1500, deferUpload: true });
+    const provider = new MistralSttProvider({ sliceMs: 2500, deferUpload: true, minSliceBytes: 40000, coalesceTargetBytes: 120000, coalesceMinSlices: 3 });
     sttProvider.current = provider;
     provider.onError((errMsg) => { setError(errMsg); setStatus('error'); });
     provider.onTranscript((text) => { setTranscript(text); setStatus('listening'); triggerCommand(text); sttProvider.current?.stop(); setStatus('standby'); });

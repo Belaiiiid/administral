@@ -51,9 +51,11 @@ async def transcribe(audio_bytes: bytes, content_type: str = "audio/wav") -> str
         pass
 
     # Try to normalize first; some tiny webm chunks expand after transcode
-    converted = maybe_transcode_to_wav(audio_bytes, content_type)
-    if converted is not None:
-        audio_bytes, content_type = converted
+    # For Whisper, skip transcode and send original (webm/ogg/opus supported)
+    if VOICE_VENDOR != "whisper":
+        converted = maybe_transcode_to_wav(audio_bytes, content_type)
+        if converted is not None:
+            audio_bytes, content_type = converted
 
     # Log post-transcode info
     try:
@@ -61,9 +63,11 @@ async def transcribe(audio_bytes: bytes, content_type: str = "audio/wav") -> str
     except Exception:
         pass
 
-    # Size guard: only reject truly empty payloads; allow tiny clips to attempt STT once
-    if not audio_bytes or len(audio_bytes) == 0:
+    # Size floor: treat sub-0.1s as silence to avoid upstream 400
+    if not audio_bytes:
         raise VoiceAPIError(400, "Audio chunk too small or empty.")
+    if len(audio_bytes) < 6000:
+        return ""
 
     ext = _mime_to_ext(content_type)
     filename = f"audio.{ext}"

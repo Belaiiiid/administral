@@ -75,7 +75,11 @@ export class MistralSttProvider implements SpeechToTextProvider {
               this.bufferedBlobs = [];
               void this.uploadChunk(finalBlob);
             }
+            // Cleanup after finalize
+            if (this.mediaStream) { this.mediaStream.getTracks().forEach((t) => t.stop()); this.mediaStream = null; }
+            this.recorder = null;
           };
+          // In deferUpload mode, start without timeslice and let final dataavailable hold the full blob
           this.recorder.start();
         } else {
           this.recorder.start(this.sliceMs);
@@ -86,11 +90,14 @@ export class MistralSttProvider implements SpeechToTextProvider {
 
   stop(): void {
     try { if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop(); } catch {}
-    if (this.deferUpload && this.bufferedBlobs.length > 0) { const finalBlob = new Blob(this.bufferedBlobs, { type: this.bufferedBlobs[0].type }); this.bufferedBlobs = []; this.pendingQueue.push(finalBlob); void this.drainQueue(); }
-    else { this.bufferedBlobs = []; }
-    this.streamBufferBlobs = []; this.streamBufferBytes = 0; this.recorder = null; this.pendingQueue = [];
+    // In deferUpload mode, let onstop flush and cleanup to avoid race conditions
+    if (this.deferUpload) { return; }
+    // Streaming mode cleanup
+    this.bufferedBlobs = [];
+    this.streamBufferBlobs = []; this.streamBufferBytes = 0; this.recorder = null;
     if (this.mediaStream) { this.mediaStream.getTracks().forEach((t) => t.stop()); this.mediaStream = null; }
     if (this.abortController) { this.abortController.abort(); this.abortController = null; }
+    this.pendingQueue = [];
     this.uploading = false;
   }
 
