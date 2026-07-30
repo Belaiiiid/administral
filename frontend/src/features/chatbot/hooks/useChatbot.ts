@@ -166,6 +166,7 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
             createdAt: new Date().toISOString(),
             sources: response.sources,
             options: response.options ?? undefined,
+            cta: response.cta ?? undefined,
           },
         ]);
       })

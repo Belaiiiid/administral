@@ -59,6 +59,19 @@ export interface ChatbotPendingClarification {
 }
 
 /**
+ * L'action que le citoyen peut enchaîner sur MonParcours après la réponse.
+ *
+ * Une seule, décidée par le backend : l'assistant explique une démarche, et la
+ * plateforme sert à la faire. Absente sur une question de clarification — on
+ * n'interrompt pas un dialogue en cours par un bouton.
+ */
+export interface ChatbotCta {
+  label: string;
+  href: string;
+  hint?: string | null;
+}
+
+/**
  * Everything the frontend sends alongside a question.
  *
  * All fields are optional: the assistant answers general questions without any
@@ -127,6 +140,8 @@ export interface ChatbotResponse {
   /** État du dialogue de date, à renvoyer tel quel au message suivant. */
   dateReference?: string | null;
   dateAsked?: boolean;
+  /** Proposition d'action sur la plateforme, quand la réponse s'y prête. */
+  cta?: ChatbotCta | null;
 }
 
 /**
@@ -139,6 +154,8 @@ export interface ChatbotResponse {
 export interface ChatbotMessage extends ChatMessage {
   /** Present on assistant turns that were grounded in retrieved documents. */
   sources?: ChatbotSource[];
+  /** L'action proposée sous cette réponse, le cas échéant. */
+  cta?: ChatbotCta;
   /**
    * Présent sur les tours où l'assistant pose une question à choix. Distinct de
    * `suggestions` (relances libres) : répondre par un de ces choix est routé

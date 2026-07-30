@@ -52,6 +52,26 @@ class ChatbotSourceSchema(CamelModel):
     url: str
 
 
+class ChatbotCtaSchema(CamelModel):
+    """L'action que le citoyen peut enchaîner ici, sur MonParcours.
+
+    L'assistant explique une démarche ; sans ce bouton, il la laisse repartir vers
+    un site externe alors que la plateforme sert justement à constituer le dossier.
+    Volontairement une SEULE action, décidée côté serveur : proposer trois liens
+    revient à ne rien proposer.
+
+    C'est un élément d'interface, pas de contenu : il ne dépend jamais du dossier
+    ni du profil du citoyen (l'assistant reste aveugle à l'authentification, cf.
+    `service`), seulement de la présence d'une session — connecté, on l'emmène à
+    son dossier ; sinon, on l'invite à en créer un.
+    """
+
+    label: str
+    href: str
+    #: Phrase d'accompagnement affichée au-dessus du bouton.
+    hint: str | None = None
+
+
 class ChatMessageSchema(CamelModel):
     """One prior turn, sent as context."""
 
@@ -115,6 +135,10 @@ class ChatbotResponseSchema(CamelModel):
     #: État du dialogue de date, à renvoyer tel quel avec le message suivant.
     date_reference: str | None = None
     date_asked: bool = False
+    #: Proposition d'action sur MonParcours, quand la réponse s'y prête. `None` sur
+    #: une question de clarification (on n'interrompt pas un dialogue en cours) et
+    #: sur les réponses qui n'appellent aucune suite.
+    cta: ChatbotCtaSchema | None = None
 
 
 class ChatHistoryMessageSchema(CamelModel):
