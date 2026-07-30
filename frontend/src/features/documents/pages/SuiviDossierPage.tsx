@@ -3,6 +3,8 @@ import {
   Circle,
   CircleDashed,
   FileClock,
+  Info,
+  Leaf,
   ScanSearch,
   Send,
   ShieldAlert,
@@ -200,11 +202,37 @@ function CoherenceCard({ coherence }: { coherence: NonNullable<DossierReview['co
   );
 }
 
+/**
+ * Impact écologique — purely informational. No carbon-savings backend module
+ * exists (yet) to back a figure, so this states the one concrete, verifiable
+ * fact of an all-digital dossier rather than inventing a number nothing
+ * actually computes — consistent with never presenting a guess as data.
+ */
+function EcologieCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader title="Impact écologique" as="h2" />
+      </CardHeader>
+      <CardContent>
+        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+          <Leaf className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+          En transmettant votre dossier entièrement en ligne, vous évitez l’impression et
+          l’envoi postal de vos justificatifs papier.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SuiviDossierPage() {
   useDocumentTitle('Suivre un dossier déposé');
   const [review, setReview] = useState<DossierReview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Neither ever appears automatically — each needs its own explicit click.
+  const [showCoherence, setShowCoherence] = useState(false);
+  const [showEcologie, setShowEcologie] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -289,7 +317,43 @@ export default function SuiviDossierPage() {
             </CardContent>
           </Card>
 
-          {review.coherence && <CoherenceCard coherence={review.coherence} />}
+          {review.coherence && (
+            showCoherence ? (
+              <CoherenceCard coherence={review.coherence} />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                  <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                    <ScanSearch className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    Une analyse de cohérence entre vos informations et vos pièces a été réalisée.
+                  </p>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => setShowCoherence(true)}
+                  >
+                    Voir les incohérences détectées
+                  </Button>
+                </CardContent>
+              </Card>
+            )
+          )}
+
+          {showEcologie ? (
+            <EcologieCard />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                  <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  Votre démarche entièrement numérique a aussi un impact écologique.
+                </p>
+                <Button variant="outline-primary" size="sm" onClick={() => setShowEcologie(true)}>
+                  Afficher l’impact écologique
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {review.decision && review.application_number && (
             <DecisionContestation applicationNumber={review.application_number} />

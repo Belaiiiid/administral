@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/app/router/paths';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/layout/Logo';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
@@ -49,7 +50,8 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-4">
+          <PartnerLogos className="hidden sm:flex" />
           <Button variant="ghost" size="sm" onClick={logout}>
             <LogOut className="mr-2 size-4" aria-hidden="true" />
             Déconnexion

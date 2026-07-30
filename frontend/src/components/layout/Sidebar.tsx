@@ -8,6 +8,7 @@ import {
   type NavItem,
 } from '@/app/config/navigation';
 import { Logo } from '@/components/layout/Logo';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/store/uiStore';
@@ -53,13 +54,18 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-low px-4 py-6">
-      <div className="mb-8 flex items-center justify-between gap-2 px-2">
+      <div className="mb-4 flex items-center justify-between gap-2 px-2">
         <Logo />
         {inDrawer && (
           <Button variant="ghost" size="icon" onClick={closeSidebar} aria-label="Fermer le menu">
             <X aria-hidden="true" />
           </Button>
         )}
+      </div>
+
+      <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-label-sm text-on-surface-variant">
+        <span>Propulsé par</span>
+        <PartnerLogos className="flex-wrap gap-3" />
       </div>
 
       <nav aria-label="Navigation principale" className="flex-1">

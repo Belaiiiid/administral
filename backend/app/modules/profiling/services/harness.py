@@ -12,8 +12,11 @@ Le LLM ne décide JAMAIS seul d'arrêter l'interview :
 2. On vérifie ensuite `evaluer_completude_profil` (A4, déterministe) : si tous
    les champs requis pour caractériser le cas sont là, on clôt.
 
-3. On applique une limite stricte de 12 questions, comptée ici et non par le
-   LLM (cf. DoD A3, RULES §2).
+3. On applique une limite stricte de 11 questions (le maximum réellement
+   atteint par un parcours complet, cf. `evaluer_completude_profil`), comptée
+   ici et non par le LLM (cf. DoD A3, RULES §2). Avec une limite à 12, le
+   profil devenait toujours complet à la 11ᵉ question — le plafond n'était
+   jamais atteint — et le frontend affichait "11/12" au lieu de "11/11".
 
 Ce module est le point d'entrée unique utilisé par l'API : il compose A3 + A4
 et propage la source ("llm" ou "fallback") au frontend, pour qu'on puisse
@@ -27,7 +30,7 @@ from app.modules.profiling.services.knowledge import rechercher_exclusion
 from app.modules.profiling.models.session import Session
 from app.modules.profiling.schemas.agent import ProchaineAction, TourAgent
 
-LIMITE_TOURS = 12
+LIMITE_TOURS = 11
 
 
 async def jouer_tour(session: Session) -> tuple[TourAgent, str]:

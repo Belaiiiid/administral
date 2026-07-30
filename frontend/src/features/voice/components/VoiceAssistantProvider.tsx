@@ -21,7 +21,16 @@ interface VoiceAssistantContextType {
   speakText: (text: string) => void;
   stopSpeaking: () => void;
   startListening: () => void;
-  startPushToTalk: () => void;
+  /**
+   * Records until `stopPushToTalk`, then resolves the transcript.
+   * With no argument, the transcript is handed to `triggerCommand` (the
+   * deterministic navigation/action resolver, falling back to `/api/voice/classify`).
+   * With `onResult`, the resolver is bypassed entirely and the raw transcript
+   * goes straight to the caller instead — this is what lets voice act as a
+   * second way to type into an ordinary conversation (the chat widget's mic
+   * button) without being reinterpreted as a page command.
+   */
+  startPushToTalk: (onResult?: (text: string) => void) => void;
   stopPushToTalk: () => void;
 }
 
@@ -148,12 +157,21 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
   const stopSpeaking = () => { if (ttsProvider.current) { ttsProvider.current.stop(); if (modeVocal) startStandby(); else setStatus('idle'); } };
   const startListening = () => startListeningWindow();
 
-  const startPushToTalk = () => {
+  const startPushToTalk = (onResult?: (text: string) => void) => {
     clearListenTimeout(); setTranscript(''); commandWindowActive.current = true;
     const provider = new MistralSttProvider({ sliceMs: 2500, deferUpload: true, minSliceBytes: 40000, coalesceTargetBytes: 120000, coalesceMinSlices: 3 });
     sttProvider.current = provider;
     provider.onError((errMsg) => { setError(errMsg); setStatus('error'); });
-    provider.onTranscript((text) => { setTranscript(text); setStatus('listening'); triggerCommand(text); sttProvider.current?.stop(); setStatus('standby'); });
+    provider.onTranscript((text) => {
+      setTranscript(text);
+      if (onResult) {
+        sttProvider.current?.stop();
+        setStatus('standby');
+        onResult(text);
+      } else {
+        setStatus('listening'); triggerCommand(text); sttProvider.current?.stop(); setStatus('standby');
+      }
+    });
     setStatus('listening'); provider.start();
   };
 

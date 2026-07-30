@@ -1,4 +1,5 @@
-import { ArrowRight, Landmark } from 'lucide-react';
+import { ArrowRight, Bot, Clock, FileCheck2, Landmark, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
@@ -7,6 +8,24 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
+
+interface DashboardStat {
+  icon: LucideIcon;
+  value: string;
+  label: string;
+}
+
+/**
+ * Indicative figures, presented the same way as the public landing page's
+ * stats band (`LandingStats`) — no citizen-facing analytics endpoint exists
+ * yet, so these are illustrative placeholders, not live-computed counts.
+ */
+const DASHBOARD_STATS: DashboardStat[] = [
+  { icon: Users, value: '12 400+', label: 'Citoyens accompagnés' },
+  { icon: FileCheck2, value: '8 900+', label: 'Dossiers traités' },
+  { icon: Clock, value: '< 2 min', label: 'Temps moyen de réponse' },
+  { icon: Bot, value: '24h/24, 7j/7', label: 'Disponibilité de l’assistant IA' },
+];
 
 /**
  * "Mes services" — the first thing a citizen sees after registering, and the
@@ -32,6 +51,26 @@ export default function CitizenDashboardPage() {
             : 'Choisissez le service que vous souhaitez utiliser.'
         }
       />
+
+      <ul className="mb-gutter grid gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+        {DASHBOARD_STATS.map((stat) => (
+          <li key={stat.label}>
+            <Card className="h-full">
+              <CardContent className="flex items-center gap-4 p-6">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                  <stat.icon className="size-6" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="text-label-sm uppercase tracking-wider text-on-surface-variant">
+                    {stat.label}
+                  </p>
+                  <p className="text-headline-md text-on-surface">{stat.value}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
 
       <SectionHeader title="Services publics" as="h2" className="mb-4" />
       <ul className="grid gap-4 sm:grid-cols-2">

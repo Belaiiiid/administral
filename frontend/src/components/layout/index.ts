@@ -4,5 +4,7 @@ export * from './FocusLayout';
 export * from './Footer';
 export * from './Header';
 export * from './Logo';
+export * from './PartnerLogo';
+export * from './PartnerLogos';
 export * from './Sidebar';
 export * from './SkipLink';

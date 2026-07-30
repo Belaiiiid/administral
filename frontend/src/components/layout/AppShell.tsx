@@ -10,7 +10,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
-import { VoiceAssistantPanel } from '@/features/voice/components/VoiceAssistantPanel';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
@@ -77,7 +76,6 @@ export function AppShell({ hideSidebar = false }: { hideSidebar?: boolean } = {}
       </div>
 
       {role === 'citizen' && <FloatingChatbot />}
-      <VoiceAssistantPanel />
     </div>
       </VoiceAssistantProvider>
     </VoicePageProvider>

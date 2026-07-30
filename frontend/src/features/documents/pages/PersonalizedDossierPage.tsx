@@ -375,15 +375,28 @@ function CivilStatusCard({
 
 /**
  * Indicative benefit estimate — deliberately simplified, never presented as
- * an official figure. Loads on its own; nothing else on the page depends on
- * it, matching the "à volonté" spirit of these three functions.
+ * an official figure, and deliberately **not** computed until the citizen
+ * asks for it: no calculation, no amount, no server call happens on mount.
+ *
+ * Clicking "Obtenir mon estimation" first checks the same checklist Function
+ * 1 already shows (`missingRequiredItems`, derived from the dossier the
+ * citizen has actually deposited) — if required pieces are still missing,
+ * the estimate is refused with the exact list of what to add rather than
+ * silently computed from declarative profile fields alone.
  */
-function EstimationCard() {
+function EstimationCard({ missingRequiredItems }: { missingRequiredItems: DossierChecklistItem[] }) {
   const [estimation, setEstimation] = useState<EstimationAide | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
 
-  useEffect(() => {
+  const documentsPrets = missingRequiredItems.length === 0;
+
+  const lancerEstimation = () => {
+    setAttempted(true);
+    if (!documentsPrets) return;
+    setIsLoading(true);
+    setError(null);
     dossierService
       .getEstimation()
       .then(setEstimation)
@@ -391,18 +404,50 @@ function EstimationCard() {
         setError(cause instanceof Error ? cause.message : 'Estimation impossible.'),
       )
       .finally(() => setIsLoading(false));
-  }, []);
+  };
 
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
-        {isLoading && <Skeleton className="h-20 w-full" />}
+        {!attempted && (
+          <div className="space-y-3">
+            <p className="text-body-sm text-on-surface-variant">
+              Calculez un montant indicatif, à partir des pièces déjà déposées et des
+              informations validées de votre dossier — rien n’est calculé tant que vous ne le
+              demandez pas.
+            </p>
+            <Button onClick={lancerEstimation}>
+              <Calculator aria-hidden="true" />
+              Obtenir mon estimation
+            </Button>
+          </div>
+        )}
 
-        {!isLoading && error && (
+        {attempted && !documentsPrets && (
+          <div className="space-y-3">
+            <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Votre estimation ne peut pas être calculée actuellement. Veuillez fournir les
+              documents suivants :
+            </p>
+            <ul className="list-disc space-y-1 pl-6 text-body-sm text-on-surface">
+              {missingRequiredItems.map((item) => (
+                <li key={item.documentType}>{item.libelle}</li>
+              ))}
+            </ul>
+            <Button variant="outline-primary" size="sm" asChild>
+              <Link to={ROUTES.documentsUpload}>Ajouter les documents</Link>
+            </Button>
+          </div>
+        )}
+
+        {attempted && documentsPrets && isLoading && <Skeleton className="h-20 w-full" />}
+
+        {attempted && documentsPrets && !isLoading && error && (
           <p className="text-body-sm text-on-surface-variant">{error}</p>
         )}
 
-        {!isLoading && !error && estimation && !estimation.estimationPossible && (
+        {attempted && documentsPrets && !isLoading && !error && estimation && !estimation.estimationPossible && (
           <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             Renseignez votre logement (loyer, statut) dans votre profil pour obtenir une
@@ -410,7 +455,7 @@ function EstimationCard() {
           </p>
         )}
 
-        {!isLoading && !error && estimation && estimation.estimationPossible && (
+        {attempted && documentsPrets && !isLoading && !error && estimation && estimation.estimationPossible && (
           <>
             <div className="flex items-baseline gap-2">
               <span className="text-display text-primary">{estimation.montantEstime} €</span>
@@ -433,7 +478,7 @@ function EstimationCard() {
           </>
         )}
 
-        {!isLoading && !error && estimation && (
+        {attempted && documentsPrets && !isLoading && !error && estimation && (
           <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
             <Calculator className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             {estimation.avertissement}
@@ -579,6 +624,9 @@ export default function PersonalizedDossierPage() {
   const [error, setError] = useState<string | null>(null);
   // Held in the browser only — never uploaded until the dossier is sent.
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // Complétude (progress + checklist) never appears automatically — the
+  // citizen must click "Consulter la complétude" to reveal it.
+  const [showCompletude, setShowCompletude] = useState(false);
 
   const refreshDossier = useCallback(() => dossierService.getDossier().then(setDossier), []);
 
@@ -616,6 +664,13 @@ export default function PersonalizedDossierPage() {
   }, [dossier]);
 
   const groups = useMemo(() => (dossier ? groupByCategory(dossier.items) : []), [dossier]);
+
+  // What "Obtenir mon estimation" checks before calculating anything — the
+  // exact required pieces still missing from the checklist above.
+  const missingRequiredItems = useMemo(
+    () => (dossier ? dossier.items.filter((item) => item.required && item.status === 'missing') : []),
+    [dossier],
+  );
 
   // Submission gating: the administration needs civil status, so the NIR and the
   // birth date must be on file before the dossier can be transmitted.
@@ -669,50 +724,65 @@ export default function PersonalizedDossierPage() {
             <h2 className="text-headline-md text-on-surface">
               Vérification complétude et lisibilité
             </h2>
-            <Card>
-              <CardHeader>
-                <SectionHeader
-                  title="Avancement de mon dossier"
-                  as="h3"
-                  action={
-                    <Badge tone={dossier.status === 'complete' ? 'success' : 'info'}>
-                      {dossier.status === 'complete' ? 'Complet' : 'Incomplet'}
-                    </Badge>
-                  }
-                />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-body-sm text-on-surface-variant">
-                    Pièces obligatoires fournies
-                  </span>
-                  <span className="text-label-md text-on-surface">
-                    {dossier.requiredReceivedCount}/{dossier.requiredDocumentCount}
-                  </span>
-                </div>
-                <Progress
-                  value={
-                    dossier.requiredDocumentCount
-                      ? (dossier.requiredReceivedCount / dossier.requiredDocumentCount) * 100
-                      : 0
-                  }
-                  aria-label={`${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount}`}
-                />
-                {!dossier.profileComplete && (
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
-                    <p className="flex items-center gap-2 text-on-surface-variant">
-                      <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                      Complétez votre profil pour personnaliser davantage la liste des pièces.
-                    </p>
-                    <Button variant="outline-primary" size="sm" asChild>
-                      <Link to={ROUTES.profile}>Compléter mon profil</Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             <CivilStatusCard profile={profile} onSaved={setProfile} />
+
+            {!showCompletude ? (
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+                  <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                    Vérifiez l’avancement de votre dossier et la liste des pièces encore attendues.
+                  </p>
+                  <Button variant="outline-primary" size="sm" onClick={() => setShowCompletude(true)}>
+                    Consulter la complétude
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <SectionHeader
+                    title="Avancement de mon dossier"
+                    as="h3"
+                    action={
+                      <Badge tone={dossier.status === 'complete' ? 'success' : 'info'}>
+                        {dossier.status === 'complete' ? 'Complet' : 'Incomplet'}
+                      </Badge>
+                    }
+                  />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-body-sm text-on-surface-variant">
+                      Pièces obligatoires fournies
+                    </span>
+                    <span className="text-label-md text-on-surface">
+                      {dossier.requiredReceivedCount}/{dossier.requiredDocumentCount}
+                    </span>
+                  </div>
+                  <Progress
+                    value={
+                      dossier.requiredDocumentCount
+                        ? (dossier.requiredReceivedCount / dossier.requiredDocumentCount) * 100
+                        : 0
+                    }
+                    aria-label={`${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount}`}
+                  />
+                  {!dossier.profileComplete && (
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
+                      <p className="flex items-center gap-2 text-on-surface-variant">
+                        <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                        Complétez votre profil pour personnaliser davantage la liste des pièces.
+                      </p>
+                      <Button variant="outline-primary" size="sm" asChild>
+                        <Link to={ROUTES.profile}>Compléter mon profil</Link>
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-gutter lg:grid-cols-3">
               <div className="lg:col-span-2">
@@ -727,7 +797,7 @@ export default function PersonalizedDossierPage() {
               </div>
 
               <aside className="flex flex-col gap-gutter">
-                {dossier.items.length === 0 ? (
+                {!showCompletude ? null : dossier.items.length === 0 ? (
                   <EmptyState
                     icon={FileText}
                     title="Aucune pièce requise pour le moment"
@@ -756,7 +826,7 @@ export default function PersonalizedDossierPage() {
           {/* Function 2 — Estimation de l'aide */}
           <section className="space-y-gutter">
             <h2 className="text-headline-md text-on-surface">Estimation de l’aide</h2>
-            <EstimationCard />
+            <EstimationCard missingRequiredItems={missingRequiredItems} />
           </section>
 
           {/* Function 3 — Envoyer le dossier à la CAF */}

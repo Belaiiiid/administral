@@ -3,6 +3,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
 import { Logo } from '@/components/layout/Logo';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { SkipLink } from '@/components/layout/SkipLink';
 
 /**
@@ -20,6 +21,7 @@ export function AuthLayout() {
             <Logo />
           </Link>
           <p className="text-body-md text-on-surface-variant">{APP_CONFIG.tagline}</p>
+          <PartnerLogos />
         </div>
 
         <main id="main-content" tabIndex={-1} className="focus:outline-none">
