@@ -49,21 +49,83 @@ uvicorn app.main:app --reload  # http://localhost:8000
 | Swagger | http://localhost:8000/docs |
 | Santé | http://localhost:8000/api/health |
 
-### Voix (optionnel)
+### Voix (assistant vocal)
 
-Un bouton de test du micro est disponible côté frontend :
+Aperçu
+- STT : Whisper (VOICE_VENDOR=whisper) — ffmpeg non requis
+- TTS : Mistral (VOICE_API_KEY requis)
+- Onboarding après connexion : `/accessibilite-vocale`
+- PTT : un seul blob final envoyé au backend
+- Proxy Vite → backend : `http://127.0.0.1:8000`
 
-```tsx
-import { VoiceButton } from '@/features/voice'
+#### Prérequis
+- Backend : Python 3.11+, virtualenv. ffmpeg optionnel (requis si VOICE_VENDOR=mistral ou normalisation serveur). PostgreSQL optionnel pour l’historique chatbot.
+- Frontend : Node 18+ (ou 20+). Autoriser l’accès micro dans le navigateur.
 
-export function HeaderExtras() {
-  return <VoiceButton />
-}
+#### Backend — Installation
+```bash
+cd backend
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+# source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Endpoints backend (si configurés) :
-- POST /api/voice/transcribe (multipart `file`)
-- POST /api/voice/speak (JSON `{ text }` → WAV)
+#### Backend — Configuration (.env)
+Créez `backend/.env` :
+
+```dotenv
+# STT (Whisper)
+VOICE_VENDOR=whisper
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VOICE_STT_MODEL=whisper-1
+
+# TTS (Mistral)
+VOICE_API_KEY=mlt-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+VOICE_BASE_URL=https://api.mistral.ai/v1
+# Optionnels
+# VOICE_TTS_MODEL=tts-mini
+# VOICE_TTS_VOICE=male_fr
+
+# Base de données (pour l’historique chatbot)
+# DATABASE_URL=postgresql+psycopg2://USER:PASS@HOST:5432/DBNAME
+```
+
+Notes :
+- VOICE_NLC_* non requis (classifieur serveur optionnel, désactivé par défaut).
+- Avec Whisper, le backend envoie directement le WebM/Opus à l’API — ffmpeg n’est pas nécessaire.
+
+#### Backend — Lancer
+```bash
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+#### Base de données (optionnelle) — Alembic
+Uniquement si vous activez l’historique chatbot.
+```bash
+alembic -c backend/alembic.ini upgrade head
+```
+Dépannage : erreur 500 « relation "chatbot_messages" does not exist » → appliquez la migration et vérifiez `DATABASE_URL`.
+
+#### Frontend — Installation & lancement
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
+
+#### Utiliser l’assistant vocal
+1) Connectez‑vous → redirection vers `/accessibilite-vocale`.
+2) Répondez « oui » pour activer l’assistant.
+3) Ouvrez le panneau vocal (citoyen) et maintenez le bouton PTT 2–3 s en parlant.
+
+#### Dépannage rapide
+- 400 `audio_too_short` : enregistrement trop court (<0,1 s). Maintenez PTT ~2–3 s et parlez clairement.
+- 200 OK sans texte : clip quasi silencieux ; recommencez plus près du micro.
+- Aucun appel réseau sur PTT : permissions micro, aucun autre onglet/app n’utilise le micro.
+- CORS/Proxy : backend sur `http://127.0.0.1:8000` (évitez `localhost`).
 
 ## Stack
 
