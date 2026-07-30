@@ -50,6 +50,7 @@ interface ProfilageState {
   messageAssistant: string | null;
 
   demarrer: () => Promise<void>;
+  initFromUpload: (sessionId: string, tourResponse: any) => void;
   repondre: (valeur: string) => Promise<void>;
   ouvrir: () => void;
   fermer: () => void;
@@ -82,6 +83,18 @@ export const useProfilageStore = create<ProfilageState>((set, get) => ({
     set({ isLoading: true, erreur: null });
     try {
       const session = await profilageService.creerSession(false);
+      
+      // Inject user identity if authenticated, to skip Identity questions
+      const { useSessionStore } = await import('@/store/sessionStore');
+      const currentUser = useSessionStore.getState().user;
+      if (currentUser) {
+        await profilageService.majProfil(session.session_id, {
+          prenom: currentUser.firstName,
+          nom: currentUser.lastName,
+          email: currentUser.email,
+        });
+      }
+
       const premierTour = await profilageService.jouerTour(session.session_id);
 
       set({
@@ -97,6 +110,20 @@ export const useProfilageStore = create<ProfilageState>((set, get) => ({
     } catch (err) {
       set({ isLoading: false, erreur: messageErreurDepuis(err) });
     }
+  },
+
+  initFromUpload: (sessionId: string, tourResponse: any) => {
+    set({
+      sessionId,
+      profilPartiel: tourResponse.profil_partiel,
+      nombreTours: tourResponse.nombre_tours,
+      limiteTours: tourResponse.limite_tours,
+      profilComplet: tourResponse.profil_complet,
+      questionActuelle: tourResponse.tour,
+      derniereSource: tourResponse.source,
+      isLoading: false,
+      erreur: null,
+    });
   },
 
   repondre: async (valeur: string) => {

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
+import io
+# pyrefly: ignore [missing-import]
+import pdfplumber
 
 from app.modules.profiling.services.coercion import analyser_reponse
+from app.modules.profiling.services.document_extraction import extraire_profil_depuis_document
 from app.modules.profiling.services.harness import LIMITE_TOURS, jouer_tour
 from app.modules.profiling.services.llm import LLMError
 from app.modules.profiling.repositories.session_store import session_store
@@ -83,6 +87,69 @@ async def tour_profilage(session_id: str, body: TourBody) -> TourResponse:
         raise HTTPException(status_code=502, detail=str(exc))
 
     return _response(session, tour, source, analyse if body.champ_cible is not None else None)
+
+
+@router.post("/{session_id}/profilage/upload", response_model=TourResponse)
+async def upload_document(session_id: str, file: UploadFile = File(...)) -> TourResponse:
+    try:
+        session = session_store.obtenir(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session introuvable ou expirée")
+
+    filename_lower = file.filename.lower() if file.filename else ""
+    is_pdf = filename_lower.endswith(".pdf")
+    is_image = any(filename_lower.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"])
+
+    if not (is_pdf or is_image):
+        raise HTTPException(status_code=400, detail="Seuls les fichiers PDF et les images (JPG, PNG) sont supportés.")
+    
+    try:
+        content = await file.read()
+        from fastapi.concurrency import run_in_threadpool
+        from app.modules.citizen.extraction import extract_text
+
+        mime_type = file.content_type or ("application/pdf" if is_pdf else "image/jpeg")
+        result = await run_in_threadpool(extract_text, content, mime_type)
+        if result.error:
+            raise HTTPException(status_code=400, detail=result.error)
+        texte_extrait = result.text
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Erreur lors de la lecture du document: {exc}")
+    
+    if not texte_extrait.strip():
+        raise HTTPException(status_code=400, detail="Aucun texte n'a pu être extrait du document.")
+
+    # Extraire les infos
+    try:
+        donnees_extraites = await extraire_profil_depuis_document(texte_extrait, session.profil)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'analyse du document: {exc}")
+
+    if donnees_extraites:
+        nouveau = session.profil.model_copy(update=donnees_extraites)
+        session.profil = ProfilPartiel.model_validate(nouveau.model_dump())
+        # Le contexte vient de changer, on reset la question en attente
+        session.question_en_attente = None
+
+    # Calcule le tour suivant
+    try:
+        tour, source = await jouer_tour(session)
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"LLM indisponible: {exc}")
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    analyse = AnalyseReponse(
+        type_reponse_percue=TypeReponsePercue.reponse_valide,
+        valeur_extraite="Document analysé",
+        message_si_clarification=None,
+        repeter_meme_question=False,
+    )
+
+    return _response(session, tour, source, analyse)
 
 
 def _response(

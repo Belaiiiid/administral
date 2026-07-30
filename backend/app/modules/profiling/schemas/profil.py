@@ -63,6 +63,7 @@ class ProfilPartiel(BaseModel):
     # --- Identité (renseignée à l'inscription, hors boucle LLM — cf A1/onboarding) ---
     prenom: Optional[str] = None
     nom: Optional[str] = None
+    email: Optional[str] = None
 
     # --- Logement ---
     situation_logement: Optional[StatutLogement] = None
@@ -125,12 +126,11 @@ class ProfilPartiel(BaseModel):
         return v
 
 
-# Champs "métier" pris en compte par l'agent de profilage — exclut identité et méta,
-# qui suivent des flux séparés (A1 pour le mode vocal, onboarding pour nom/prénom).
+# Champs pris en compte par l'agent de profilage (identité et métier)
 CHAMPS_PROFILAGE = [
     name
     for name in ProfilPartiel.model_fields
-    if name not in {"prenom", "nom", "derniere_maj"}
+    if name not in {"derniere_maj"}
 ]
 
 
@@ -141,6 +141,7 @@ class ProfilPatch(BaseModel):
 
     prenom: Optional[str] = None
     nom: Optional[str] = None
+    email: Optional[str] = None
     situation_logement: Optional[StatutLogement] = None
     type_location: Optional[TypeLocation] = None
     loyer_mensuel: Optional[float] = Field(default=None, ge=0)

@@ -8,6 +8,8 @@ export const ROUTES = {
   // Public / authentication shell
   login: '/login',
   register: '/register',
+  registerManual: '/register-manual',
+  registerDocument: '/register-document',
   // Redeem links emailed by the backend. Public: the token is the credential,
   // and these are opened from a mail client with no session. The paths are
   // mirrored in backend/app/modules/auth/notifications.py — keep them in sync.

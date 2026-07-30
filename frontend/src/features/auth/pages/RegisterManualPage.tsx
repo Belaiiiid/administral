@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
 
-export default function RegisterPage() {
+export default function RegisterManualPage() {
   useDocumentTitle('Créer un compte');
   const navigate = useNavigate();
   const register = useSessionStore((state) => state.register);
@@ -23,6 +23,12 @@ export default function RegisterPage() {
     event.preventDefault();
     setError(null);
     const form = new FormData(event.currentTarget);
+    const password = String(form.get('password') ?? '');
+    if (password.length < 8) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+
     try {
       await register({
         firstName: String(form.get('firstName') ?? '').trim(),
@@ -30,11 +36,10 @@ export default function RegisterPage() {
         email: String(form.get('email') ?? '').trim(),
         password: String(form.get('password') ?? ''),
       });
-      // Services first, profiling per service: a new citizen picks what they
-      // want to do before answering any question — the profiling assistant
-      // only appears once they open a service that needs it (see
-      // `RequireApplProfile`), since the questions differ from one to another.
-      navigate(ROUTES.portal, { replace: true });
+      // Signup-first profiling: a new citizen goes through the guided profiling
+      // step before the dashboard (see ProfilageOnboardingPage). It is a soft
+      // gate — they can finish later — but this is where the journey starts.
+      navigate(ROUTES.onboardingProfilage, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La création du compte a échoué.');
     }

@@ -37,14 +37,16 @@ async def jouer_tour(session: Session) -> tuple[TourAgent, str]:
     LLM (exclusion, complétude atteinte, plafond de tours), `"llm"` quand
     Mistral a répondu, `"fallback"` quand le générateur de règles a répondu.
     """
-    # Garde-fou n°0 (nouveau) : règle d'exclusion officielle. Inutile de
-    # continuer à poser des questions si le dossier ne peut de toute façon
-    # pas ouvrir de droit à l'APL locative.
-    exclusion = rechercher_exclusion(session.profil)
-    if exclusion is not None:
-        session.profil_complet = True
-        session.question_en_attente = None
-        return TourAgent(prochaine_action=ProchaineAction.profil_complet), "deterministe"
+    from app.modules.profiling.services.completude import _manquants_identite
+
+    # Garde-fou n°0 (nouveau) : on s'assure d'abord d'avoir l'identité complète
+    # avant d'appliquer les règles d'exclusion. Sinon on ne peut même pas créer le compte !
+    if not _manquants_identite(session.profil):
+        exclusion = rechercher_exclusion(session.profil)
+        if exclusion is not None:
+            session.profil_complet = True
+            session.question_en_attente = None
+            return TourAgent(prochaine_action=ProchaineAction.profil_complet), "deterministe"
 
     # Garde-fou n°1 : le profil est-il déjà exploitable ?
     if evaluer_completude_profil(session.profil):

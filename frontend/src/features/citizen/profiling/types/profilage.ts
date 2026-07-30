@@ -23,6 +23,7 @@ export type StatutProfessionnel =
 export interface ProfilPartiel {
   prenom: string | null;
   nom: string | null;
+  email: string | null;
 
   // Logement
   situation_logement: StatutLogement | null;

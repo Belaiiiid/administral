@@ -73,7 +73,16 @@ async function toApiError(response: Response): Promise<ApiError> {
 
     // FastAPI's own validation errors use `detail`, not `message`.
     if (payload && typeof payload === 'object' && 'detail' in payload) {
-      return { code: 'VALIDATION_ERROR', message: `Requête invalide (${response.status}).` };
+      const detail = (payload as any).detail;
+      let message = `Requête invalide (${response.status}).`;
+      
+      if (typeof detail === 'string') {
+        message = detail;
+      } else if (Array.isArray(detail) && detail.length > 0 && detail[0].msg) {
+        // FastAPI validation error array
+        message = detail.map((err: any) => err.msg).join(', ');
+      }
+      return { code: 'VALIDATION_ERROR', message };
     }
   } catch {
     // Body was not JSON — fall through to the generic shape below.

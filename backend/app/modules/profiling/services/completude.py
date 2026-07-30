@@ -116,9 +116,21 @@ def _manquants_ressources(profil: ProfilPartiel) -> list[str]:
     return manquants
 
 
+def _manquants_identite(profil: ProfilPartiel) -> list[str]:
+    manquants: list[str] = []
+    if profil.prenom is None:
+        manquants.append("prenom")
+    if profil.nom is None:
+        manquants.append("nom")
+    if profil.email is None:
+        manquants.append("email")
+    return manquants
+
+
 def champs_manquants(profil: ProfilPartiel) -> list[str]:
     """Liste tous les champs qui bloquent encore la complétude, cascade par cascade."""
     manquants: list[str] = []
+    manquants += _manquants_identite(profil)
     manquants += _manquants_ressources(profil)
     manquants += _manquants_famille(profil)
     manquants += _manquants_logement(profil)

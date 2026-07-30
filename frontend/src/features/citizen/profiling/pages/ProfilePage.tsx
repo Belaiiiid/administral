@@ -13,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -98,6 +105,12 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<IdentityForm>(EMPTY_FORM);
 
+  const [foyerForm, setFoyerForm] = useState<Partial<ProfilPartiel>>({});
+  const [editFoyerOpen, setEditFoyerOpen] = useState(false);
+
+  const [logementForm, setLogementForm] = useState<Partial<ProfilPartiel>>({});
+  const [editLogementOpen, setEditLogementOpen] = useState(false);
+
   useEffect(() => {
     let active = true;
     citizenProfileService
@@ -126,8 +139,8 @@ export default function ProfilePage() {
   // Session answers win over stored ones, per field: a blank live field never
   // erases what is already in the database.
   const answers = useMemo<Partial<ProfilPartiel>>(
-    () => ({ ...(persisted?.profile ?? {}), ...nonNull(profilPartiel) }),
-    [persisted, profilPartiel],
+    () => ({ ...(persisted?.profile ?? {}), ...nonNull(profilPartiel), ...nonNull(foyerForm), ...nonNull(logementForm) }),
+    [persisted, profilPartiel, foyerForm, logementForm],
   );
 
   const prenomAffiche = profilPartiel?.prenom || form.firstName || undefined;
@@ -196,7 +209,9 @@ export default function ProfilePage() {
     delete sessionAnswers.derniere_maj;
     delete sessionAnswers.nom;
     delete sessionAnswers.prenom;
-    if (Object.keys(sessionAnswers).length > 0) payload.profile = sessionAnswers;
+    
+    const mergedProfile = { ...sessionAnswers, ...nonNull(foyerForm), ...nonNull(logementForm) };
+    if (Object.keys(mergedProfile).length > 0) payload.profile = mergedProfile;
 
     return payload;
   };
@@ -234,6 +249,16 @@ export default function ProfilePage() {
       lastName: profilPartiel?.nom || current.lastName,
     }));
     setEditOpen(true);
+  };
+
+  const openEditFoyerDialog = () => {
+    setFoyerForm((current) => ({ ...answers, ...current }));
+    setEditFoyerOpen(true);
+  };
+
+  const openEditLogementDialog = () => {
+    setLogementForm((current) => ({ ...answers, ...current }));
+    setEditLogementOpen(true);
   };
 
   return (
@@ -293,11 +318,39 @@ export default function ProfilePage() {
           )}
         </ProfileCard>
 
-        <ProfileCard title="Composition du foyer" icon={UsersRound}>
+        <ProfileCard
+          title="Composition du foyer"
+          icon={UsersRound}
+          action={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Modifier la composition du foyer"
+              onClick={openEditFoyerDialog}
+              disabled={isLoading}
+            >
+              <Pencil aria-hidden="true" />
+            </Button>
+          }
+        >
           {champsFoyer.length ? <ChampsProgressifs champs={champsFoyer} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
         </ProfileCard>
 
-        <ProfileCard title="Détails du logement" icon={HomeIcon}>
+        <ProfileCard
+          title="Détails du logement"
+          icon={HomeIcon}
+          action={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Modifier les détails du logement"
+              onClick={openEditLogementDialog}
+              disabled={isLoading}
+            >
+              <Pencil aria-hidden="true" />
+            </Button>
+          }
+        >
           {champsLogement.length ? <ChampsProgressifs champs={champsLogement} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
         </ProfileCard>
       </div>
@@ -308,6 +361,20 @@ export default function ProfilePage() {
         form={form}
         setForm={setForm}
         hasNir={persisted?.hasSocialSecurityNumber ?? false}
+      />
+      
+      <EditFoyerDialog
+        open={editFoyerOpen}
+        onOpenChange={setEditFoyerOpen}
+        form={foyerForm}
+        setForm={setFoyerForm}
+      />
+      
+      <EditLogementDialog
+        open={editLogementOpen}
+        onOpenChange={setEditLogementOpen}
+        form={logementForm}
+        setForm={setLogementForm}
       />
     </div>
   );
@@ -421,4 +488,273 @@ function ChampsProgressifs({ champs, dernierChamp }: { champs: ChampProgressif[]
 
 function ChampAffiche({ label, valeur, nouveau = false }: Omit<ChampProgressif, 'cle'> & { nouveau?: boolean }) {
   return <div className={cn('transition-all duration-500 ease-standard', nouveau && 'animate-in fade-in slide-in-from-bottom-2 rounded-lg bg-primary-fixed p-2 -m-2')}><dt className="mb-1 text-label-sm text-on-surface-variant">{label}</dt><dd className="text-body-sm text-on-surface">{valeur === undefined || valeur === '' ? <><span aria-hidden="true">—</span><span className="sr-only">Non renseigné</span></> : String(valeur)}</dd></div>;
+}
+
+function EditFoyerDialog({
+  open,
+  onOpenChange,
+  form,
+  setForm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  form: Partial<ProfilPartiel>;
+  setForm: React.Dispatch<React.SetStateAction<Partial<ProfilPartiel>>>;
+}) {
+  const set = (patch: Partial<ProfilPartiel>) => setForm((current) => ({ ...current, ...patch }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Composition du foyer</DialogTitle>
+          <DialogDescription>
+            Ces modifications sont enregistrées lorsque vous cliquez sur « Enregistrer les
+            modifications ».
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Situation familiale */}
+          <div className="flex flex-col gap-2">
+            <Label>Situation familiale</Label>
+            <Select value={form.statut_marital || undefined} onValueChange={(v) => set({ statut_marital: v as ProfilPartiel['statut_marital'] })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="celibataire">Célibataire</SelectItem>
+                <SelectItem value="marie">Marié(e)</SelectItem>
+                <SelectItem value="pacse">Pacsé(e)</SelectItem>
+                <SelectItem value="concubinage">En concubinage</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Enfants à charge */}
+          <div className="flex flex-col gap-2">
+            <Label>Enfants à charge</Label>
+            <Select value={form.a_des_enfants_a_charge === true ? 'oui' : form.a_des_enfants_a_charge === false ? 'non' : undefined} onValueChange={(v) => set({ a_des_enfants_a_charge: v === 'oui' })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oui">Oui</SelectItem>
+                <SelectItem value="non">Non</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Nombre d'enfants */}
+          {form.a_des_enfants_a_charge && (
+            <div className="flex flex-col gap-2">
+              <Label>Nombre d'enfants à charge</Label>
+              <Input type="number" min="0" value={form.nombre_enfants_a_charge ?? ''} onChange={(e) => set({ nombre_enfants_a_charge: e.target.value ? parseInt(e.target.value) : null })} />
+            </div>
+          )}
+
+          {/* Âges enfants */}
+          {form.a_des_enfants_a_charge && (
+            <div className="flex flex-col gap-2">
+              <Label>Âge(s) des enfants (ex: 5, 8)</Label>
+              <Input value={form.ages_enfants ?? ''} onChange={(e) => set({ ages_enfants: e.target.value })} />
+            </div>
+          )}
+
+          {/* Pension alimentaire perçue */}
+          {form.a_des_enfants_a_charge && (
+            <div className="flex flex-col gap-2">
+              <Label>Pension alimentaire perçue</Label>
+              <Select value={form.percoit_pension_alimentaire === true ? 'oui' : form.percoit_pension_alimentaire === false ? 'non' : undefined} onValueChange={(v) => set({ percoit_pension_alimentaire: v === 'oui' })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="oui">Oui</SelectItem>
+                  <SelectItem value="non">Non</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Montant pension */}
+          {form.percoit_pension_alimentaire && (
+            <div className="flex flex-col gap-2">
+              <Label>Montant de la pension (€)</Label>
+              <Input type="number" min="0" value={form.montant_pension_alimentaire ?? ''} onChange={(e) => set({ montant_pension_alimentaire: e.target.value ? parseFloat(e.target.value) : null })} />
+            </div>
+          )}
+
+          {/* Situation conjoint */}
+          {['marie', 'pacse', 'concubinage'].includes(form.statut_marital ?? '') && (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label>Situation professionnelle du conjoint</Label>
+                <Select value={form.statut_professionnel_conjoint || undefined} onValueChange={(v) => set({ statut_professionnel_conjoint: v as ProfilPartiel['statut_professionnel_conjoint'] })}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="etudiant">Étudiant</SelectItem>
+                    <SelectItem value="apprenti_alternant">Apprenti / Alternant</SelectItem>
+                    <SelectItem value="salarie">Salarié</SelectItem>
+                    <SelectItem value="demandeur_emploi">Demandeur d'emploi</SelectItem>
+                    <SelectItem value="independant">Indépendant</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>Revenus mensuels du conjoint (€)</Label>
+                <Input type="number" min="0" value={form.revenus_conjoint_mensuels ?? ''} onChange={(e) => set({ revenus_conjoint_mensuels: e.target.value ? parseFloat(e.target.value) : null })} />
+              </div>
+            </>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <Label>Autres personnes rattachées</Label>
+            <Input type="number" min="0" value={form.nombre_adultes_rattaches ?? ''} onChange={(e) => set({ nombre_adultes_rattaches: e.target.value ? parseInt(e.target.value) : null })} />
+          </div>
+
+        </div>
+
+        <DialogFooter>
+          <Button type="button" onClick={() => onOpenChange(false)}>Appliquer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditLogementDialog({
+  open,
+  onOpenChange,
+  form,
+  setForm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  form: Partial<ProfilPartiel>;
+  setForm: React.Dispatch<React.SetStateAction<Partial<ProfilPartiel>>>;
+}) {
+  const set = (patch: Partial<ProfilPartiel>) => setForm((current) => ({ ...current, ...patch }));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Détails du logement</DialogTitle>
+          <DialogDescription>
+            Ces modifications sont enregistrées lorsque vous cliquez sur « Enregistrer les
+            modifications ».
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Situation logement */}
+          <div className="flex flex-col gap-2">
+            <Label>Statut d’occupation</Label>
+            <Select value={form.situation_logement || undefined} onValueChange={(v) => set({ situation_logement: v as ProfilPartiel['situation_logement'] })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="locataire">Locataire</SelectItem>
+                <SelectItem value="proprietaire">Propriétaire</SelectItem>
+                <SelectItem value="heberge">Hébergé</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Type location */}
+          {form.situation_logement === 'locataire' && (
+            <div className="flex flex-col gap-2">
+              <Label>Type de location</Label>
+              <Select value={form.type_location || undefined} onValueChange={(v) => set({ type_location: v as ProfilPartiel['type_location'] })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vide">Vide</SelectItem>
+                  <SelectItem value="meublee">Meublée</SelectItem>
+                  <SelectItem value="colocation">Colocation</SelectItem>
+                  <SelectItem value="chambre">Chambre</SelectItem>
+                  <SelectItem value="sous_location">Sous-location</SelectItem>
+                  <SelectItem value="residence_etudiante">Résidence étudiante</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Loyer / Surface */}
+          <div className="flex flex-col gap-2">
+            <Label>Loyer / Redevance mensuel (€)</Label>
+            <Input type="number" min="0" value={form.loyer_mensuel ?? form.redevance_mensuelle ?? ''} onChange={(e) => {
+              const val = e.target.value ? parseFloat(e.target.value) : null;
+              if (form.type_location === 'residence_etudiante') {
+                set({ redevance_mensuelle: val, loyer_mensuel: null });
+              } else {
+                set({ loyer_mensuel: val, redevance_mensuelle: null });
+              }
+            }} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Surface (m²)</Label>
+            <Input type="number" min="0" value={form.surface_m2 ?? ''} onChange={(e) => set({ surface_m2: e.target.value ? parseFloat(e.target.value) : null })} />
+          </div>
+
+          {/* Adresse */}
+          <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label>Adresse</Label>
+            <Input value={form.adresse ?? ''} onChange={(e) => set({ adresse: e.target.value })} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Code postal</Label>
+            <Input value={form.code_postal ?? ''} onChange={(e) => set({ code_postal: e.target.value })} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Ville</Label>
+            <Input value={form.ville ?? ''} onChange={(e) => set({ ville: e.target.value })} />
+          </div>
+
+          {/* Boolean fields */}
+          <div className="flex flex-col gap-2">
+            <Label>Bailleur = parent direct</Label>
+            <Select value={form.logement_appartient_a_un_proche === true ? 'oui' : form.logement_appartient_a_un_proche === false ? 'non' : undefined} onValueChange={(v) => set({ logement_appartient_a_un_proche: v === 'oui' })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oui">Oui</SelectItem>
+                <SelectItem value="non">Non</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Label>Logement conventionné</Label>
+            <Select value={form.logement_conventionne === true ? 'oui' : form.logement_conventionne === false ? 'non' : undefined} onValueChange={(v) => set({ logement_conventionne: v === 'oui' })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oui">Oui</SelectItem>
+                <SelectItem value="non">Non</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Label>Moins de 30 ans</Label>
+            <Select value={form.moins_de_30_ans === true ? 'oui' : form.moins_de_30_ans === false ? 'non' : undefined} onValueChange={(v) => set({ moins_de_30_ans: v === 'oui' })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oui">Oui</SelectItem>
+                <SelectItem value="non">Non</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <Label>Sous-location déclarée</Label>
+            <Select value={form.sous_location_declaree === true ? 'oui' : form.sous_location_declaree === false ? 'non' : undefined} onValueChange={(v) => set({ sous_location_declaree: v === 'oui' })}>
+              <SelectTrigger><SelectValue placeholder="Sélectionnez..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oui">Oui</SelectItem>
+                <SelectItem value="non">Non</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+        </div>
+
+        <DialogFooter>
+          <Button type="button" onClick={() => onOpenChange(false)}>Appliquer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

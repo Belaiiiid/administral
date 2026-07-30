@@ -16,7 +16,9 @@ import { useSessionStore } from '@/store/sessionStore';
  * administration module never inflates the initial bundle.
  */
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
+const RegisterSelectionPage = lazy(() => import('@/features/auth/pages/RegisterSelectionPage'));
+const RegisterManualPage = lazy(() => import('@/features/auth/pages/RegisterManualPage'));
+const RegisterDocumentPage = lazy(() => import('@/features/auth/pages/RegisterDocumentPage'));
 const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/ResetPasswordPage'));
 const VerifyEmailPage = lazy(() => import('@/features/auth/pages/VerifyEmailPage'));
@@ -63,7 +65,9 @@ const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       { path: ROUTES.login, element: <LoginPage /> },
-      { path: ROUTES.register, element: <RegisterPage /> },
+      { path: ROUTES.register, element: <RegisterSelectionPage /> },
+      { path: ROUTES.registerManual, element: <RegisterManualPage /> },
+      { path: ROUTES.registerDocument, element: <RegisterDocumentPage /> },
       // Emailed-link landings. Public by necessity: the token is the
       // credential, and these open from a mail client with no session.
       { path: ROUTES.forgotPassword, element: <ForgotPasswordPage /> },

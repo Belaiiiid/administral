@@ -68,6 +68,9 @@ A chaque tour, tu vas recevoir un JSON représentant le profil actuel du citoyen
 Ta mission est d'analyser ce profil, de trouver la prochaine information manquante cruciale selon les règles métier, et de générer le prochain champ du formulaire.
 
 RÈGLES MÉTIER À APPLIQUER (Logique en cascade) :
+0. Identité et Compte :
+   - Demander d'abord le prénom (`prenom`), puis le nom (`nom`), et enfin l'adresse email (`email`).
+
 1. Catégories Socio-Professionnelles (Le Statut) — champ `statut_professionnel` :
    - Si "Étudiant" : Demander s'il est boursier (`est_boursier`). Si Boursier = Oui, demander le montant de la bourse (`montant_bourse`).
    - Si "Apprenti / Alternant" ou "Salarié" : Demander les revenus nets mensuels (`revenus_nets_mensuels`), puis au tour suivant le type de contrat (`type_contrat`).
@@ -219,6 +222,25 @@ async def _appeler_mistral(profil: ProfilPartiel, historique: list[dict]) -> dic
 # ---------------------------------------------------------------------------
 
 _QUESTIONS: list[dict] = [
+    # --- 0. Identité ---
+    {
+        "champ_cible": "prenom",
+        "question": "Quel est votre prénom ?",
+        "type_reponse": "texte_libre",
+        "regle": "Identité requise pour la création du compte.",
+    },
+    {
+        "champ_cible": "nom",
+        "question": "Quel est votre nom de famille ?",
+        "type_reponse": "texte_libre",
+        "regle": "Identité requise pour la création du compte.",
+    },
+    {
+        "champ_cible": "email",
+        "question": "Quelle est votre adresse email ?",
+        "type_reponse": "texte_libre",
+        "regle": "Contact requis pour la création du compte.",
+    },
     # --- 3. Logement ---
     {
         "champ_cible": "situation_logement",
