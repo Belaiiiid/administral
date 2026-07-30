@@ -1,5 +1,5 @@
 import { ArrowRight, MessageCircle, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { detectDeepLink } from '@/features/chatbot/utils/deepLinks';
+import { useVoiceAssistant } from '@/features/voice/components/VoiceAssistantProvider';
+import { useVoiceStore } from '@/features/voice/store/voiceStore';
 
 /**
  * The persistent citizen assistant: a floating launcher and a slide-in panel,
@@ -32,6 +34,11 @@ export function FloatingChatbot() {
   const controller = useChatbot();
   const navigate = useNavigate();
 
+  // Voice integration — speak assistant replies when voice mode is active
+  const voice = useVoiceAssistant();
+  const modeVocal = useVoiceStore((s) => s.modeVocal);
+  const lastSpokenId = useRef<string | null>(null);
+
   // A question queued elsewhere (header help, documentation form) opens the panel
   // and is sent once. `send` is stable, so this fires only when a question lands.
   useEffect(() => {
@@ -39,6 +46,17 @@ export function FloatingChatbot() {
     const question = consumePendingQuestion();
     if (question) controller.send(question);
   }, [pendingQuestion, consumePendingQuestion, controller]);
+
+  // Auto-speak the latest assistant reply exactly once while voice mode is on
+  useEffect(() => {
+    const { messages } = controller;
+    if (!modeVocal || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.role !== 'assistant') return;
+    if (lastSpokenId.current === last.id) return;
+    lastSpokenId.current = last.id;
+    voice.speakText(String(last.content ?? ''));
+  }, [controller.messages, modeVocal, voice]);
 
   // Suggest a destination from the citizen's most recent question.
   const lastUserMessage = [...controller.messages].reverse().find((m) => m.role === 'user');

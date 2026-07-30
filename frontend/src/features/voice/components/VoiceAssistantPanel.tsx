@@ -1,5 +1,5 @@
-import React, { useContext } from 'react';
-import { Home, Files, Volume2, Square, HelpCircle, Mic } from 'lucide-react';
+import React, { useContext, useState } from 'react';
+import { Home, Files, Volume2, Square, HelpCircle, Mic, Minimize2 } from 'lucide-react';
 import { useVoiceAssistant } from './VoiceAssistantProvider';
 import { useVoiceStore } from '../store/voiceStore';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ export const VoiceAssistantPanel: React.FC = () => {
   const { modeVocal } = useVoiceStore();
   const { status, transcript, error, isWaitingForConfirmation, speakText, stopSpeaking, triggerCommand, startPushToTalk, stopPushToTalk } = useVoiceAssistant();
   const pageContext = useContext(VoicePageContext);
+  const [isMinimized, setIsMinimized] = useState(false);
+  
   if (!modeVocal) return null;
 
   const handleReadPage = () => { if (pageContext?.readableText) speakText(pageContext.readableText); else speakText("Il n'y a aucun contenu lisible sur cette page."); };
@@ -21,6 +23,23 @@ export const VoiceAssistantPanel: React.FC = () => {
   else if (status === 'speaking') { statusText = 'Parle...'; statusColorClass = 'bg-secondary text-white'; }
   else if (status === 'error') { statusText = 'Erreur'; statusColorClass = 'bg-destructive text-white'; }
 
+  if (isMinimized) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        aria-label="Agrandir l'assistant vocal"
+        className="fixed bottom-24 right-4 z-50 flex items-center gap-3 rounded-full border border-border bg-surface-lowest/90 px-4 py-2.5 shadow-lg backdrop-blur-md transition-all hover:scale-105 md:bottom-28 md:right-8 animate-in fade-in slide-in-from-bottom-5"
+      >
+        <span className="relative flex size-3">
+          <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusColorClass} ${statusAnimationClass}`} />
+          <span className={`relative inline-flex size-3 rounded-full ${statusColorClass}`} />
+        </span>
+        <Mic className="size-4 text-primary" />
+        <span className="text-body-sm font-semibold text-on-surface">Assistant vocal</span>
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col rounded-2xl border border-border bg-surface-lowest/90 p-5 shadow-2xl backdrop-blur-md transition-all duration-300 md:bottom-8 md:right-8 animate-in fade-in slide-in-from-bottom-5">
       <div className="flex items-center justify-between border-b border-border pb-3">
@@ -31,6 +50,15 @@ export const VoiceAssistantPanel: React.FC = () => {
           </span>
           <span className="text-label-md font-semibold text-on-surface">Assistant Vocal</span>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 rounded-lg text-outline hover:bg-surface-low"
+          onClick={() => setIsMinimized(true)}
+          aria-label="Réduire l'assistant vocal"
+        >
+          <Minimize2 className="size-4" />
+        </Button>
       </div>
 
       <div className="my-4 flex flex-col gap-3 rounded-xl bg-surface-low p-4 min-h-24 justify-center">
@@ -61,7 +89,7 @@ export const VoiceAssistantPanel: React.FC = () => {
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-2">
-          <Button variant="default" className="flex items-center justify-center gap-2 h-11 rounded-xl select-none" onMouseDown={startPushToTalk} onMouseUp={stopPushToTalk} onTouchStart={startPushToTalk} onTouchEnd={stopPushToTalk} disabled={status === 'speaking'}>
+          <Button variant="primary" className="flex items-center justify-center gap-2 h-11 rounded-xl select-none" onMouseDown={startPushToTalk} onMouseUp={stopPushToTalk} onTouchStart={startPushToTalk} onTouchEnd={stopPushToTalk} disabled={status === 'speaking'}>
             <Mic className="size-4" /> Appuyer pour parler
           </Button>
           <Button variant="destructive" className="flex items-center justify-center gap-2 h-11 rounded-xl" onClick={stopSpeaking} disabled={status !== 'speaking'}>
