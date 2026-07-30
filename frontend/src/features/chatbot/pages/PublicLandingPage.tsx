@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -6,23 +7,43 @@ import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
+import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
+import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
+import { VoiceAssistantProvider, useVoiceAssistant } from '@/features/voice/components/VoiceAssistantProvider';
+import { VoiceAssistantPanel } from '@/features/voice/components/VoiceAssistantPanel';
+import { useVoiceStore } from '@/features/voice/store/voiceStore';
 
 /**
- * Public entry point (`/`) for a visitor with no session.
- *
- * The assistant first, an account second: a citizen unsure whether they are
- * even eligible should not have to register before finding out. It is the
- * same `useChatbot` + `ChatWindow` the authenticated `/chat` page uses — the
- * anonymous case was already supported server-side
- * (`get_current_user_optional`), so nothing new was needed there, only a
- * place to reach it before signing in.
- *
- * "Se connecter" is the only way further in from here; there is no session
- * to protect and nothing to fabricate for one that does not exist yet.
+ * Inner content that lives inside the voice providers so hooks like
+ * `useVoiceAssistant()` have the required context.
  */
-export default function PublicLandingPage() {
+function PublicLandingPageContent() {
   useDocumentTitle('MonParcours — Assistant');
   const controller = useChatbot();
+
+  // ── Consume queued questions from the voice assistant ─────────────
+  const pendingQuestion = useChatbotUiStore((s) => s.pendingQuestion);
+  const consumePendingQuestion = useChatbotUiStore((s) => s.consumePendingQuestion);
+
+  useEffect(() => {
+    if (pendingQuestion === null) return;
+    const q = consumePendingQuestion();
+    if (q) controller.send(q);
+  }, [pendingQuestion, consumePendingQuestion, controller]);
+
+  // ── Auto-speak assistant replies when voice mode is on ────────────
+  const voice = useVoiceAssistant();
+  const modeVocal = useVoiceStore((s) => s.modeVocal);
+  const lastSpokenId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!modeVocal || controller.messages.length === 0) return;
+    const last = controller.messages[controller.messages.length - 1];
+    if (last.role !== 'assistant') return;
+    if (lastSpokenId.current === last.id) return;
+    lastSpokenId.current = last.id;
+    voice.speakText(String(last.content ?? ''));
+  }, [controller.messages, modeVocal, voice]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -48,6 +69,34 @@ export default function PublicLandingPage() {
 
         <ChatWindow controller={controller} />
       </main>
+
+      <VoiceAssistantPanel />
     </div>
+  );
+}
+
+/**
+ * Public entry point (`/`) for a visitor with no session.
+ *
+ * The assistant first, an account second: a citizen unsure whether they are
+ * even eligible should not have to register before finding out. It is the
+ * same `useChatbot` + `ChatWindow` the authenticated `/chat` page uses — the
+ * anonymous case was already supported server-side
+ * (`get_current_user_optional`), so nothing new was needed there, only a
+ * place to reach it before signing in.
+ *
+ * "Se connecter" is the only way further in from here; there is no session
+ * to protect and nothing to fabricate for one that does not exist yet.
+ *
+ * Voice providers are mounted here (not in `AppProviders`, which sits outside
+ * the router) so that PTT and auto-speak work on the public landing page.
+ */
+export default function PublicLandingPage() {
+  return (
+    <VoicePageProvider>
+      <VoiceAssistantProvider>
+        <PublicLandingPageContent />
+      </VoiceAssistantProvider>
+    </VoicePageProvider>
   );
 }

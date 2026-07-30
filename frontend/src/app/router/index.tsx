@@ -10,6 +10,7 @@ import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
 import { useSessionStore } from '@/store/sessionStore';
+import { useVoiceStore } from '@/features/voice/store/voiceStore';
 
 /*
  * Each feature module is code-split at the route boundary, so a new
@@ -52,12 +53,19 @@ const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
  * "Se connecter" second, never the other way around.
  */
 function HomeRoute() {
-  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
+  const user = useSessionStore((state) => state.user);
+  const hasSeenVoiceOnboarding = useVoiceStore((state) => state.hasSeenVoiceOnboarding);
+
+  if (!hasSeenVoiceOnboarding) {
+    return <Navigate to={ROUTES.voiceOnboarding} replace />;
+  }
+
+  return user ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
 }
 
 const router = createBrowserRouter([
   { path: ROUTES.home, element: <HomeRoute /> },
+  { path: ROUTES.voiceOnboarding, element: <VoiceOnboardingPage /> },
   {
     // Entry journey — no application chrome.
     element: <AuthLayout />,
@@ -114,8 +122,6 @@ const router = createBrowserRouter([
           },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
-
-          { path: ROUTES.voiceOnboarding, element: <VoiceOnboardingPage /> },
 
           { path: ROUTES.chat, element: <ChatPage /> },
         ],
