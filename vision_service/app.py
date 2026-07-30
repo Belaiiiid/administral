@@ -108,7 +108,7 @@ def _infer_page(image: np.ndarray, page_number: int) -> dict:
             continue
         x, y, width, height = cv2.boundingRect(contour)
         regions.append({"x": int(x), "y": int(y), "width": int(width), "height": int(height), "confidence_pct": round(float(confidence_map[y:y + height, x:x + width].mean() * 100), 1)})
-    regions = sorted(regions, key=lambda region: region["confidence_pct"], reverse=True)[:3]
+    regions = sorted(regions, key=lambda region: region["confidence_pct"], reverse=True)
     marked = image.copy()
     for region in regions:
         x, y, width, height = region["x"], region["y"], region["width"], region["height"]

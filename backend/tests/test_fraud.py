@@ -100,7 +100,7 @@ def test_service_produces_risk_badge_value(tmp_path, monkeypatch) -> None:
         create="20260101090000", modify="20260101090000",
     )
 
-    assert analyze_document(str(flagged)).niveau_risque == "À VÉRIFIER"
+    assert analyze_document(str(flagged)).niveau_risque == "A_VERIFIER"
     assert analyze_document(str(clean)).niveau_risque == "FAIBLE"
 
 
@@ -114,6 +114,7 @@ def test_image_analysis_keeps_ela_disabled_by_default(tmp_path, monkeypatch) -> 
 
     monkeypatch.setattr(settings, "mistral_api_key", None)
     monkeypatch.setattr(settings, "fraud_vision_endpoint", None)
+    monkeypatch.setattr(settings, "fraud_enable_ela", False)
     image_path = tmp_path / "scan.jpg"
     assert cv2.imwrite(str(image_path), np.full((160, 240, 3), 255, dtype=np.uint8))
 

@@ -23,6 +23,8 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from PIL import ExifTags, Image
+
 from app.core.logger import logger
 
 # Field names vary by format (PDF vs Office vs image); checked in preference order.
@@ -145,9 +147,17 @@ def _deterministic_signals(raw: dict, date_creation: str | None, date_modificati
         )
 
     # 4. All software metadata purged.
-    if not raw.get("Producer") and not raw.get("Creator") and not raw.get("Software"):
+    if not raw.get("_metadata_limited") and not raw.get("Producer") and not raw.get("Creator") and not raw.get("Software"):
         flags.append(
             "SIGNAL : aucune métadonnée de logiciel présente — a pu être supprimée intentionnellement"
+        )
+        
+    # 4b. PNG completely missing temporal and software context (LLM feedback derived)
+    is_png = path.suffix.lower() == ".png" or str(raw.get("FileType", "")).lower() == "png"
+    if is_png and not date_creation and not date_modification and not logiciel:
+        flags.append(
+            "SIGNAL : absence totale de métadonnées temporelles (DateTimeOriginal, ModifyDate) et de champ 'Software' "
+            "dans un fichier PNG, inhabituel pour un document numérique non expurgé."
         )
 
     # 5. Multiple incremental revisions (PDF-specific).
@@ -166,6 +176,29 @@ def _deterministic_signals(raw: dict, date_creation: str | None, date_modificati
     return flags
 
 
+def _extract_image_fallback(path: Path) -> dict:
+    """Read safe, local EXIF fields when the optional ExifTool binary is absent.
+
+    This fallback never invents missing metadata: it explicitly marks its
+    coverage as limited so the fusion engine reduces decision confidence.
+    """
+    try:
+        with Image.open(path) as image:
+            tags = {ExifTags.TAGS.get(key, str(key)): value for key, value in image.getexif().items()}
+            return {
+                "FileType": (image.format or path.suffix.removeprefix(".")).upper(),
+                "ImageWidth": image.width,
+                "ImageHeight": image.height,
+                "Software": tags.get("Software"),
+                "DateTimeOriginal": tags.get("DateTimeOriginal"),
+                "ModifyDate": tags.get("DateTime"),
+                "Artist": tags.get("Artist"),
+                "_metadata_limited": True,
+            }
+    except (OSError, ValueError):
+        return {"erreur": "Métadonnées image illisibles.", "_metadata_limited": True}
+
+
 def extract_metadata(path: Path) -> dict:
     """Extract metadata and compute deterministic forgery signals for one file.
 
@@ -181,6 +214,10 @@ def extract_metadata(path: Path) -> dict:
             raw = _extract_pdf_fallback(path)
             if "erreur" in raw:
                 return raw
+        elif path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+            raw = _extract_image_fallback(path)
+            if "erreur" in raw:
+                return {**raw, "signaux_a_verifier": []}
         else:
             return {
                 "erreur": (
@@ -205,6 +242,7 @@ def extract_metadata(path: Path) -> dict:
         "logiciel": logiciel,
         "auteur_declare": raw.get("Author") or raw.get("Creator"),
         "metadonnees_brutes": raw,
+        "metadata_limited": bool(raw.get("_metadata_limited")),
         "signaux_a_verifier": _deterministic_signals(
             raw, date_creation, date_modification, logiciel, path
         ),

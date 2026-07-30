@@ -101,7 +101,9 @@ class Settings(BaseSettings):
     # representative administrative documents before it influences triage.
     fraud_vision_endpoint: str | None = "http://127.0.0.1:8011/analyse"
     fraud_vision_timeout_seconds: float = 45.0
-    fraud_enable_ela: bool = False
+    # ELA remains enabled as a corroborating JPEG-only detector. It can never
+    # decide the fraud result by itself; set false only for diagnostics.
+    fraud_enable_ela: bool = True
     # Profiling (citizen.profiling): this project talks to the Mistral API only,
     # so the deterministic rule generator is OFF by default — every profiling
     # turn must call Mistral, and a missing key surfaces as an error rather than

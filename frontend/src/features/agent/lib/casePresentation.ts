@@ -124,6 +124,9 @@ export const DOCUMENT_STATUS_LABEL: Record<DocumentAnalysisStatus, string> = {
  */
 const FRAUD_RISK_TONE: Record<string, StatusTone> = {
   FAIBLE: 'success',
+  A_VERIFIER: 'warning',
+  MODERE: 'warning',
+  ELEVE: 'error',
   'À VÉRIFIER': 'warning',
   MODÉRÉ: 'warning',
   ÉLEVÉ: 'error',

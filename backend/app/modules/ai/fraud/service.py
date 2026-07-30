@@ -1,18 +1,18 @@
-"""Document fraud analysis orchestration — Agent C4.
-
-Combines the two layers: deterministic metadata signals (always) and the
-optional LLM forensic verdict. Produces the `FraudAnalysisSchema` the API
-returns and the citizen upload flow persists.
-
-Sits in `ai/` alongside coherence: both are analysis stages a document passes
-through, both degrade gracefully without a key, and neither is a request handler.
-"""
+"""Document-fraud orchestration with configurable multi-evidence fusion."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from app.modules.ai.fraud.ela import analyse_ela
+from app.core.config import settings
+from app.modules.ai.fraud.ela import analyse_ela, render_fused_regions
+from app.modules.ai.fraud.additional_detectors import (
+    analyse_copy_move,
+    analyse_dct,
+    analyse_noise,
+    analyse_ocr_layout,
+)
+from app.modules.ai.fraud.fusion import DetectorEvidence, EvidenceRegion, fuse
 from app.modules.ai.fraud.integrity import analyse_integrity
 from app.modules.ai.fraud.llm_analyzer import analyze_with_mistral
 from app.modules.ai.fraud.metadata import extract_metadata
@@ -24,17 +24,84 @@ from app.modules.ai.fraud.schemas import (
     VisionModelSchema,
 )
 from app.modules.ai.fraud.vision_model import analyse_with_vision_model
-from app.core.config import settings
 
 
-def _overall_risk(signals: list[str]) -> str:
-    """The badge value.
+def _metadata_evidence(meta: dict) -> DetectorEvidence:
+    signals = meta.get("signaux_a_verifier", [])
+    if "erreur" in meta:
+        return DetectorEvidence("metadata", "UNAVAILABLE", None, 0.0, "Métadonnées indisponibles.", limitations=[meta["erreur"]])
+    limited = bool(meta.get("metadata_limited"))
+    strong = any("logiciel" in signal.lower() or "date" in signal.lower() for signal in signals)
+    return DetectorEvidence(
+        "metadata", "APPLICABLE", 1.0 if strong else min(1.0, len(signals) / 1.5), 0.45 if limited else 0.82,
+        "Métadonnées partielles : aucune incohérence vérifiable." if limited and not signals
+        else "Aucune incohérence de métadonnées." if not signals
+        else f"{len(signals)} incohérence(s) de métadonnées détectée(s).",
+        limitations=["ExifTool absent : lecture EXIF locale partielle."] if limited else [],
+    )
 
-    The value is deterministic: the LLM is explanatory only and never changes
-    the review priority in this sensitive workflow.
 
-    """
-    return "À VÉRIFIER" if signals else "FAIBLE"
+def _integrity_evidence(raw: dict, extracted_text: str | None) -> DetectorEvidence:
+    score = 0.0
+    reasons: list[str] = []
+    if raw["exact_duplicate_in_dossier"]:
+        score = max(score, 0.70)
+        reasons.append("même empreinte présente plusieurs fois dans le dossier")
+    if raw["mrz_detected"] and raw["mrz_checksum_valid"] is False:
+        score = 1.0
+        reasons.append("checksum MRZ invalide")
+    # The presence of a signature field is an information only, never suspicion.
+    confidence = 0.96 if raw["mrz_detected"] or raw["exact_duplicate_in_dossier"] else 0.65
+    limitations = [] if extracted_text else ["MRZ non vérifiable : texte OCR non fourni."]
+    return DetectorEvidence(
+        "integrity", "APPLICABLE", score, confidence,
+        "Aucune anomalie structurelle vérifiable." if not reasons else "Anomalie structurelle : " + "; ".join(reasons) + ".",
+        limitations=limitations,
+    )
+
+
+def _ela_evidence(path: Path, enabled: bool) -> tuple[DetectorEvidence, list[FraudVisualSchema]]:
+    if not enabled:
+        return DetectorEvidence("ela", "NON_APPLICABLE", None, 0.0, "ELA désactivée par configuration."), []
+    visuals = [FraudVisualSchema.model_validate(item) for item in analyse_ela(path, draw_boxes=False)]
+    if not visuals:
+        return DetectorEvidence("ela", "NON_APPLICABLE", None, 0.0, "ELA impossible : document image/PDF illisible."), []
+    raw_score = max((max(0.0, min(1.0, (float(v.metrics.get("anomaly_score", 0)) - 3.5) / 10.0)) for v in visuals), default=0.0)
+    regions = [
+        EvidenceRegion(
+            v.page_number, r.x, r.y, r.width, r.height,
+            r.confidence_pct / 100,
+            min(0.80 if path.suffix.lower() in {".jpg", ".jpeg"} else 0.72, 0.30 + 0.50 * r.confidence_pct / 100),
+            "ela", "Résidu de compression localement atypique et répété sur plusieurs recompressions.",
+        )
+        for v in visuals for r in v.regions
+    ]
+    return DetectorEvidence(
+        "ela", "APPLICABLE", raw_score, (0.70 if regions else 0.45) if path.suffix.lower() in {".jpg", ".jpeg"} else (0.48 if regions else 0.35),
+        "ELA n'a relevé aucune zone locale exploitable." if not regions else f"ELA a localisé {len(regions)} zone(s) de compression atypique(s).",
+        regions=regions,
+        limitations=["ELA est un indicateur de compression ; il ne prouve pas une falsification."] + ([] if path.suffix.lower() in {".jpg", ".jpeg"} else ["PNG/PDF rendu temporairement en JPEG : confiance réduite."]),
+    ), visuals
+
+
+def _trufor_evidence(vision: VisionModelSchema) -> DetectorEvidence:
+    if vision.status != "TERMINE" or vision.score is None:
+        status = "NON_APPLICABLE" if vision.status == "NON_CONFIGURE" else "UNAVAILABLE"
+        return DetectorEvidence("trufor", status, None, 0.0, vision.message)
+    regions = [
+        EvidenceRegion(page.page_number, r.x, r.y, r.width, r.height, r.confidence_pct / 100, r.confidence_pct / 100, "trufor", "Anomalie localisée par TruFor.")
+        for page in vision.pages for r in page.regions
+    ]
+    # A global score without a usable location is weak evidence in this workflow.
+    # The fusion logic will automatically depreciate it if no regions are corroborated.
+    raw_score = min(1.0, vision.score)
+    confidence = min(0.9, 0.55 + 0.1 * min(len(regions), 3)) if regions else 0.30
+    return DetectorEvidence(
+        "trufor", "APPLICABLE", raw_score, confidence,
+        "TruFor n'a pas localisé de zone exploitable ; son score global est fortement déprécié." if not regions else f"TruFor a localisé {len(regions)} zone(s) à examiner.",
+        regions=regions,
+        limitations=["TruFor est une source de preuve visuelle parmi d'autres, jamais un verdict seul."],
+    )
 
 
 def analyze_document(
@@ -44,75 +111,55 @@ def analyze_document(
     extracted_text: str | None = None,
     duplicate_count: int = 1,
 ) -> FraudAnalysisSchema:
-    """Run metadata, optional contextual, and ELA visual forensic layers."""
+    """Analyse a document and return additive, calibrated evidence-fusion data."""
     path = Path(file_path)
     meta = extract_metadata(path)
-    integrity_raw = analyse_integrity(
-        path, extracted_text=extracted_text, duplicate_count=duplicate_count
-    )
+    integrity_raw = analyse_integrity(path, extracted_text=extracted_text, duplicate_count=duplicate_count)
     integrity = DocumentIntegritySchema.model_validate(integrity_raw)
     vision_model = VisionModelSchema.model_validate(analyse_with_vision_model(path))
-    trufor_available = vision_model.status == "TERMINE"
 
-    # ELA is opt-in and limited to original JPEGs. Rendering a PDF or encoding
-    # a PNG as JPEG creates artifacts, so it must not influence a review.
-    # It supports TruFor by hiding its boxes when TruFor is available.
-    ela_raw = (
-        analyse_ela(path, draw_boxes=not trufor_available)
-        if settings.fraud_enable_ela and path.suffix.lower() in {".jpg", ".jpeg"}
-        else []
-    )
-    ela_visuals = [FraudVisualSchema.model_validate(visual) for visual in ela_raw]
-
-    # Metadata extraction for images needs ExifTool in this project.  That must
-    # not discard the independent ELA result: the agent can still inspect the
-    # pixels and their localised boxes when EXIF metadata is unavailable.
-    if (
-        "erreur" in meta
-        and not meta.get("signaux_a_verifier")
-        and not integrity_raw["signals"]
-        and not ela_visuals
-    ):
-        return FraudAnalysisSchema(
-            fichier=display_name or path.name,
-            signaux_a_verifier=[],
-            niveau_risque="INCONNU",
-            a_des_signaux=False,
-            integrity=integrity,
-            vision_model=vision_model,
-            erreur=meta["erreur"],
-        )
-
+    ela_evidence, ela_visuals = _ela_evidence(path, settings.fraud_enable_ela)
+    evidences = [
+        _metadata_evidence(meta),
+        _integrity_evidence(integrity_raw, extracted_text),
+        ela_evidence,
+        _trufor_evidence(vision_model),
+        analyse_copy_move(path),
+        analyse_noise(path),
+        analyse_dct(path),
+        analyse_ocr_layout(path, extracted_text),
+    ]
+    fused = fuse(evidences)
     signals = list(meta.get("signaux_a_verifier", [])) + integrity_raw["signals"]
-    if trufor_available and vision_model.score is not None and vision_model.score >= 0.65:
-        signals.append(
-            "SIGNAL TruFor : le modèle visuel a relevé une anomalie localisée ; "
-            "contrôlez les encadrés violets avec le document d'origine."
-        )
-    elif not trufor_available and any(visual.is_suspicious for visual in ela_visuals):
-        signals.append(
-            "SIGNAL ELA : anomalie de compression sur un JPEG original ; "
-            "à confirmer par un contrôle humain ou TruFor."
-        )
-    # The LLM receives only already-computed evidence. It may prioritise review,
-    # but it never discovers facts nor makes an eligibility/fraud decision.
-    meta["controle_integrite"] = integrity.model_dump(by_alias=True)
-    meta["modele_vision"] = vision_model.model_dump(by_alias=True)
-    llm_raw = analyze_with_mistral(meta, signals)
+    signals.extend(item["explanation"] for item in fused["contributions"] if item["score"] is not None and item["score"] >= 0.45 and item["explanation"] not in signals)
+
+    # Mistral explains pre-computed evidence only: it does not influence score or risk.
+    llm_context = dict(meta)
+    llm_context["controle_integrite"] = integrity.model_dump(by_alias=True)
+    llm_context["modele_vision"] = vision_model.model_dump(by_alias=True)
+    llm_context["evidence_fusion"] = fused
+    llm_raw = analyze_with_mistral(llm_context, signals)
+    
+    manual_review = any(c.get("depreciation_applied", False) and c.get("raw_score", 0.0) is not None and float(c.get("raw_score", 0.0)) >= 0.8 for c in fused["contributions"])
+    
+    if manual_review and fused["niveau_risque"] in {"FAIBLE", "INCONNU", "A_VERIFIER"}:
+        fused["niveau_risque"] = "MODERE"
+
+    # Force LLM risk level to match the deterministic top-level risk
+    if llm_raw and isinstance(llm_raw, dict) and "niveau_risque" in llm_raw:
+        llm_raw["niveau_risque"] = fused["niveau_risque"]
 
     return FraudAnalysisSchema(
         fichier=display_name or meta.get("fichier") or path.name,
-        type_fichier=meta.get("type_fichier"),
-        date_creation=meta.get("date_creation"),
-        date_modification=meta.get("date_modification"),
-        logiciel=meta.get("logiciel"),
-        auteur_declare=meta.get("auteur_declare"),
+        type_fichier=meta.get("type_fichier"), date_creation=meta.get("date_creation"),
+        date_modification=meta.get("date_modification"), logiciel=meta.get("logiciel"), auteur_declare=meta.get("auteur_declare"),
         signaux_a_verifier=signals,
         analyse_llm=FraudLlmSchema.model_validate(llm_raw) if llm_raw else None,
-        niveau_risque=_overall_risk(signals),
-        a_des_signaux=bool(signals) or (llm_raw is not None and bool(llm_raw.get("signaux_llm"))),
-        ela_visuals=ela_visuals,
-        integrity=integrity,
-        vision_model=vision_model,
+        niveau_risque=fused["niveau_risque"], manual_review_recommended=manual_review, a_des_signaux=fused["niveau_risque"] not in {"FAIBLE", "INCONNU"},
+        ela_visuals=ela_visuals, integrity=integrity, vision_model=vision_model,
+        score_final=fused["score_final"], confiance=fused["confidence"],
+        contributions=fused["contributions"], zones_suspectes=fused["regions"],
+        visualisations_fusionnees=[FraudVisualSchema.model_validate(item) for item in render_fused_regions(path, fused["regions"])],
+        analyses_non_applicables=[e.detector for e in evidences if e.status == "NON_APPLICABLE"],
         erreur=meta.get("erreur"),
     )

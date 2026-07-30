@@ -11,6 +11,17 @@ export interface CaseFraudCardProps {
   documents: CaseDocument[];
 }
 
+const detectorLabel: Record<string, string> = {
+  metadata: 'Informations du fichier',
+  integrity: 'Vérifications du document',
+  ela: 'Analyse de compression',
+  trufor: 'Analyse visuelle',
+  copy_move: 'Recherche de zones copiées',
+  noise: 'Analyse du bruit de l’image',
+  dct: 'Analyse de compression',
+  ocr_layout: 'Structure du texte',
+};
+
 /**
  * Document authenticity — Agent C4 metadata forensics.
  *
@@ -72,22 +83,53 @@ export function CaseFraudCard({ documents }: CaseFraudCardProps) {
                   <Badge tone={fraudRiskTone(fraud.niveauRisque)}>{fraud.niveauRisque}</Badge>
                 </div>
 
-                {clean ? (
-                  <p className="text-body-sm text-on-surface-variant">
-                    Métadonnées cohérentes — aucun signal de falsification.
+                {fraud.scoreFinal !== undefined && fraud.scoreFinal !== null && (
+                  <p className="mb-3 text-body-sm text-on-surface-variant">
+                    Risque de fraude : <strong className="text-on-surface">{Math.round(fraud.scoreFinal * 100)} %</strong>
+                    {' '}— confiance de la décision : <strong className="text-on-surface">{Math.round((fraud.confiance ?? 0) * 100)} %</strong>
                   </p>
+                )}
+
+                {clean ? (
+                  <div className="space-y-3">
+                    <p className="text-body-sm text-on-surface-variant">
+                      {(fraud.confiance ?? 0) < 0.5
+                        ? 'Analyse insuffisamment couverte : aucune anomalie n’a été confirmée, mais certains contrôles n’ont pas pu être exploités.'
+                        : 'Aucune anomalie n’a été confirmée par les contrôles disponibles.'}
+                    </p>
+                    <details className="group rounded-lg border border-border p-3">
+                      <summary className="cursor-pointer text-label-md font-medium text-on-surface-variant hover:text-on-surface">
+                        Comprendre cette analyse
+                      </summary>
+                      <div className="space-y-2 pt-3 text-body-sm text-on-surface">
+                        {fraud.contributions?.map((contribution) => (
+                          <p key={contribution.detector}><strong>{detectorLabel[contribution.detector] ?? contribution.detector}</strong> : {contribution.explanation}</p>
+                        ))}
+                        {fraud.analyseLlm ? <p>{fraud.analyseLlm.analyseLlm}</p> : (
+                          <p className="text-on-surface-variant">L’explication détaillée par IA sera disponible lorsque Mistral est configuré.</p>
+                        )}
+                      </div>
+                    </details>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {/* Visual Evidence (Always shown if suspicious) */}
                     <div className="space-y-3">
-                      {fraud.visionModel?.pages.filter((page) => page.regions.length > 0).map((page) => (
+                      {fraud.visualisationsFusionnees?.filter((page) => page.isSuspicious).map((page) => (
+                        <div key={`fusion-${page.pageNumber}`} className="space-y-2">
+                          <p className="text-label-md text-on-surface">Zones suspectes fusionnées — page {page.pageNumber}</p>
+                          <img src={page.markedImageBase64} alt={`Page ${page.pageNumber}, zones suspectes fusionnées`} className="max-h-[36rem] w-full rounded-md border border-border object-contain" />
+                        </div>
+                      ))}
+
+                      {false && fraud.visionModel?.pages.filter((page) => page.regions.length > 0).map((page) => (
                         <div key={`trufor-${page.pageNumber}`} className="space-y-2">
                           <p className="text-label-md text-on-surface">Zones suspectes (Vision) — page {page.pageNumber}</p>
                           <img src={page.markedImageBase64} alt={`Analyse visuelle de la page ${page.pageNumber}`} className="max-h-[36rem] w-full rounded-md border border-border object-contain" />
                         </div>
                       ))}
 
-                      {fraud.visionModel?.pages.length === 0 && fraud.elaVisuals.filter((visual) => visual.isSuspicious).map((visual) => (
+                      {false && fraud.elaVisuals.filter((visual) => visual.isSuspicious).map((visual) => (
                         <div key={visual.pageNumber} className="space-y-2">
                           <p className="text-label-md text-on-surface">
                             Zones suspectes (ELA) — page {visual.pageNumber}
@@ -137,6 +179,17 @@ export function CaseFraudCard({ documents }: CaseFraudCardProps) {
                                   •
                                 </span>
                                 {signal}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {fraud.contributions && fraud.contributions.length > 0 && (
+                          <ul className="space-y-2 text-body-sm text-on-surface">
+                            {fraud.contributions.map((contribution) => (
+                              <li key={contribution.detector}>
+                                <strong>{detectorLabel[contribution.detector] ?? contribution.detector}</strong> : {contribution.explanation}
+                                {' '}(contribution {Math.round(contribution.contribution * 100)} %, confiance {Math.round(contribution.confidence * 100)} %).
                               </li>
                             ))}
                           </ul>

@@ -161,6 +161,30 @@ export interface VisionModelAnalysis {
   pages: FraudVisual[];
 }
 
+export interface FraudContribution {
+  detector: string;
+  status: string;
+  rawScore?: number | null;
+  score?: number | null;
+  confidence: number;
+  weight: number;
+  contribution: number;
+  explanation: string;
+  limitations: string[];
+}
+
+export interface SuspectRegion {
+  pageNumber: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  suspicion: number;
+  confidence: number;
+  detectors: string[];
+  explanation: string;
+}
+
 /**
  * Document metadata forensics (Agent C4).
  *
@@ -182,6 +206,12 @@ export interface FraudAnalysis {
   elaVisuals: FraudVisual[];
   integrity?: DocumentIntegrity;
   visionModel?: VisionModelAnalysis;
+  scoreFinal?: number | null;
+  confiance?: number | null;
+  contributions?: FraudContribution[];
+  zonesSuspectes?: SuspectRegion[];
+  visualisationsFusionnees?: FraudVisual[];
+  analysesNonApplicables?: string[];
   erreur?: string;
 }
 

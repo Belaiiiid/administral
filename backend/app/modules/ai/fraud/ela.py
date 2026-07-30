@@ -35,7 +35,7 @@ def _pages(path: Path) -> list[np.ndarray]:
     return [image] if image is not None else []
 
 
-def _resize(image: np.ndarray, maximum: int = 2000) -> np.ndarray:
+def _resize(image: np.ndarray, maximum: int = 1024) -> np.ndarray:
     height, width = image.shape[:2]
     if max(height, width) <= maximum:
         return image
@@ -45,10 +45,17 @@ def _resize(image: np.ndarray, maximum: int = 2000) -> np.ndarray:
 
 def _analyse_page(image: np.ndarray, page_number: int, draw_boxes: bool) -> dict:
     image = _resize(image)
-    _, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
-    recompressed = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
-    residual = cv2.cvtColor(cv2.absdiff(image, recompressed), cv2.COLOR_BGR2GRAY)
-    enhanced = cv2.convertScaleAbs(residual, alpha=10)
+    # Multi-quality ELA prevents one arbitrary JPEG quality from deciding the
+    # result. The 75th percentile retains residuals recurring across qualities
+    # while rejecting one-off recompression spikes.
+    residuals: list[np.ndarray] = []
+    for quality in (70, 75, 80, 85, 90, 95):
+        _, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+        recompressed = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        residual = cv2.cvtColor(cv2.absdiff(image, recompressed), cv2.COLOR_BGR2GRAY)
+        residuals.append(cv2.convertScaleAbs(residual, alpha=10))
+    residual_stack = np.stack(residuals)
+    enhanced = np.percentile(residual_stack, 75, axis=0).astype(np.uint8)
     blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
 
     active = enhanced[enhanced > 15]
@@ -60,7 +67,11 @@ def _analyse_page(image: np.ndarray, page_number: int, draw_boxes: bool) -> dict
 
     if suspicious:
         threshold = min(255, max(1, int(median_active * 2.4)))
-        mask = cv2.inRange(blurred, threshold, 255)
+        # A candidate must recur in several recompressions. Three of six keeps
+        # the detector sensitive to a local edit while rejecting one-off JPEG
+        # spikes (common around text).
+        quality_support = np.sum(residual_stack >= threshold, axis=0)
+        mask = np.where((blurred >= threshold) & (quality_support >= 2), 255, 0).astype(np.uint8)
         mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15)), iterations=1)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         page_area = image.shape[0] * image.shape[1]
@@ -69,8 +80,9 @@ def _analyse_page(image: np.ndarray, page_number: int, draw_boxes: bool) -> dict
             if not 250 < area < page_area * 0.9:
                 continue
             x, y, width, height = cv2.boundingRect(contour)
-            confidence = float(np.max(enhanced[y:y + height, x:x + width]) / maximum * 100)
-            if confidence >= 70:
+            local_support = float(np.mean(quality_support[y:y + height, x:x + width]) / 6)
+            confidence = float((np.max(enhanced[y:y + height, x:x + width]) / maximum * 0.55 + local_support * 0.45) * 100)
+            if confidence >= 65 and local_support >= 0.35:
                 boxes.append({"x": int(x), "y": int(y), "width": int(width), "height": int(height), "confidence_pct": round(confidence, 1)})
 
     marked = image.copy()
@@ -86,7 +98,14 @@ def _analyse_page(image: np.ndarray, page_number: int, draw_boxes: bool) -> dict
         "is_suspicious": bool(boxes),
         "regions": boxes,
         "marked_image_base64": "data:image/jpeg;base64," + base64.b64encode(buffer).decode("ascii"),
-        "metrics": {"anomaly_score": round(score, 2), "max_brightness": maximum},
+        "metrics": {
+            "anomaly_score": round(score, 2),
+            "max_brightness": maximum,
+            "variance": round(float(np.var(enhanced)), 2),
+            "energy": round(float(np.mean(np.square(enhanced.astype(np.float32)))), 2),
+            "suspicious_pixel_pct": round(float(np.mean(enhanced > 80) * 100), 3),
+            "quality_levels": 6,
+        },
     }
 
 
@@ -94,3 +113,28 @@ def analyse_ela(path: Path, draw_boxes: bool = True) -> list[dict]:
     """Return an annotated visual and bounding boxes for every decodable page."""
     return [_analyse_page(page, index, draw_boxes) for index, page in enumerate(_pages(path), start=1)]
 
+
+def render_fused_regions(path: Path, regions: list[dict]) -> list[dict]:
+    """Render one original-page view with the already merged evidence boxes."""
+    results: list[dict] = []
+    for page_number, page in enumerate(_pages(path), start=1):
+        image = _resize(page)
+        page_regions = [region for region in regions if region["page_number"] == page_number]
+        marked = image.copy()
+        for region in page_regions:
+            x, y, width, height = region["x"], region["y"], region["width"], region["height"]
+            cv2.rectangle(marked, (x, y), (x + width, y + height), (128, 0, 255), 3)
+            label = "+".join(region["detectors"]).upper()
+            cv2.putText(marked, label[:28], (x, max(y - 8, 18)), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (128, 0, 255), 2)
+        _, buffer = cv2.imencode(".jpg", marked, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        results.append({
+            "page_number": page_number,
+            "is_suspicious": bool(page_regions),
+            "regions": [
+                {"x": r["x"], "y": r["y"], "width": r["width"], "height": r["height"], "confidence_pct": round(r["confidence"] * 100, 1)}
+                for r in page_regions
+            ],
+            "marked_image_base64": "data:image/jpeg;base64," + base64.b64encode(buffer).decode("ascii"),
+            "metrics": {},
+        })
+    return results
