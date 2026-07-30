@@ -25,3 +25,7 @@ backend/app/modules/chatbot/rag/bm25_index.pkl
 backend/app/modules/chatbot/rag/qdrant_index.fingerprint
 
 /*.md
+
+# Journal des questions restées sans réponse : donnée d'exécution, propre à chaque
+# environnement. Il se relit avec `python -m app.modules.chatbot.rag.unanswered_log`.
+backend/app/modules/chatbot/rag/data/questions_sans_reponse.jsonl

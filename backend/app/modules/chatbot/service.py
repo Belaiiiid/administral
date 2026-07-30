@@ -99,6 +99,9 @@ def answer_question(
         {
             "original_question": ctx.pending_clarification.original_question,
             "intent": ctx.pending_clarification.intent,
+            # `step` n'existe que pour les questions posées par le code (la date d'une
+            # décision contestée) ; None pour celles écrites par le LLM.
+            "step": ctx.pending_clarification.step,
         }
         if ctx.pending_clarification
         else None
@@ -126,6 +129,10 @@ def answer_question(
                 "answer": None,
                 "sources": None,
                 "collected_profile": None,
+                # Branche juridique : quel droit servir (celui de la décision contestée)
+                # et si la question a déjà été tranchée dans cette conversation.
+                "date_reference": ctx.date_reference,
+                "date_asked": ctx.date_asked,
             }
         )
     except Exception:  # noqa: BLE001 — any engine failure degrades, never crashes
@@ -151,8 +158,11 @@ def answer_question(
             PendingClarificationSchema(
                 original_question=next_pending["original_question"],
                 intent=next_pending["intent"],
+                step=next_pending.get("step"),
             )
             if next_pending
             else None
         ),
+        date_reference=state.get("date_reference"),
+        date_asked=bool(state.get("date_asked")),
     )

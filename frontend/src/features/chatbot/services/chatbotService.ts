@@ -68,6 +68,8 @@ export const httpChatbotService: ChatbotService = {
             // clarification en cours vit ici le temps d'un aller-retour.
             pendingClarification: context.pendingClarification,
             isClarificationReply: context.isClarificationReply ?? false,
+            dateReference: context.dateReference ?? null,
+            dateAsked: context.dateAsked ?? false,
           }
         : undefined,
     }),

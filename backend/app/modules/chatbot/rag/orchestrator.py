@@ -14,10 +14,30 @@ signalées par un commentaire `MonParcours` dans le code :
 
 import json
 import re
+from datetime import date
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
-from .llm_client import call_llm, call_llm_structured, EXPLAIN_OPTION, SKIP_OPTION, _enforce_standard_options
+from .llm_client import (
+    EXPLAIN_OPTION,
+    SKIP_OPTION,
+    _enforce_standard_options,
+    call_llm,
+    call_llm_structured,
+    with_standard_options,
+)
 from . import rag_pipeline
+from . import legal_pipeline
+from .unanswered_log import (
+    RAISON_AUCUN_ARTICLE,
+    RAISON_EXTRAITS_INSUFFISANTS,
+    RAISON_HORS_SUJET,
+    RAISON_REFERENCE_INCONNUE,
+    REDIRECTION_OFFICIELLE,
+    log_unanswered,
+)
+# Import direct de l'extracteur de references (pas de KgLocal) : c'est une regex, elle ne
+# charge pas le graphe. Le graphe lui-meme n'est ouvert qu'a la premiere question juridique.
+from .kg_apl.query import extract_references
 
 # MonParcours : vocabulaire de profil dérivé de `ProfilPartiel`, pour que le
 # profiling remplisse exactement les champs dont les règles de checklist se servent.
@@ -32,12 +52,13 @@ from app.modules.citizen import estimation
 # `chatbot/service.py`), donc même un citoyen connecté obtient ici une fourchette par
 # tranches, jamais son profil réel — l'estimation à partir de données exactes reste sur
 # la page "Envoyer un dossier" (`GET /citizen/estimation`), pas dans la conversation.
-VALID_INTENTS = {"documents_necessaires", "rag_general", "estimation", "fallback"}
+VALID_INTENTS = {"documents_necessaires", "rag_general", "estimation",
+                 "fondement_juridique", "fallback"}
 
 CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour l'assistant citoyen de MonParcours,
 qui aide sur plusieurs démarches administratives (aide au logement APL, mais aussi d'autres démarches
 comme le CROUS - bourse, logement étudiant).
-Classe le message du citoyen dans EXACTEMENT une de ces 4 catégories :
+Classe le message du citoyen dans EXACTEMENT une de ces 5 catégories :
 
 - documents_necessaires: le citoyen demande quels documents sont nécessaires pour une demande d'APL
   spécifiquement (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas
@@ -56,23 +77,113 @@ Classe le message du citoyen dans EXACTEMENT une de ces 4 catégories :
   Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?",
   "comment faire une demande de bourse CROUS ?", "où en est mon dossier CROUS ?"
 
+- fondement_juridique: le citoyen demande CE QUE DIT LA LOI, ou conteste/veut comprendre une
+  décision reçue. En clair : les questions où se tromper lui coûte cher, et où la réponse doit être
+  le texte officiel daté plutôt qu'une explication générale — droit à l'aide selon sa situation,
+  refus, trop-perçu, recours, délai de prescription, obligations du logement ou du bailleur.
+  Exemples: "j'ai reçu un refus, est-ce que c'est légal ?", "la CAF me réclame un trop-perçu, a-t-elle
+  le droit ?", "je loue l'appartement de mes parents, ai-je droit à l'APL ?", "comment contester ?",
+  "mon logement est insalubre, ai-je quand même droit à l'aide ?"
+
 - fallback: tout le reste (hors-sujet, ambigu, démarche non couverte par le corpus).
+
+En cas d'hésitation entre rag_general et fondement_juridique : si le citoyen parle d'un droit, d'un
+refus, d'une somme réclamée ou d'une contestation, choisis fondement_juridique. Une question qui
+demande un MONTANT reste `estimation`.
 
 Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "documents_necessaires"}
 """
 
+# Formules de politesse, traitées SANS appel au classifieur : très fréquentes en ouverture
+# comme en clôture de conversation, jamais ambiguës, et surtout mal servies par le message
+# hors-sujet. Répondre « je ne peux vous aider que sur l'APL » à quelqu'un qui dit « merci »
+# est brutal et donne l'impression d'un robot qui n'écoute pas.
 GREETING_WORDS = {
     "bonjour", "bonsoir", "salut", "coucou", "hello", "hi", "hey",
     "bjr", "slt", "cc", "yo",
 }
+THANKS_WORDS = {
+    "merci", "mercii", "mrc", "thanks", "thx", "nickel", "parfait", "super", "genial",
+    "génial", "top", "impeccable",
+}
+FAREWELL_WORDS = {
+    "revoir", "bye", "ciao", "adieu", "bonne", "journee", "journée", "soiree", "soirée",
+}
+
+
+def courtoisie(message: str):
+    """Rend "salutation", "remerciement", "au_revoir", ou None.
+
+    Détection légère par mots-clés (pas de LLM) : le message doit être court et
+    essentiellement composé de la formule, pour ne pas confondre avec une vraie question
+    qui contiendrait accidentellement un mot proche - « merci de me dire quels documents
+    fournir » est une question, pas un remerciement, et compte plus de 5 mots."""
+    words = re.findall(r"[a-zà-ÿ]+", message.lower())
+    if not (0 < len(words) <= 5):
+        return None
+    if any(w in GREETING_WORDS for w in words):
+        return "salutation"
+    if any(w in THANKS_WORDS for w in words):
+        return "remerciement"
+    if any(w in FAREWELL_WORDS for w in words):
+        return "au_revoir"
+    return None
 
 
 def is_greeting(message: str) -> bool:
-    """Détection légère par mots-clés (pas de LLM) - le message doit être court et
-    essentiellement composé d'un mot de salutation, pour ne pas confondre avec une vraie
-    question qui contiendrait accidentellement un mot proche."""
-    words = re.findall(r"[a-zà-ÿ]+", message.lower())
-    return 0 < len(words) <= 4 and any(w in GREETING_WORDS for w in words)
+    """Conservé pour les appelants existants : une salutation au sens strict."""
+    return courtoisie(message) == "salutation"
+
+
+def cite_un_article(message: str) -> bool:
+    """Le message contient-il une référence d'article (« L. 822-2 », « R822-5 ») ?
+
+    Détection déterministe, comme la politesse : quand le citoyen recopie une référence de
+    son courrier, aucun doute n'est possible sur la branche à prendre - inutile de payer un
+    appel au classifieur, et impossible qu'il se trompe."""
+    return bool(extract_references(message))
+
+
+MOIS_FR = {
+    "janvier": 1, "fevrier": 2, "février": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6,
+    "juillet": 7, "aout": 8, "août": 8, "septembre": 9, "octobre": 10, "novembre": 11,
+    "decembre": 12, "décembre": 12,
+}
+
+
+def parse_date_fr(texte: str):
+    """Lit une date écrite par un citoyen, ou rend None si elle n'est pas lisible.
+
+    Déterministe et volontairement stricte : cette date décide de la VERSION du texte de loi
+    servie. Deviner « 2022 » comme le 1er janvier 2022 servirait le droit d'avant une
+    éventuelle modification de mars - on préfère redemander le mois. Une date future ou
+    antérieure à 1990 n'est pas une décision reçue : on ne la retient pas."""
+    if not texte:
+        return None
+    t = texte.strip().lower()
+
+    candidats = []
+    m = re.search(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b", t)
+    if m:
+        candidats.append((int(m.group(1)), int(m.group(2)), int(m.group(3))))
+    m = re.search(r"\b(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})\b", t)
+    if m:
+        candidats.append((int(m.group(3)), int(m.group(2)), int(m.group(1))))
+    m = re.search(r"\b(\d{1,2})(?:er)?\s+([a-zàâäéèêëïîôöùûüç]+)\s+(\d{4})\b", t)
+    if m and m.group(2) in MOIS_FR:
+        candidats.append((int(m.group(3)), MOIS_FR[m.group(2)], int(m.group(1))))
+    m = re.search(r"\b([a-zàâäéèêëïîôöùûüç]+)\s+(\d{4})\b", t)
+    if m and m.group(1) in MOIS_FR:
+        candidats.append((int(m.group(2)), MOIS_FR[m.group(1)], 1))
+
+    for annee, mois, jour in candidats:
+        try:
+            valeur = date(annee, mois, jour)
+        except ValueError:
+            continue
+        if date(1990, 1, 1) <= valeur <= date.today():
+            return valeur
+    return None
 
 
 class D4State(TypedDict):
@@ -96,6 +207,11 @@ class D4State(TypedDict):
     answer: Optional[str]
     sources: Optional[list]
     collected_profile: Optional[dict]
+    # Branche juridique : la date du droit à appliquer (celle de la décision contestée) et
+    # le fait que la question ait déjà été posée. Comme l'historique, les deux font
+    # l'aller-retour par le client - aucune session serveur.
+    date_reference: Optional[str]
+    date_asked: bool
 
 
 # Catégories de chunks accessibles selon le rôle. "legislation" (Legifrance) est réservé aux agents -
@@ -139,10 +255,14 @@ def orchestrator_node(state: D4State) -> D4State:
     # directement au noeud qui avait pose la question (rag_general OU documents_necessaires).
     if state.get("is_clarification_reply") and pending:
         return {**state, "intent": pending["intent"]}
-    # Salutation ("Bonjour" etc.) -> pas la peine d'appeler le classifieur LLM, tres frequent
-    # en ouverture de conversation WhatsApp et jamais ambigu.
-    if is_greeting(state["message"]):
+    # Politesse ("Bonjour", "merci", "bonne journee") -> pas la peine d'appeler le
+    # classifieur LLM, tres frequent en ouverture comme en cloture, et jamais ambigu.
+    if courtoisie(state["message"]):
         return {**state, "intent": "fallback"}
+    # Le citoyen recopie une reference d'article de son courrier -> la branche juridique est
+    # certaine, meme motif deterministe que la politesse (voir cite_un_article).
+    if cite_un_article(state["message"]):
+        return {**state, "intent": "fondement_juridique"}
     intent = route_intent_llm(state)
     return {**state, "intent": intent}
 
@@ -414,6 +534,17 @@ def rag_general_node(state: D4State) -> D4State:
             "pending_clarification": {"original_question": original_question, "intent": "rag_general"},
         }
 
+    # Le corpus ne permettait pas de répondre : le LLM le signale (repondu=false), le code
+    # substitue le renvoi officiel et consigne la question. On ne laisse pas passer une
+    # demi-réponse - et surtout on garde la trace de ce qui manquait.
+    if result.get("repondu") is False:
+        log_unanswered(
+            query, "rag_general", RAISON_EXTRAITS_INSUFFISANTS,
+            details={"resume_manque": result["text"][:300]}, user_role=role,
+        )
+        return {**state, "response": REDIRECTION_OFFICIELLE, "answer": REDIRECTION_OFFICIELLE,
+                "sources": [], "response_options": None, "pending_clarification": None}
+
     response = result["text"]
     if SHOW_SOURCES:
         sources_str = ", ".join(result["sources"])
@@ -442,6 +573,170 @@ def rag_general_node(state: D4State) -> D4State:
     }
 
 
+_legal_pipeline_instance = None
+
+
+def get_legal_pipeline():
+    """Le pipeline juridique partage les index du pipeline RAG (mêmes BM25 et Qdrant) :
+    seuls le filtre de catégorie, la consultation du graphe et le prompt diffèrent."""
+    global _legal_pipeline_instance
+    if _legal_pipeline_instance is None:
+        _legal_pipeline_instance = legal_pipeline.get_legal_pipeline(get_rag_pipeline())
+    return _legal_pipeline_instance
+
+
+# --- La question de date, posée par le CODE ---------------------------------------------
+# C'est le point le plus important de cette branche. La loi change : un citoyen qui conteste
+# une décision de 2022 doit recevoir le droit de 2022, pas celui d'aujourd'hui. Lui servir la
+# règle actuelle avec une source officielle affichée à côté est pire qu'une réponse vague :
+# c'est faux, et ça paraît fiable.
+#
+# On ne confie donc PAS cette question au LLM (qui peut l'oublier, ou croire la deviner du
+# contexte) : elle est posée systématiquement, en dur, avant toute réponse juridique. Le
+# mécanisme d'affichage reste celui des clarifications existantes - même contrat, mêmes
+# options garanties (voir llm_client.with_standard_options).
+DATE_QUESTION = (
+    "Avant de vous répondre : votre question porte-t-elle sur une décision que vous avez "
+    "déjà reçue (un courrier de la CAF) ?"
+)
+OPTION_DECISION_RECUE = "Oui, j'ai reçu une décision"
+OPTION_QUESTION_GENERALE = "Non, c'est une question générale"
+
+DATE_VALEUR_QUESTION = (
+    "De quand date cette décision ? Indiquez la date qui figure sur le courrier "
+    "(par exemple 12/03/2024, ou « mars 2024 » si vous ne vous souvenez que du mois)."
+)
+DATE_EXPLICATION = (
+    "La loi sur les aides au logement change au fil des années. Si vous contestez une "
+    "décision, ce qui compte n'est pas la règle d'aujourd'hui mais celle qui s'appliquait "
+    "au moment de cette décision. C'est pour ça que je vous demande si vous avez déjà reçu "
+    "un courrier : avec sa date, je peux vous donner le texte exact qui s'appliquait alors."
+)
+DATE_ILLISIBLE = (
+    "Je n'ai pas réussi à lire cette date. Vous pouvez l'écrire par exemple 12/03/2024, "
+    "ou simplement « mars 2024 »."
+)
+DATE_ABANDONNEE = (
+    "Faute de date, je vous réponds sur le droit en vigueur aujourd'hui. Si votre décision "
+    "est ancienne, les règles ont pu changer depuis : dans ce cas, rapprochez-vous de votre "
+    "CAF avec le courrier sous les yeux.\n\n"
+)
+
+
+def _clarification_date(state, original_question, step, texte, options=None):
+    """Une question de clarification produite par le code, au même format que celles du LLM."""
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "response_options": with_standard_options(options) if options else None,
+        "pending_clarification": {
+            "original_question": original_question,
+            "intent": "fondement_juridique",
+            "step": step,
+        },
+        "sources": [],
+    }
+
+
+def fondement_juridique_node(state: D4State) -> D4State:
+    """Répond à partir du texte de loi daté, avec ses sources Légifrance.
+
+    Deux différences assumées avec `rag_general` : les sources ne sont JAMAIS masquables ici
+    (elles font partie de la réponse, pas de son habillage - voir `SHOW_SOURCES`), et le
+    prompt interdit la reformulation approximative, parce que sur du texte juridique la
+    précision perdue est justement ce qui coûte cher au citoyen."""
+    pending = state.get("pending_clarification") or {}
+    is_reply = bool(state.get("is_clarification_reply") and pending)
+    step = pending.get("step") if is_reply else None
+    original_question = pending.get("original_question") if is_reply else state["message"]
+    message = (state["message"] or "").strip()
+
+    date_reference = state.get("date_reference")
+    date_asked = bool(state.get("date_asked"))
+    avertissement = ""
+
+    if step == "date_choix":
+        if message == EXPLAIN_OPTION:
+            # Le citoyen ne comprend pas POURQUOI on lui demande ça : on explique, puis on
+            # repose la même question. L'explication est écrite ici parce que la question
+            # l'est aussi - on ne délègue pas au LLM le soin d'expliquer une consigne du code.
+            return _clarification_date(
+                state, original_question, "date_choix",
+                f"{DATE_EXPLICATION}\n\n{DATE_QUESTION}",
+                [OPTION_DECISION_RECUE, OPTION_QUESTION_GENERALE],
+            )
+        if message == OPTION_DECISION_RECUE:
+            return _clarification_date(state, original_question, "date_valeur", DATE_VALEUR_QUESTION)
+        # "Non", "Passer cette question", ou n'importe quoi d'autre : droit d'aujourd'hui.
+        date_asked, date_reference = True, None
+
+    elif step in ("date_valeur", "date_valeur_2"):
+        if message == EXPLAIN_OPTION:
+            return _clarification_date(
+                state, original_question, step, f"{DATE_EXPLICATION}\n\n{DATE_VALEUR_QUESTION}"
+            )
+        if message == SKIP_OPTION:
+            date_asked, date_reference, avertissement = True, None, DATE_ABANDONNEE
+        else:
+            valeur = parse_date_fr(message)
+            if valeur:
+                date_asked, date_reference = True, valeur.isoformat()
+            elif step == "date_valeur":
+                # Une seule relance : insister davantage ferait décrocher un citoyen qui ne
+                # retrouve pas son courrier.
+                return _clarification_date(
+                    state, original_question, "date_valeur_2",
+                    f"{DATE_ILLISIBLE}\n\n{DATE_VALEUR_QUESTION}",
+                )
+            else:
+                date_asked, date_reference, avertissement = True, None, DATE_ABANDONNEE
+
+    elif not date_asked:
+        # Première question juridique de la conversation : on demande avant de répondre.
+        return _clarification_date(
+            state, original_question, "date_choix", DATE_QUESTION,
+            [OPTION_DECISION_RECUE, OPTION_QUESTION_GENERALE],
+        )
+
+    question = original_question or state["message"]
+    result = get_legal_pipeline().answer(
+        question,
+        date_reference=date.fromisoformat(date_reference) if date_reference else None,
+        conversation_history=state["conversation_history"],
+    )
+
+    # Ce que le graphe n'a pas su fournir est consigné : une référence absente comme une
+    # question sans article, ce sont les deux façons dont le corpus juridique montre ses
+    # trous (voir unanswered_log).
+    role = state.get("user_role") or "citizen"
+    if not result.get("answered", True):
+        log_unanswered(question, "fondement_juridique", RAISON_AUCUN_ARTICLE, user_role=role)
+    if result["references_inconnues"]:
+        log_unanswered(
+            question, "fondement_juridique", RAISON_REFERENCE_INCONNUE,
+            details={"references": result["references_inconnues"]}, user_role=role,
+        )
+
+    sources = [
+        {"title": s["titre"], "category": "legislation", "url": s["url"]}
+        for s in result["sources"]
+    ]
+    return {
+        **state,
+        # `response` porte les sources en suffixe (chat texte) ; `answer` ne les porte pas,
+        # l'UI web les affichant à part en liens cliquables. Sur cette branche, l'un ou
+        # l'autre est obligatoire - jamais rien.
+        "response": avertissement + result["text"] + result["sources_texte"],
+        "answer": avertissement + result["text"],
+        "sources": sources,
+        "response_options": None,
+        "pending_clarification": None,
+        "date_reference": date_reference,
+        "date_asked": date_asked,
+    }
+
+
 GREETING_RESPONSE = (
     "Bonjour ! Je peux vous aider sur plusieurs démarches administratives (aide au logement APL, "
     "CROUS...) : questions générales, ou documents et montant pour une demande d'APL. "
@@ -454,8 +749,41 @@ FALLBACK_RESPONSE = (
 )
 
 
+THANKS_RESPONSE = (
+    "Je vous en prie ! Si une autre question sur vos démarches vous vient, je suis là."
+)
+FAREWELL_RESPONSE = (
+    "Bonne journée ! N'hésitez pas à revenir si vous avez une question sur vos démarches."
+)
+COURTOISIE_RESPONSES = {
+    "salutation": GREETING_RESPONSE,
+    "remerciement": THANKS_RESPONSE,
+    "au_revoir": FAREWELL_RESPONSE,
+}
+
+
 def fallback_node(state: D4State) -> D4State:
-    response = GREETING_RESPONSE if is_greeting(state["message"]) else FALLBACK_RESPONSE
+    """Trois situations très différentes arrivent ici, et une seule est un échec.
+
+    Une politesse reçoit une politesse. Une vraie question à laquelle on n'a pas su
+    répondre est CONSIGNÉE (voir `unanswered_log`) : c'est elle qui dit ce qui manque au
+    corpus, et la perdre reviendrait à répéter la même impasse indéfiniment."""
+    forme = courtoisie(state["message"])
+    if forme:
+        return {
+            **state,
+            "response": COURTOISIE_RESPONSES[forme],
+            "answer": COURTOISIE_RESPONSES[forme],
+            "sources": [],
+            "response_options": None,
+            "pending_clarification": None,
+        }
+
+    log_unanswered(
+        state["message"], "fallback", RAISON_HORS_SUJET,
+        user_role=state.get("user_role") or "citizen",
+    )
+    response = FALLBACK_RESPONSE
     return {
         **state,
         "response": response,
@@ -474,6 +802,7 @@ def build_graph():
     graph.add_node("documents_necessaires", documents_necessaires_node)
     graph.add_node("estimation", estimation_node)
     graph.add_node("rag_general", rag_general_node)
+    graph.add_node("fondement_juridique", fondement_juridique_node)
     graph.add_node("fallback", fallback_node)
 
     graph.set_entry_point("orchestrator")
@@ -485,11 +814,13 @@ def build_graph():
             "documents_necessaires": "documents_necessaires",
             "estimation": "estimation",
             "rag_general": "rag_general",
+            "fondement_juridique": "fondement_juridique",
             "fallback": "fallback",
         },
     )
 
-    for node_name in ["documents_necessaires", "estimation", "rag_general", "fallback"]:
+    for node_name in ["documents_necessaires", "estimation", "rag_general",
+                      "fondement_juridique", "fallback"]:
         graph.add_edge(node_name, END)
 
     return graph.compile()

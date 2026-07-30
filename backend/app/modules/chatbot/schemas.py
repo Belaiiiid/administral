@@ -69,7 +69,14 @@ class PendingClarificationSchema(CamelModel):
     """
 
     original_question: str
-    intent: Literal["rag_general", "documents_necessaires", "estimation"]
+    intent: Literal[
+        "rag_general", "documents_necessaires", "estimation", "fondement_juridique"
+    ]
+    #: Étape du dialogue quand la question vient du CODE et non du LLM : la date d'une
+    #: décision contestée se demande en deux temps (oui/non, puis la date elle-même).
+    #: Bornée comme `intent`, pour la même raison — elle vient du client et pilote le
+    #: comportement du nœud.
+    step: Literal["date_choix", "date_valeur", "date_valeur_2"] | None = None
 
 
 class ChatbotContextSchema(CamelModel):
@@ -81,6 +88,13 @@ class ChatbotContextSchema(CamelModel):
     #: une option ou saisie dans le champ dédié). Jamais déduit du contenu du
     #: message côté backend — c'est l'UI qui sait d'où vient la réponse.
     is_clarification_reply: bool = False
+    #: Date (ISO) du droit à appliquer sur la branche juridique : celle de la décision
+    #: que le citoyen conteste. Absente = droit en vigueur aujourd'hui. Comme
+    #: l'historique, elle fait l'aller-retour par le client (aucune session serveur).
+    date_reference: str | None = None
+    #: True une fois la question de date posée ET tranchée, pour ne pas la reposer à
+    #: chaque question juridique de la même conversation.
+    date_asked: bool = False
 
 
 class ChatbotRequestSchema(CamelModel):
@@ -98,6 +112,9 @@ class ChatbotResponseSchema(CamelModel):
     options: list[str] | None = None
     #: Non nul tant que l'assistant attend une réponse à sa question.
     pending_clarification: PendingClarificationSchema | None = None
+    #: État du dialogue de date, à renvoyer tel quel avec le message suivant.
+    date_reference: str | None = None
+    date_asked: bool = False
 
 
 class ChatHistoryMessageSchema(CamelModel):
