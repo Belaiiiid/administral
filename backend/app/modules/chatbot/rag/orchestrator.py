@@ -34,23 +34,29 @@ from app.modules.citizen import estimation
 # la page "Envoyer un dossier" (`GET /citizen/estimation`), pas dans la conversation.
 VALID_INTENTS = {"documents_necessaires", "rag_general", "estimation", "fallback"}
 
-CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour un chatbot d'aide au logement (APL).
+CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour l'assistant citoyen de MonParcours,
+qui aide sur plusieurs démarches administratives (aide au logement APL, mais aussi d'autres démarches
+comme le CROUS - bourse, logement étudiant).
 Classe le message du citoyen dans EXACTEMENT une de ces 4 catégories :
 
 - documents_necessaires: le citoyen demande quels documents sont nécessaires pour une demande d'APL
-  (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas d'authentification,
-  donc les deux cas sont traités pareil).
+  spécifiquement (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas
+  d'authentification, donc les deux cas sont traités pareil). Réservé à l'APL : une question sur les
+  documents pour une autre démarche (ex: CROUS) est classée `rag_general`.
   Exemples: "quels documents pour mon dossier ?", "quels documents pour mon fils étudiant ?",
   "je suis propriétaire, il me faudrait quoi ?"
 
-- estimation: le citoyen veut savoir combien il pourrait toucher, un montant d'aide.
+- estimation: le citoyen veut savoir combien il pourrait toucher au titre de l'APL, un montant d'aide.
+  Réservé à l'APL également (pas de calcul de montant pour les autres démarches).
   Exemples: "combien je pourrais toucher ?", "à combien s'élève l'APL pour mon loyer ?",
   "estime mon aide au logement", "quel montant d'APL pour un couple avec un enfant ?"
 
-- rag_general: question générale sur la réglementation, les règles, le fonctionnement de l'APL.
-  Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?"
+- rag_general: question générale sur une démarche administrative couverte par le corpus (réglementation,
+  règles, fonctionnement, étapes, suivi) - que ce soit l'APL ou une autre démarche comme le CROUS.
+  Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?",
+  "comment faire une demande de bourse CROUS ?", "où en est mon dossier CROUS ?"
 
-- fallback: tout le reste (hors-sujet, ambigu, pas lié au logement).
+- fallback: tout le reste (hors-sujet, ambigu, démarche non couverte par le corpus).
 
 Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "documents_necessaires"}
 """
@@ -423,6 +429,7 @@ def rag_general_node(state: D4State) -> D4State:
             structured[url] = {
                 "title": chunk.get("source_title") or url,
                 "category": chunk.get("category", "demarche"),
+                "url": url,
             }
 
     return {
@@ -436,12 +443,14 @@ def rag_general_node(state: D4State) -> D4State:
 
 
 GREETING_RESPONSE = (
-    "Bonjour ! Je peux vous aider sur l'aide au logement (APL) : questions générales sur la "
-    "réglementation, ou documents nécessaires pour une demande. Que puis-je faire pour vous ?"
+    "Bonjour ! Je peux vous aider sur plusieurs démarches administratives (aide au logement APL, "
+    "CROUS...) : questions générales, ou documents et montant pour une demande d'APL. "
+    "Que puis-je faire pour vous ?"
 )
 FALLBACK_RESPONSE = (
-    "Je ne peux pas répondre à cette question. Je peux vous aider sur les documents nécessaires "
-    "pour une demande d'APL, ou des questions générales sur l'aide au logement."
+    "Je ne peux pas répondre à cette question. Je peux vous aider sur les documents et le montant "
+    "d'une demande d'APL, ou des questions générales sur les démarches administratives que je connais "
+    "(aide au logement, CROUS...)."
 )
 
 

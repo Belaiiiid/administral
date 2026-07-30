@@ -1,0 +1,98 @@
+[
+  {
+    "id": "crous-faq-dse-quest-ce-que",
+    "question": "Qu'est-ce que le Dossier Social Étudiant (DSE) ?",
+    "answer": "Le Dossier Social Étudiant (DSE) est le dossier unique qui permet de demander à la fois une bourse sur critères sociaux du CROUS et/ou un logement en résidence universitaire CROUS. Il n'est pas nécessaire de connaître sa future formation pour le déposer : une décision conditionnelle est établie pour chaque vœu de formation indiqué, puis confirmée définitivement une fois l'inscription administrative réalisée.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/bourse-et-logement-constituez-votre-dossier-social-etudiant-dse-409",
+    "source_title": "Bourse et logement : constituez votre Dossier social étudiant (DSE) - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-comment-deposer",
+    "question": "Comment déposer sa demande de DSE ?",
+    "answer": "La demande de DSE se dépose en ligne sur messervices.etudiant.gouv.fr. Il faut d'abord créer ou mettre à jour son compte sur ce site (en réutilisant son compte Parcoursup si on en a un), puis remplir le dossier écran par écran jusqu'à l'écran de validation final : tant que cette dernière étape n'est pas atteinte, la demande n'est pas prise en compte. En cas de déconnexion imprévue, la saisie déjà effectuée reste enregistrée pendant 7 jours et peut être reprise. La campagne DSE se déroule chaque année, en général de début mars à fin mai : les dates exactes de la campagne en cours sont à vérifier directement sur messervices.etudiant.gouv.fr.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/bourse-et-logement-constituez-votre-dossier-social-etudiant-dse-409",
+    "source_title": "Bourse et logement : constituez votre Dossier social étudiant (DSE) - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-depot-tardif",
+    "question": "Peut-on déposer son DSE après la date limite de fin mai ?",
+    "answer": "Oui, une demande de DSE peut encore être déposée en ligne sur messervices.etudiant.gouv.fr jusqu'au 31 décembre, mais ces demandes tardives ne sont pas prioritaires : elles sont traitées après celles déposées dans les délais, ce qui peut retarder le versement de la bourse ou l'attribution d'un logement, parfois après le début de l'année universitaire. Déposer sa demande le plus tôt possible reste donc recommandé.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-documents-necessaires",
+    "question": "Quels documents faut-il préparer pour constituer son DSE ?",
+    "answer": "Les documents demandés dépendent de la situation familiale de l'étudiant. Dans la plupart des cas il faut : l'avis d'imposition des parents sur les revenus de l'année de référence (parents mariés ou pacsés : un avis commun ; parents séparés ou divorcés : les deux avis séparés, plus le jugement de divorce/séparation ; parent veuf : l'avis du foyer plus l'acte de décès), un RIB ou IBAN au nom de l'étudiant lui-même (jamais au nom des parents, la bourse ne pouvant être versée que sur le compte de l'étudiant), et des justificatifs de la situation particulière de l'étudiant si besoin (étudiant étranger : titre de séjour et attestation de revenus à l'étranger ; réfugié : titre de séjour et attestation OFPRA ; ancien enfant de l'Aide sociale à l'enfance : attestation de l'ASE ; étudiant marié ou pacsé : acte de mariage/PACS ; étudiant avec enfant : livret de famille et acte de naissance de l'enfant). Des justificatifs de scolarité de l'étudiant et de ses frères et sœurs poursuivant des études supérieures peuvent aussi être demandés, ces derniers ouvrant droit à des points de charge supplémentaires.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/bourse-et-logement-constituez-votre-dossier-social-etudiant-dse-409",
+    "source_title": "Bourse et logement : constituez votre Dossier social étudiant (DSE) - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-montant-bourse",
+    "question": "Comment est déterminé le montant de la bourse CROUS ?",
+    "answer": "Le montant de la bourse dépend de l'échelon attribué à l'étudiant, calculé à partir des revenus des parents (les revenus de l'étudiant lui-même ne comptent que dans des cas particuliers : étudiant de 26 ans ou plus, ancien boursier avec domicile séparé et revenus suffisants, étudiant marié ou pacsé avec revenus suffisants, étudiant avec enfant à charge non rattaché fiscalement aux parents, réfugié ou apatride, ou ancien pupille de l'État) et d'un nombre de points de charge, calculé selon le barème national publié chaque année au Journal officiel. Les points de charge tiennent compte notamment de la distance entre le domicile familial et le lieu d'études, et du nombre de frères et sœurs à charge poursuivant des études supérieures.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-notifications",
+    "question": "Quelle est la différence entre la notification conditionnelle et la notification définitive de bourse ?",
+    "answer": "La notification conditionnelle est émise après l'instruction du DSE : elle indique une décision provisoire d'attribution de bourse pour chaque vœu de formation indiqué, et doit être présentée à l'établissement lors de l'inscription administrative (elle dispense notamment du paiement de la CVEC). La notification définitive est émise une fois l'inscription administrative de l'étudiant confirmée par son établissement : elle constitue la décision officielle finale et déclenche le versement effectif de la bourse.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-versement-bourse",
+    "question": "Comment et quand la bourse CROUS est-elle versée ?",
+    "answer": "La bourse est versée mensuellement, sur 10 mois, exclusivement sur le compte bancaire de l'étudiant (jamais sur celui des parents) : un RIB ou IBAN au nom de l'étudiant est donc indispensable, sans quoi le versement est impossible. Pour les dossiers complets et les inscriptions validées suffisamment tôt, un premier versement anticipé peut intervenir fin août ; sinon le versement standard a lieu en septembre, le CROUS traitant les paiements par vagues hebdomadaires ce mois-là pour verser au plus grand nombre d'étudiants le plus vite possible. Après le passage du dossier au statut \"paiement effectué\", il faut compter en moyenne 3 à 5 jours ouvrés de délai bancaire avant réception effective sur le compte.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-demande-logement",
+    "question": "Comment demander un logement en résidence universitaire CROUS ?",
+    "answer": "La demande de logement en résidence CROUS passe par le DSE : il faut déposer un DSE pendant la campagne (en général de début mars à fin mai, dates exactes à vérifier sur messervices.etudiant.gouv.fr) et cocher la case de demande de logement. L'échelon de bourse calculé automatiquement détermine un indice social, qui sert à classer les demandes. Début mai, un e-mail détaille la procédure pour saisir ses vœux de logement sur trouverunlogement.lescrous.fr (jusqu'à 10 vœux possibles, dans une ou plusieurs villes/académies). Les propositions se font ensuite par cycles successifs sur juin ; en cas d'attribution, l'étudiant dispose de 5 jours pour confirmer en réglant un dépôt de réservation (déduit ensuite du premier loyer).",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-pas-de-logement-phase-principale",
+    "question": "Que faire si je n'ai pas obtenu de logement CROUS lors de la phase principale d'attribution ?",
+    "answer": "Une phase complémentaire s'ouvre début juillet sur trouverunlogement.lescrous.fr : elle donne accès aux places restantes et est ouverte à tous les étudiants, y compris ceux qui n'ont pas déposé de DSE (notamment les étudiants internationaux). Les attributions y sont faites au fil de l'eau par les directeurs de CROUS, en respectant la priorité sociale. Il est recommandé de préparer en parallèle des solutions de logement privé de secours, par exemple via lokaviz.fr (annonces de logements privés labellisés par les CROUS) ou des plateformes de colocation.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-logement-etudiant-international",
+    "question": "Un étudiant international peut-il demander un logement CROUS sans dossier DSE ?",
+    "answer": "Oui : l'attribution principale de logement est réservée aux étudiants ayant déposé un DSE (ce qui suppose de remplir les conditions de la bourse sur critères sociaux, que la plupart des étudiants internationaux ne remplissent pas). Les étudiants internationaux peuvent en revanche candidater dès le début de la phase complémentaire (début juillet) sur trouverunlogement.lescrous.fr pour les places encore disponibles, avec des attributions au fil de l'eau selon la priorité sociale.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-contester-decision",
+    "question": "Comment contester une décision de bourse ou de logement CROUS ?",
+    "answer": "La première étape consiste à contacter directement son CROUS via la rubrique assistance de messervices.etudiant.gouv.fr, en précisant le sujet de la demande. Si la situation n'est pas résolue, l'étudiant peut ensuite déposer un recours formel ou solliciter le médiateur de l'enseignement supérieur et de la recherche.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  },
+  {
+    "id": "crous-faq-cumul-job-service-civique",
+    "question": "Peut-on cumuler la bourse CROUS avec un job étudiant ou un Service Civique ?",
+    "answer": "Oui pour les deux. Un job étudiant est compatible avec la bourse, pendant l'année comme pendant l'été, à deux conditions : rester assidu aux cours, travaux dirigés et examens (l'assiduité conditionne le maintien du statut boursier), et ne pas être inscrit comme demandeur d'emploi à France Travail, ce statut étant incompatible avec la bourse sur critères sociaux. Le Service Civique n'a aucun impact sur l'éligibilité ni le montant de la bourse, et son indemnité n'entre pas dans le calcul des ressources ; les boursiers aux échelons 5, 6 ou 7 perçoivent même une indemnité complémentaire de 108 € en plus de leur bourse pendant leur mission.",
+    "source_url": "https://www.etudiant.gouv.fr/fr/faq-dossier-social-etudiant-dse-bourse-sur-criteres-sociaux-et-logement-crous-2238",
+    "source_title": "FAQ Dossier social étudiant (DSE) : bourse sur critères sociaux et logement Crous - Étudiant.gouv",
+    "category": "demarche"
+  }
+]

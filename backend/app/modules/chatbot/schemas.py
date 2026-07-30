@@ -49,6 +49,7 @@ class SourceCategory(str, enum.Enum):
 class ChatbotSourceSchema(CamelModel):
     title: str
     category: SourceCategory
+    url: str
 
 
 class ChatMessageSchema(CamelModel):

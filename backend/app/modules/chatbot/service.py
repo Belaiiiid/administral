@@ -72,6 +72,7 @@ def _to_sources(raw: list | None) -> list[ChatbotSourceSchema]:
             ChatbotSourceSchema(
                 title=item.get("title") or "Source",
                 category=category if category in _VALID_CATEGORIES else "demarche",
+                url=item.get("url") or "",
             )
         )
     return sources
