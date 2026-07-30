@@ -1,5 +1,5 @@
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
 import { useVoiceStore } from '@/features/voice/store/voiceStore';
+import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 
 interface LocationState {
   from?: { pathname: string };
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
 
   const login = useSessionStore((state) => state.login);
   const isLoggingIn = useSessionStore((state) => state.isLoggingIn);
@@ -58,6 +60,39 @@ export default function LoginPage() {
       // The store holds the error message; the form renders it below.
     }
   };
+
+  // Register page context for the voice assistant.
+  // Confirmation prompts are skipped on this page (skipConfirmation in the provider)
+  // so the assistant fills fields directly without reading the password aloud.
+  useVoicePage({
+    readableText:
+      "Page de connexion. Vous pouvez vous connecter avec votre adresse e-mail et votre mot de passe, ou utiliser FranceConnect.",
+    actions: [
+      {
+        id: 'submit_login',
+        label: 'se connecter',
+        description: 'Soumettre le formulaire de connexion',
+        intent: { type: 'click_action', actionId: 'submit_login' },
+        sensitive: true,
+      },
+    ],
+    fields: [
+      {
+        fieldId: 'email',
+        labels: ['email', 'adresse email', 'adresse e-mail', 'mail', 'e-mail', 'courriel'],
+        setValue: setEmail,
+      },
+      {
+        fieldId: 'password',
+        labels: ['mot de passe', 'password', 'mdp', 'code'],
+        setValue: setPassword,
+        sensitive: true,
+      },
+    ],
+    actionCallbacks: {
+      submit_login: () => formRef.current?.requestSubmit(),
+    },
+  });
 
   return (
     <Card>
@@ -89,7 +124,7 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
+        <form ref={formRef} className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Adresse e-mail</Label>
             <Input

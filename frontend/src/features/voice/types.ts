@@ -15,12 +15,13 @@ export interface TextToSpeechProvider {
 }
 
 export type VoiceIntent =
-  | { type: 'navigate'; target: 'home' | 'documents' }
+  | { type: 'navigate'; target: 'home' | 'documents' | 'dossier' }
   | { type: 'read_page' }
   | { type: 'stop_speaking' }
   | { type: 'explain_actions' }
   | { type: 'fill_field'; fieldId: string; value: string }
   | { type: 'sensitive_action'; actionId: string }
+  | { type: 'click_action'; actionId: string }
   | { type: 'confirm' }
   | { type: 'cancel' }
   | { type: 'unknown'; transcript: string };
@@ -37,10 +38,14 @@ export interface VoicePageField {
   fieldId: string;
   labels: string[];
   setValue: (value: string) => void;
+  /** If true, the assistant will NOT repeat the value out loud (e.g. passwords). */
+  sensitive?: boolean;
 }
 
 export interface VoicePageContextValue {
   readableText: string;
   actions: VoicePageAction[];
   fields?: VoicePageField[];
+  /** Callbacks keyed by action ID, invoked when a click_action intent is confirmed. */
+  actionCallbacks?: Record<string, () => void>;
 }

@@ -5,6 +5,16 @@ export function useMicrophone(timesliceMs: number = 750) {
   const chunksRef = useRef<BlobPart[]>([]);
   const [recording, setRecording] = useState(false);
 
+  const cleanup = () => {
+    const mr = mediaRecorderRef.current;
+    if (mr && mr.stream) {
+      mr.stream.getTracks().forEach((track) => track.stop());
+    }
+    mediaRecorderRef.current = null;
+    chunksRef.current = [];
+    setRecording(false);
+  };
+
   const start = useCallback(async () => {
     if (recording) return;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

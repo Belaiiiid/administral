@@ -12,7 +12,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
@@ -42,6 +42,7 @@ import {
   type EstimationAide,
   type PersonalizedDossier,
 } from '@/types';
+import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 
 /**
  * "Envoyer un dossier" — three independent functions a citizen can use in any
@@ -217,6 +218,11 @@ function PendingFilesColumn({
   );
 }
 
+export interface CivilStatusCardRef {
+  setBirthDate: (val: string) => void;
+  setNir: (val: string) => void;
+}
+
 /**
  * État civil : NIR + date de naissance.
  *
@@ -224,13 +230,13 @@ function PendingFilesColumn({
  * fill it here (the same `PATCH /citizen/profile` the profile page uses), so the
  * dossier is self-contained — no detour to another screen to become submittable.
  */
-function CivilStatusCard({
-  profile,
-  onSaved,
-}: {
-  profile: CitizenProfilePersisted;
-  onSaved: (updated: CitizenProfilePersisted) => void;
-}) {
+const CivilStatusCard = forwardRef<
+  CivilStatusCardRef,
+  {
+    profile: CitizenProfilePersisted;
+    onSaved: (updated: CitizenProfilePersisted) => void;
+  }
+>(({ profile, onSaved }, ref) => {
   const hasNir = profile.hasSocialSecurityNumber;
   const hasBirthDate = Boolean(profile.birthDate);
   const complete = hasNir && hasBirthDate;
@@ -240,6 +246,17 @@ function CivilStatusCard({
   const [nir, setNir] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    setBirthDate: (val: string) => {
+      setEditing(true);
+      setBirthDate(val);
+    },
+    setNir: (val: string) => {
+      setEditing(true);
+      setNir(val);
+    },
+  }));
 
   const birthDateInvalid = birthDateError(birthDate);
   const nirInvalid = nir ? socialSecurityNumberError(nir) : null;
@@ -371,7 +388,7 @@ function CivilStatusCard({
       </CardContent>
     </Card>
   );
-}
+});
 
 /**
  * Indicative benefit estimate — deliberately simplified, never presented as
@@ -466,6 +483,7 @@ function SubmissionCard({
   blockingReason,
   profileSnapshot,
   onSubmitted,
+  submitRef,
 }: {
   applicationId: string;
   pendingFiles: File[];
@@ -475,6 +493,8 @@ function SubmissionCard({
   blockingReason: string | null;
   profileSnapshot: Record<string, unknown>;
   onSubmitted: () => void;
+  /** Ref forwarded from the parent so the voice assistant can trigger submission. */
+  submitRef?: React.RefObject<HTMLButtonElement>;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadFailures, setUploadFailures] = useState<string[]>([]);
@@ -541,7 +561,7 @@ function SubmissionCard({
                 ? `${pendingFiles.length} document(s) prêt(s) à être envoyé(s) avec le dossier.`
                 : 'Aucun document en attente — vous pouvez tout de même transmettre le dossier.'}
             </p>
-            <Button block onClick={submit} disabled={!canSubmit || isSubmitting}>
+            <Button ref={submitRef} block onClick={submit} disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
               ) : (
@@ -579,6 +599,12 @@ export default function PersonalizedDossierPage() {
   const [error, setError] = useState<string | null>(null);
   // Held in the browser only — never uploaded until the dossier is sent.
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Ref to the submit button so the voice assistant can click it
+  const submitButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Ref to the civil status card to fill birthDate and NIR
+  const civilStatusRef = useRef<CivilStatusCardRef>(null);
 
   const refreshDossier = useCallback(() => dossierService.getDossier().then(setDossier), []);
 
@@ -634,6 +660,43 @@ export default function PersonalizedDossierPage() {
     () => (profile ? profilPartielToSnapshot(profile.profile as never) : {}),
     [profile],
   );
+
+  // Register page content for the voice assistant
+  useVoicePage({
+    readableText:
+      'Page Déposer un dossier. Cette page vous permet de vérifier la complétude de vos pièces justificatives, ' +
+      'obtenir une estimation de votre aide au logement, et transmettre votre dossier à la CAF. ' +
+      (dossier
+        ? `Votre dossier est actuellement ${dossier.status === 'complete' ? 'complet' : 'incomplet'} : ` +
+          `${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount} fournies. `
+        : '') +
+      (!civilStatusComplete ? 'Votre état civil est incomplet. Veuillez renseigner votre numéro de sécurité sociale et votre date de naissance. ' : '') +
+      (review?.submitted ? 'Votre dossier a déjà été transmis.' : 'Vous pouvez envoyer votre dossier à la CAF.'),
+    actions: [
+      {
+        id: 'submit_dossier',
+        label: 'envoyer le dossier',
+        description: 'Envoyer le dossier à la CAF',
+        intent: { type: 'click_action', actionId: 'submit_dossier' },
+        sensitive: true,
+      },
+    ],
+    fields: [
+      {
+        fieldId: 'birthdate',
+        labels: ['date de naissance', 'naissance'],
+        setValue: (val) => civilStatusRef.current?.setBirthDate(val),
+      },
+      {
+        fieldId: 'nir',
+        labels: ['numero de securite sociale', 'securite sociale', 'secu', 'nir'],
+        setValue: (val) => civilStatusRef.current?.setNir(val),
+      },
+    ],
+    actionCallbacks: {
+      submit_dossier: () => submitButtonRef.current?.click(),
+    },
+  });
 
   return (
     <div className="mx-auto max-w-container">
@@ -712,7 +775,7 @@ export default function PersonalizedDossierPage() {
               </CardContent>
             </Card>
 
-            <CivilStatusCard profile={profile} onSaved={setProfile} />
+            <CivilStatusCard ref={civilStatusRef} profile={profile} onSaved={setProfile} />
 
             <div className="grid gap-gutter lg:grid-cols-3">
               <div className="lg:col-span-2">
@@ -763,6 +826,7 @@ export default function PersonalizedDossierPage() {
           <section className="space-y-gutter">
             <h2 className="text-headline-md text-on-surface">Envoyer le dossier à la CAF</h2>
             <SubmissionCard
+              submitRef={submitButtonRef}
               applicationId={dossier.applicationId}
               pendingFiles={pendingFiles}
               onFilesCommitted={() => setPendingFiles([])}

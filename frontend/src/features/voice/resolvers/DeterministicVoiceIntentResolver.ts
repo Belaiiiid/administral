@@ -1,4 +1,4 @@
-import type { VoiceIntent, VoicePageField } from '../types';
+import type { VoiceIntent, VoicePageField, VoicePageAction } from '../types';
 
 const HOME_PATTERNS = [
   "aller a l'accueil",
@@ -39,6 +39,20 @@ const DOCUMENTS_PATTERNS = [
   'consulter mes documents',
   'consulter mes fichiers',
   'section documents',
+];
+
+const DOSSIER_PATTERNS = [
+  'deposer un dossier',
+  'deposer mon dossier',
+  'envoyer un dossier',
+  'envoyer mon dossier',
+  'mon dossier',
+  'dossier',
+  'aller au dossier',
+  'aller sur le dossier',
+  'ouvrir mon dossier',
+  'soumettre un dossier',
+  'soumettre mon dossier',
 ];
 
 const READ_PAGE_PATTERNS = [
@@ -82,11 +96,28 @@ const STOP_SPEAKING_PATTERNS = [
   'merci stop',
 ];
 
+/** Prefixes that indicate the user wants to trigger a page action by voice. */
+const ACTION_TRIGGER_PREFIXES = [
+  'clique sur ',
+  'appuie sur ',
+  'lance ',
+  'execute ',
+  'effectue ',
+  'valide ',
+  'fais ',
+  'demarre ',
+];
+
 const YES_WORDS = ['oui', 'ouais', 'yes', 'confirme', 'valide', 'ok', 'parfait', "d accord", 'absolument', 'exactement'];
 const NO_WORDS = ['non', 'no', 'annule', 'pas ok', 'jamais', 'surtout pas', 'arrete', 'stop'];
 
 export class DeterministicVoiceIntentResolver {
-  resolve(transcript: string, activeFields: VoicePageField[] = [], isWaitingForConfirmation = false): VoiceIntent {
+  resolve(
+    transcript: string,
+    activeFields: VoicePageField[] = [],
+    isWaitingForConfirmation = false,
+    activeActions: VoicePageAction[] = [],
+  ): VoiceIntent {
     const normalized = this.normalize(transcript);
 
     if (isWaitingForConfirmation) {
@@ -109,6 +140,7 @@ export class DeterministicVoiceIntentResolver {
 
     if (HOME_PATTERNS.includes(commandText)) return { type: 'navigate', target: 'home' };
     if (DOCUMENTS_PATTERNS.includes(commandText)) return { type: 'navigate', target: 'documents' };
+    if (DOSSIER_PATTERNS.includes(commandText)) return { type: 'navigate', target: 'dossier' };
     if (READ_PAGE_PATTERNS.includes(commandText)) return { type: 'read_page' };
     if (STOP_SPEAKING_PATTERNS.includes(commandText)) return { type: 'stop_speaking' };
 
@@ -140,6 +172,20 @@ export class DeterministicVoiceIntentResolver {
     if (this.isYes(commandText)) return { type: 'confirm' };
     if (this.isNo(commandText)) return { type: 'cancel' };
 
+    // ─── Action-trigger phrases ("clique sur X", "valide X", etc.) ───────────
+    for (const prefix of ACTION_TRIGGER_PREFIXES) {
+      if (commandText.startsWith(prefix)) {
+        const actionLabel = commandText.substring(prefix.length).trim();
+        const matchedAction = activeActions.find(
+          (a) => this.normalize(a.label) === actionLabel || this.normalize(a.description) === actionLabel,
+        );
+        if (matchedAction) {
+          return { type: 'sensitive_action', actionId: matchedAction.id };
+        }
+      }
+    }
+
+    // ─── Field filling ────────────────────────────────────────────────────────
     for (const field of activeFields) {
       for (const label of field.labels) {
         const normalizedLabel = this.normalize(label);
@@ -168,7 +214,7 @@ export class DeterministicVoiceIntentResolver {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s']/g, ' ')
+      .replace(/[^a-z0-9\s'\.\-_@/]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
