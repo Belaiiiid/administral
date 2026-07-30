@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
+import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { LandingBenefits } from '@/features/chatbot/components/landing/LandingBenefits';
 import { LandingHero, type AssistMode } from '@/features/chatbot/components/landing/LandingHero';
 import { LandingStats } from '@/features/chatbot/components/landing/LandingStats';
@@ -37,8 +38,8 @@ import { useVoiceStore } from '@/features/voice/store/voiceStore';
  *
  * Voice works here exactly as it does for a signed-in citizen: the backend
  * voice endpoints (`app/modules/voice`) never required a session, so the only
- * thing missing was mounting `VoicePageProvider` + `VoiceAssistantProvider` +
- * `VoiceAssistantPanel` on this route too, instead of only inside `AppShell`.
+ * thing missing was mounting `VoicePageProvider` + `VoiceAssistantProvider` on
+ * this route too, instead of only inside `AppShell`.
  */
 export default function PublicLandingPage() {
   return (
@@ -105,6 +106,16 @@ function LandingContent() {
     }
     setStarted(true);
   };
+
+  // ── Consume queued questions from the voice assistant ─────────────
+  const pendingQuestion = useChatbotUiStore((s) => s.pendingQuestion);
+  const consumePendingQuestion = useChatbotUiStore((s) => s.consumePendingQuestion);
+
+  useEffect(() => {
+    if (pendingQuestion === null) return;
+    const q = consumePendingQuestion();
+    if (q) controller.send(q);
+  }, [pendingQuestion, consumePendingQuestion, controller]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

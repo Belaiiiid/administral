@@ -7,9 +7,11 @@ import { MistralTtsProvider } from '../providers/MistralTtsProvider';
 import { MistralSttProvider } from '../providers/MistralSttProvider';
 import type { TextToSpeechProvider, SpeechToTextProvider } from '../types';
 import { ROUTES } from '@/app/router/paths';
+import { useSessionStore } from '@/store/sessionStore';
 
 export const VoiceOnboardingPage: React.FC = () => {
   const navigate = useNavigate();
+  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
   const { enableVoiceMode, disableVoiceMode, setHasSeenVoiceOnboarding } = useVoiceStore();
   const [isListening, setIsListening] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export const VoiceOnboardingPage: React.FC = () => {
     stt.current?.stop();
     enableVoiceMode();
     setHasSeenVoiceOnboarding(true);
-    navigate(ROUTES.portal);
+    navigate(isAuthenticated ? ROUTES.portal : ROUTES.home);
   };
 
   const handleDisable = () => {
@@ -33,7 +35,7 @@ export const VoiceOnboardingPage: React.FC = () => {
     stt.current?.stop();
     disableVoiceMode();
     setHasSeenVoiceOnboarding(true);
-    navigate(ROUTES.portal);
+    navigate(isAuthenticated ? ROUTES.portal : ROUTES.home);
   };
 
   useEffect(() => {

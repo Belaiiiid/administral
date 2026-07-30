@@ -29,3 +29,5 @@ third_party/trufor/
 backend/app/modules/chatbot/rag/qdrant_data/
 backend/app/modules/chatbot/rag/bm25_index.pkl
 backend/app/modules/chatbot/rag/qdrant_index.fingerprint
+
+/*.md

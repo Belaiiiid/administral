@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { authService } from '@/services/authService';
 import { useSessionStore } from '@/store/sessionStore';
+import { useVoiceStore } from '@/features/voice/store/voiceStore';
 
 interface LocationState {
   from?: { pathname: string };
@@ -49,8 +50,11 @@ export default function LoginPage() {
       } else if (role === 'agent') {
         navigate(ROUTES.agent, { replace: true });
       } else {
-        // After login, take citizens to voice onboarding
-        navigate(ROUTES.voiceOnboarding, { replace: true });
+        // After login, take citizens to voice onboarding if they haven't seen it yet,
+        // otherwise to the intended page (or the citizen portal by default).
+        const hasSeenVoiceOnboarding = useVoiceStore.getState().hasSeenVoiceOnboarding;
+        const from = (location.state as LocationState | null)?.from?.pathname || ROUTES.portal;
+        navigate(hasSeenVoiceOnboarding ? from : ROUTES.voiceOnboarding, { replace: true });
       }
     } catch {
       // error is in the store

@@ -7,6 +7,7 @@ import { DeterministicVoiceIntentResolver } from '../resolvers/DeterministicVoic
 import { VoiceCommandExecutor } from '../executors/VoiceCommandExecutor';
 import { VoicePageContext } from '../context/VoicePageContext';
 import type { VoiceIntent, VoicePageAction, SpeechToTextProvider, TextToSpeechProvider } from '../types';
+import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 
 export type VoiceStatus = 'idle' | 'standby' | 'listening' | 'speaking' | 'error';
 
@@ -137,7 +138,10 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
               }
             }
           } catch (_) { /* ignore and fall back */ }
-          if (ttsProvider.current) { sttProvider.current?.stop(); setStatus('speaking'); ttsProvider.current.speak("Désolé, je n'ai pas compris la commande."); }
+          const askChatbot = useChatbotUiStore.getState().ask;
+          askChatbot(text);
+          sttProvider.current?.stop();
+          setStatus('standby');
         })();
         return;
       }
