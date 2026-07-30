@@ -103,6 +103,12 @@ class Settings(BaseSettings):
     # the assistant offline (local dev without a key, tests).
     mistral_allow_fallback: bool = False
 
+    # -- France Travail — Offres d'emploi API (ai.job_search) --------------
+    # Optional on purpose, like the Mistral key: absent, job search degrades
+    # to `available: false` rather than inventing job listings.
+    france_travail_client_id: str | None = None
+    france_travail_client_secret: str | None = None
+
     # -- Document storage --------------------------------------------------
     # Where uploaded files are written. Local filesystem for development; a
     # deployment swaps this for object storage behind the same repository

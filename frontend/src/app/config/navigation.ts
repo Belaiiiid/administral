@@ -1,4 +1,15 @@
-import { Bot, LayoutGrid, LogOut, Plus, Route, Send, UserRound } from 'lucide-react';
+import {
+  Bot,
+  LayoutGrid,
+  LogOut,
+  MessageSquareText,
+  Plus,
+  Route,
+  Search,
+  Send,
+  Sparkles,
+  UserRound,
+} from 'lucide-react';
 
 import {
   isNavItemActive,
@@ -18,11 +29,18 @@ export type { NavCta, NavItem, NavSections };
 /**
  * Primary sidebar navigation.
  *
- * "Mes services" is the hub (all CAF services — only APL is wired). Once a
- * citizen is on an APL surface, the rail always offers both directions: send
- * a dossier and check one already sent — each renders its own empty state
- * when there is nothing yet to show, rather than being hidden conditionally,
- * so the rail's shape never shifts under the citizen's feet.
+ * "Mes services" is the hub. Once a citizen is on an APL surface, the rail
+ * always offers both directions: send a dossier and check one already sent —
+ * each renders its own empty state when there is nothing yet to show, rather
+ * than being hidden conditionally, so the rail's shape never shifts under the
+ * citizen's feet.
+ *
+ * France Travail is not dossier-shaped (see `features/france-travail`: a
+ * stateless job-offer analysis, not a submission tracked over time), so it
+ * gets its own single item rather than the "dossier + suivi" pair — an
+ * explicit branch on location, not a config table, since there are exactly
+ * two concrete shapes today. Add a table if a third, differently-shaped
+ * service arrives.
  */
 export const PRIMARY_NAV: NavItem[] = [
   {
@@ -49,6 +67,45 @@ export const PRIMARY_NAV: NavItem[] = [
   { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
 ];
 
+/** Sidebar shown while browsing France Travail — see the note on `PRIMARY_NAV`. */
+const FRANCE_TRAVAIL_NAV: NavItem[] = [
+  {
+    id: 'portal',
+    label: 'Mes services',
+    to: ROUTES.portal,
+    icon: LayoutGrid,
+    match: (pathname) => pathname === ROUTES.portal,
+  },
+  {
+    id: 'job-match',
+    label: 'Analyser une offre',
+    to: ROUTES.franceTravail,
+    icon: Sparkles,
+    // Every other France Travail sub-route lives under this same basePath
+    // (`isSelfOrChild` would otherwise match them too) — each addition here
+    // needs excluding explicitly, same fix as when Coach CV was added.
+    match: (pathname) =>
+      isSelfOrChild(ROUTES.franceTravail)(pathname) &&
+      pathname !== ROUTES.franceTravailCvCoach &&
+      pathname !== ROUTES.franceTravailJobSearch,
+  },
+  {
+    id: 'cv-coach',
+    label: 'Coach CV',
+    to: ROUTES.franceTravailCvCoach,
+    icon: MessageSquareText,
+    match: (pathname) => pathname === ROUTES.franceTravailCvCoach,
+  },
+  {
+    id: 'job-search',
+    label: 'Rechercher un emploi',
+    to: ROUTES.franceTravailJobSearch,
+    icon: Search,
+    match: (pathname) => pathname === ROUTES.franceTravailJobSearch,
+  },
+  { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
+];
+
 /** Footer of the sidebar. */
 export const SECONDARY_NAV: NavItem[] = [
   { id: 'profile', label: 'Mon profil', to: ROUTES.profile, icon: UserRound },
@@ -59,6 +116,12 @@ const CITIZEN_CTA: NavCta = {
   label: 'Envoyer un dossier',
   to: ROUTES.dossier,
   icon: Plus,
+};
+
+const FRANCE_TRAVAIL_CTA: NavCta = {
+  label: 'Analyser une offre',
+  to: ROUTES.franceTravail,
+  icon: Sparkles,
 };
 
 export const SIGN_OUT_ITEM: NavItem = {
@@ -84,6 +147,10 @@ export function resolveNavSections(pathname: string): NavSections {
     // No CTA: the back-office has no "create" action — agents process work
     // that citizens submit.
     return { primary: AGENT_NAV, secondary: AGENT_SECONDARY_NAV, cta: null };
+  }
+
+  if (isSelfOrChild(ROUTES.franceTravail)(pathname)) {
+    return { primary: FRANCE_TRAVAIL_NAV, secondary: SECONDARY_NAV, cta: FRANCE_TRAVAIL_CTA };
   }
 
   return { primary: PRIMARY_NAV, secondary: SECONDARY_NAV, cta: CITIZEN_CTA };

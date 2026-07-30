@@ -5,6 +5,7 @@ import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
+import { WhatsAppButton } from '@/features/chatbot/components/WhatsAppButton';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 
 /**
@@ -48,6 +49,8 @@ export default function PublicLandingPage() {
 
         <ChatWindow controller={controller} />
       </main>
+
+      <WhatsAppButton />
     </div>
   );
 }

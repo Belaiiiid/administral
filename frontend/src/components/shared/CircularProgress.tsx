@@ -7,6 +7,12 @@ export interface CircularProgressProps {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  /** Tailwind `stroke-*` AND `text-*` classes together (e.g.
+   *  `"stroke-[#1D1D4B] text-[#1D1D4B]"`) for the filled arc and value text —
+   *  each element picks the class family that applies to it, so pass both.
+   *  Override when a feature needs its own accent (e.g. a partner brand
+   *  color) instead of the app's default `primary`. */
+  progressClassName?: string;
 }
 
 /** The SVG gauge from the APL dashboard status card. */
@@ -16,6 +22,7 @@ export function CircularProgress({
   size = 160,
   strokeWidth = 12,
   className,
+  progressClassName = 'stroke-primary text-primary',
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -49,11 +56,11 @@ export function CircularProgress({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="stroke-primary transition-[stroke-dashoffset] duration-700 ease-standard"
+          className={cn(progressClassName, 'transition-[stroke-dashoffset] duration-700 ease-standard')}
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className={cn('text-headline-lg', isEmpty ? 'text-outline' : 'text-primary')}>
+        <span className={cn('text-headline-lg', isEmpty ? 'text-outline' : progressClassName)}>
           {isEmpty ? '—' : `${value}%`}
         </span>
         <span className="text-label-sm text-on-surface-variant">{label}</span>

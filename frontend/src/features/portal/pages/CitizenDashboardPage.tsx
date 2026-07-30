@@ -84,9 +84,19 @@ export default function CitizenDashboardPage() {
             >
               <CardContent className="flex h-full flex-col gap-4 p-6">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                    <Landmark className="size-6" aria-hidden="true" />
-                  </span>
+                  {service.logoUrl ? (
+                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-0.5">
+                      <img
+                        src={service.logoUrl}
+                        alt={service.administration}
+                        className="size-full object-contain"
+                      />
+                    </span>
+                  ) : (
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                      <Landmark className="size-6" aria-hidden="true" />
+                    </span>
+                  )}
                   {!isAvailable && <Badge tone="neutral">Bientôt disponible</Badge>}
                 </div>
                 <div className="flex-1">

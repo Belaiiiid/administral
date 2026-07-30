@@ -73,6 +73,20 @@ export function Header() {
         <Menu aria-hidden="true" />
       </Button>
 
+      {/* Real logos, not decoration: Mistral (mistral.ai) and Talan
+          (talan.com), matching the marks used on the France Travail page. */}
+      <div className="hidden items-center gap-4 sm:flex">
+        <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+          <img src="/mistral-logo.svg" alt="" aria-hidden="true" className="h-3.5 w-auto" />
+          Powered by Mistral
+        </span>
+        <span aria-hidden="true" className="h-4 w-px bg-border" />
+        <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+          Partenaire
+          <img src="/talan-logo.svg" alt="Talan" className="h-3.5 w-auto" />
+        </span>
+      </div>
+
       <div className="ml-auto flex items-center gap-2">
         <Button
           asChild

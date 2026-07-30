@@ -8,6 +8,13 @@ export const APP_CONFIG = {
   administration: 'République Française',
   legalEntity: 'Direction de l’information légale et administrative',
   supportPhone: '3919',
+  /**
+   * WhatsApp click-to-chat number, digits only (E.164, no `+`) — the format
+   * `wa.me` links require. This is the Meta test number while the
+   * `apl-whatsapp` bot's Cloud API app is in Development mode; swap it for
+   * the production business number once the app goes Live.
+   */
+  whatsappNumber: '15551978604',
   /** RGAA conformance level declared in the footer. */
   accessibilityStatement: 'Accessibilité : totalement conforme',
 } as const;

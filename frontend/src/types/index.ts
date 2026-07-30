@@ -8,3 +8,6 @@ export * from './notification';
 export * from './settings';
 export * from './contestation';
 export * from './dossier';
+export * from './jobMatch';
+export * from './cvCoach';
+export * from './jobSearch';

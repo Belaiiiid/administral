@@ -16,15 +16,17 @@ export const SERVICES: ServiceDefinition[] = [
       'Gestion simplifiée de vos aides au logement et simulations de droits en temps réel.',
     basePath: '/mon-dossier',
     status: 'available',
+    logoUrl: '/caf-logo.svg',
   },
   {
     id: 'france-travail',
     name: 'France Travail',
     administration: 'France Travail',
     description:
-      'Suivi de vos allocations chômage et assistance pour vos démarches de recherche.',
+      'Analysez une offre d’emploi : compétences requises, pièces à préparer et vos chances d’obtenir le poste.',
     basePath: '/france-travail',
-    status: 'coming_soon',
+    status: 'available',
+    logoUrl: '/france-travail-logo.svg',
   },
   {
     id: 'assurance-maladie',

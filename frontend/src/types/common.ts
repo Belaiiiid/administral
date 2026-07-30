@@ -20,6 +20,10 @@ export interface ServiceDefinition {
   /** Route prefix owned by this service module, e.g. `/apl`. */
   basePath: string;
   status: 'available' | 'coming_soon';
+  /** Real administration logo (`public/`) shown on the tile instead of the
+   *  generic icon, when the administration's own mark should be recognisable
+   *  rather than genericised. Optional — most services fall back to the icon. */
+  logoUrl?: string;
 }
 
 /** Envelope returned by every service-layer call. */

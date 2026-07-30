@@ -6,6 +6,7 @@ import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
+import { WhatsAppButton } from '@/features/chatbot/components/WhatsAppButton';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
@@ -62,7 +63,12 @@ export function AppShell({ hideSidebar = false }: { hideSidebar?: boolean } = {}
         <Footer />
       </div>
 
-      {isCitizen && <FloatingChatbot />}
+      {isCitizen && (
+        <>
+          <FloatingChatbot />
+          <WhatsAppButton />
+        </>
+      )}
     </div>
   );
 }

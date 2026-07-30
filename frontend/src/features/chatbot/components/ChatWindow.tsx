@@ -18,13 +18,14 @@ import type { ChatbotController } from '@/features/chatbot/hooks/useChatbot';
  */
 
 /**
- * Openers offered on an empty thread.
+ * Openers offered on an empty thread, when the caller doesn't supply its own
+ * (see `ChatWindowProps.starterQuestions`) — the APL assistant's defaults.
  *
  * Questions about the *rules*, not about the citizen's own file: at this point
  * the assistant has no context, and an opener it cannot answer well is a bad
  * first impression of it.
  */
-const STARTER_QUESTIONS = [
+const DEFAULT_STARTER_QUESTIONS = [
   'Quels documents pour l’APL ?',
   'Que signifie justificatif de ressources ?',
   'Comment se déroule l’instruction d’un dossier ?',
@@ -32,9 +33,12 @@ const STARTER_QUESTIONS = [
 
 export interface ChatWindowProps {
   controller: ChatbotController;
+  /** Overrides the empty-thread openers — a different assistant (e.g. the CV
+   *  coach) needs prompts relevant to *its* domain, not APL's. */
+  starterQuestions?: string[];
 }
 
-export function ChatWindow({ controller }: ChatWindowProps) {
+export function ChatWindow({ controller, starterQuestions = DEFAULT_STARTER_QUESTIONS }: ChatWindowProps) {
   const { messages, isSending, error, send, selectOption } = controller;
   const [draft, setDraft] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -91,7 +95,7 @@ export function ChatWindow({ controller }: ChatWindowProps) {
           />
 
           <ul className="flex flex-wrap justify-center gap-2">
-            {STARTER_QUESTIONS.map((question) => (
+            {starterQuestions.map((question) => (
               <li key={question}>
                 <Button
                   variant="outline"
