@@ -20,6 +20,12 @@ import type { CaseStatus, ChatMessage, CitizenProfile } from '@/types';
 export interface ChatbotSource {
   title: string;
   category: ChatbotSourceCategory;
+  /**
+   * Lien vers la source officielle (Légifrance pour un article de loi,
+   * service-public.fr / caf.fr pour un contenu vulgarisé). Rendu en lien
+   * cliquable : une citation qu'on ne peut pas aller vérifier n'en est pas une.
+   */
+  url?: string;
 }
 
 /**
@@ -43,7 +49,26 @@ export type ChatbotSourceCategory =
  */
 export interface ChatbotPendingClarification {
   originalQuestion: string;
-  intent: 'rag_general' | 'documents_necessaires';
+  intent: 'rag_general' | 'documents_necessaires' | 'estimation' | 'fondement_juridique';
+  /**
+   * Étape du dialogue, présente uniquement pour les questions posées par le code
+   * et non par le modèle — la date d'une décision contestée se demande en deux
+   * temps. Le client la renvoie telle quelle, il n'a pas à l'interpréter.
+   */
+  step?: 'date_choix' | 'date_valeur' | 'date_valeur_2' | null;
+}
+
+/**
+ * L'action que le citoyen peut enchaîner sur MonParcours après la réponse.
+ *
+ * Une seule, décidée par le backend : l'assistant explique une démarche, et la
+ * plateforme sert à la faire. Absente sur une question de clarification — on
+ * n'interrompt pas un dialogue en cours par un bouton.
+ */
+export interface ChatbotCta {
+  label: string;
+  href: string;
+  hint?: string | null;
 }
 
 /**
@@ -76,6 +101,14 @@ export interface ChatbotContext {
    * l'UI qui sait d'où vient la réponse, il ne le devine jamais du texte.
    */
   isClarificationReply?: boolean;
+  /**
+   * Droit applicable demandé sur la branche juridique : la date de la décision
+   * contestée. Le backend ne garde pas de session, cet état vit ici entre deux
+   * messages, exactement comme `conversationHistory`.
+   */
+  dateReference?: string | null;
+  /** True une fois la question de date tranchée, pour ne pas la reposer. */
+  dateAsked?: boolean;
 }
 
 /**
@@ -104,6 +137,11 @@ export interface ChatbotResponse {
   options?: string[] | null;
   /** Non nul tant que l'assistant attend une réponse à sa question. */
   pendingClarification?: ChatbotPendingClarification | null;
+  /** État du dialogue de date, à renvoyer tel quel au message suivant. */
+  dateReference?: string | null;
+  dateAsked?: boolean;
+  /** Proposition d'action sur la plateforme, quand la réponse s'y prête. */
+  cta?: ChatbotCta | null;
 }
 
 /**
@@ -116,6 +154,8 @@ export interface ChatbotResponse {
 export interface ChatbotMessage extends ChatMessage {
   /** Present on assistant turns that were grounded in retrieved documents. */
   sources?: ChatbotSource[];
+  /** L'action proposée sous cette réponse, le cas échéant. */
+  cta?: ChatbotCta;
   /**
    * Présent sur les tours où l'assistant pose une question à choix. Distinct de
    * `suggestions` (relances libres) : répondre par un de ces choix est routé

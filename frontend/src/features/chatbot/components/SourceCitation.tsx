@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Scale, HelpCircle } from 'lucide-react';
+import { BookOpen, ExternalLink, FileText, Scale, HelpCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -51,7 +51,26 @@ export function SourceCitation({ sources }: SourceCitationProps) {
             <li key={`${source.category}-${source.title}`} className="flex items-start gap-2">
               <Icon className="mt-0.5 size-4 shrink-0 text-on-surface-variant" aria-hidden="true" />
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-body-sm text-on-surface">{source.title}</span>
+                {/*
+                  Une citation dont on ne peut pas lire la source n'en est pas une :
+                  quand le backend fournit l'URL officielle (Légifrance, service-public.fr),
+                  le titre devient un lien. Sans URL, on affiche le titre tel quel plutôt
+                  qu'un lien mort.
+                */}
+                {source.url ? (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-body-sm text-primary underline underline-offset-2 hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {source.title}
+                    <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="sr-only">(nouvelle fenêtre)</span>
+                  </a>
+                ) : (
+                  <span className="text-body-sm text-on-surface">{source.title}</span>
+                )}
                 <Badge tone="neutral">{CATEGORY_LABEL[source.category]}</Badge>
               </span>
             </li>

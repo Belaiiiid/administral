@@ -31,6 +31,7 @@ from app.modules.chatbot.checklist_answer import render_checklist
 from app.modules.chatbot.rag import orchestrator
 from app.modules.chatbot.schemas import (
     ChatbotContextSchema,
+    ChatbotCtaSchema,
     ChatbotResponseSchema,
     ChatbotSourceSchema,
     PendingClarificationSchema,
@@ -78,6 +79,36 @@ def _to_sources(raw: list | None) -> list[ChatbotSourceSchema]:
     return sources
 
 
+# Les intentions qui décrivent une démarche APL : ce sont les seules où enchaîner sur
+# la constitution du dossier a du sens. Une question de droit ou un hors-sujet n'appelle
+# pas un bouton "déposer mes pièces".
+_INTENTS_AVEC_SUITE = {"rag_general", "documents_necessaires", "estimation"}
+
+
+def _cta(intent: str | None, user: User | None, en_clarification: bool) -> ChatbotCtaSchema | None:
+    """L'action à proposer sous la réponse, ou None.
+
+    Rien pendant une clarification : le citoyen est en train de répondre à une
+    question, lui présenter un bouton au milieu du dialogue le détourne."""
+    if en_clarification or intent not in _INTENTS_AVEC_SUITE:
+        return None
+    if user is not None:
+        return ChatbotCtaSchema(
+            label="Constituer mon dossier",
+            href="/mon-dossier",
+            hint="Vous pouvez déposer vos pièces et suivre votre demande ici.",
+        )
+    return ChatbotCtaSchema(
+        label="Créer mon compte",
+        href="/register",
+        hint=(
+            "Vous pouvez faire votre demande sur caf.fr, ou la préparer ici : "
+            "MonParcours vous indique les pièces à fournir et vérifie votre dossier "
+            "avant l'envoi."
+        ),
+    )
+
+
 def _unavailable() -> ChatbotResponseSchema:
     return ChatbotResponseSchema(
         answer=(
@@ -99,6 +130,9 @@ def answer_question(
         {
             "original_question": ctx.pending_clarification.original_question,
             "intent": ctx.pending_clarification.intent,
+            # `step` n'existe que pour les questions posées par le code (la date d'une
+            # décision contestée) ; None pour celles écrites par le LLM.
+            "step": ctx.pending_clarification.step,
         }
         if ctx.pending_clarification
         else None
@@ -126,6 +160,10 @@ def answer_question(
                 "answer": None,
                 "sources": None,
                 "collected_profile": None,
+                # Branche juridique : quel droit servir (celui de la décision contestée)
+                # et si la question a déjà été tranchée dans cette conversation.
+                "date_reference": ctx.date_reference,
+                "date_asked": ctx.date_asked,
             }
         )
     except Exception:  # noqa: BLE001 — any engine failure degrades, never crashes
@@ -151,8 +189,12 @@ def answer_question(
             PendingClarificationSchema(
                 original_question=next_pending["original_question"],
                 intent=next_pending["intent"],
+                step=next_pending.get("step"),
             )
             if next_pending
             else None
         ),
+        date_reference=state.get("date_reference"),
+        date_asked=bool(state.get("date_asked")),
+        cta=_cta(intent, user, en_clarification=next_pending is not None),
     )
