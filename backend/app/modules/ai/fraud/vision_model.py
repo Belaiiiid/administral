@@ -7,15 +7,19 @@ out of the web process and leaving its result as review evidence only.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import httpx
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 def analyse_with_vision_model(path: Path) -> dict:
     if not settings.fraud_vision_endpoint:
+        logger.warning("TruFor non configuré (FRAUD_VISION_ENDPOINT absent) : analyse de %s sans preuve visuelle CV.", path.name)
         return {"provider": "TRUFOR", "status": "NON_CONFIGURE", "score": None, "message": "ModÃ¨le CV non dÃ©ployÃ©.", "pages": []}
     try:
         with path.open("rb") as file_handle:
@@ -52,4 +56,5 @@ def analyse_with_vision_model(path: Path) -> dict:
             "pages": pages if isinstance(pages, list) else [],
         }
     except Exception as exc:  # noqa: BLE001 - an unavailable model must not block a dossier
+        logger.warning("TruFor indisponible pour %s : %s", path.name, exc)
         return {"provider": "TRUFOR", "status": "INDISPONIBLE", "score": None, "message": f"Service CV indisponible : {exc}", "pages": []}

@@ -56,9 +56,16 @@ def test_depreciation_and_convergence():
     trufor_contrib_high = next(c for c in fused_single_high["contributions"] if c["detector"] == "trufor")
     print(f"TruFor reason: {trufor_contrib_high['depreciation_reason']}")
     assert "score brut suffisamment" in trufor_contrib_high["depreciation_reason"]
-    
+
     print(f"Single High scoreFinal: {fused_single_high['score_final']}")
-    
+    print(f"Single High niveauRisque: {fused_single_high['niveau_risque']}")
+    # A single visual detector, uncorroborated by any localised region, can
+    # still carry a calibrated score >= 0.65 once depreciated (0.95 raw TruFor
+    # here becomes 0.697). strong_visual_signal now forces A_VERIFIER instead
+    # of letting the low weighted score_final alone decide FAIBLE — the agent
+    # must see it rather than have it silently dismissed.
+    assert fused_single_high["niveau_risque"] == "A_VERIFIER", "A strong-but-unlocalized single signal must surface as A_VERIFIER, not FAIBLE"
+
     print("\nALL TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":

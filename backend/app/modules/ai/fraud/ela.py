@@ -31,7 +31,11 @@ def _pages(path: Path) -> list[np.ndarray]:
         finally:
             document.close()
 
-    image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    # cv2.imread(str(path)) silently fails on Windows when the path contains
+    # non-ASCII characters (e.g. a username outside the system codepage), so
+    # the bytes are read and decoded manually instead.
+    buffer = np.fromfile(path, dtype=np.uint8)
+    image = cv2.imdecode(buffer, cv2.IMREAD_COLOR) if buffer.size else None
     return [image] if image is not None else []
 
 
@@ -72,17 +76,17 @@ def _analyse_page(image: np.ndarray, page_number: int, draw_boxes: bool) -> dict
         # spikes (common around text).
         quality_support = np.sum(residual_stack >= threshold, axis=0)
         mask = np.where((blurred >= threshold) & (quality_support >= 2), 255, 0).astype(np.uint8)
-        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15)), iterations=1)
+        mask = cv2.dilate(mask, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 25)), iterations=1)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         page_area = image.shape[0] * image.shape[1]
         for contour in contours:
             area = cv2.contourArea(contour)
-            if not 250 < area < page_area * 0.9:
+            if not 100 < area < page_area * 0.9:
                 continue
             x, y, width, height = cv2.boundingRect(contour)
             local_support = float(np.mean(quality_support[y:y + height, x:x + width]) / 6)
             confidence = float((np.max(enhanced[y:y + height, x:x + width]) / maximum * 0.55 + local_support * 0.45) * 100)
-            if confidence >= 65 and local_support >= 0.35:
+            if confidence >= 55 and local_support >= 0.15:
                 boxes.append({"x": int(x), "y": int(y), "width": int(width), "height": int(height), "confidence_pct": round(confidence, 1)})
 
     marked = image.copy()

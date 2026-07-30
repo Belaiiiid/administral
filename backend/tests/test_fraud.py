@@ -116,12 +116,58 @@ def test_image_analysis_keeps_ela_disabled_by_default(tmp_path, monkeypatch) -> 
     monkeypatch.setattr(settings, "fraud_vision_endpoint", None)
     monkeypatch.setattr(settings, "fraud_enable_ela", False)
     image_path = tmp_path / "scan.jpg"
-    assert cv2.imwrite(str(image_path), np.full((160, 240, 3), 255, dtype=np.uint8))
+    ok, encoded = cv2.imencode(".jpg", np.full((160, 240, 3), 255, dtype=np.uint8))
+    assert ok
+    image_path.write_bytes(encoded.tobytes())
 
     analysis = analyze_document(str(image_path))
     assert analysis.ela_visuals == []
     assert analysis.vision_model is not None
     assert analysis.vision_model.status == "NON_CONFIGURE"
+
+
+def test_analyse_ela_detects_spliced_region(tmp_path) -> None:
+    """A splice built with OpenCV must be localised by the loosened ELA filters.
+
+    The background is repeatedly JPEG round-tripped (a stand-in for an
+    original photo that already went through several recompressions and has
+    therefore "stabilised") while the spliced patch is pasted in fresh,
+    straight from a never-compressed array. Re-encoding the composite once
+    more makes the untouched background nearly invariant across the tested
+    qualities while the freshly pasted patch keeps producing a strong,
+    recurring residual — the textbook double-compression signature ELA looks
+    for.
+    """
+    import cv2
+    import numpy as np
+
+    from app.modules.ai.fraud.ela import analyse_ela
+
+    def textured_block(height: int, width: int, seed: int, frequency: int) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        small = rng.integers(0, 255, (max(1, height // frequency), max(1, width // frequency), 3), dtype=np.uint8)
+        return cv2.resize(small, (width, height), interpolation=cv2.INTER_CUBIC)
+
+    size = 500
+    background = textured_block(size, size, seed=101, frequency=8)
+    for _ in range(10):  # simulate a photo that already went through several JPEG saves
+        _, encoded = cv2.imencode(".jpg", background, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+        background = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+
+    box = 120
+    offset = (size - box) // 2
+    spliced_patch = textured_block(box, box, seed=4, frequency=3)
+    spliced = background.copy()
+    spliced[offset:offset + box, offset:offset + box] = spliced_patch
+
+    image_path = tmp_path / "spliced.jpg"
+    _, encoded_final = cv2.imencode(".jpg", spliced, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    image_path.write_bytes(encoded_final.tobytes())
+
+    pages = analyse_ela(image_path, draw_boxes=False)
+    assert pages
+    assert pages[0]["is_suspicious"] is True
+    assert pages[0]["regions"], "the loosened thresholds must localise the spliced region"
 
 
 def test_duplicate_document_is_an_explicit_review_signal(tmp_path, monkeypatch) -> None:

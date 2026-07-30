@@ -66,7 +66,19 @@ def _ela_evidence(path: Path, enabled: bool) -> tuple[DetectorEvidence, list[Fra
     visuals = [FraudVisualSchema.model_validate(item) for item in analyse_ela(path, draw_boxes=False)]
     if not visuals:
         return DetectorEvidence("ela", "NON_APPLICABLE", None, 0.0, "ELA impossible : document image/PDF illisible."), []
-    raw_score = max((max(0.0, min(1.0, (float(v.metrics.get("anomaly_score", 0)) - 3.5) / 10.0)) for v in visuals), default=0.0)
+    # ela.py only ever emits a region once anomaly_score > 4.8 (its internal
+    # "suspicious" cutoff). On the validation corpus used to loosen that filter
+    # (see ela.py and test_analyse_ela_detects_spliced_region), genuinely
+    # falsified splices sit at anomaly_score ≈ 5-7, while untouched pages stay
+    # well under the 4.8 cutoff. The previous offset/divisor (3.5 / 10.0) needed
+    # anomaly_score ≈ 12 — a synthetic worst case — to reach a calibrated score
+    # usable by fusion's 0.65 strong_visual_signal bypass, so realistic single
+    # splices never crossed it. Anchoring raw_score at 0 for anomaly_score = 3.7
+    # (comfortably below the suspicious cutoff) and at 1 around anomaly_score ≈
+    # 7.4 keeps quiet pages near zero while letting the upper end of the
+    # observed falsified range (~7) reach a calibrated score that clears 0.65
+    # even after fusion's uncorroborated-evidence penalty.
+    raw_score = max((max(0.0, min(1.0, (float(v.metrics.get("anomaly_score", 0)) - 3.7) / 3.7)) for v in visuals), default=0.0)
     regions = [
         EvidenceRegion(
             v.page_number, r.x, r.y, r.width, r.height,

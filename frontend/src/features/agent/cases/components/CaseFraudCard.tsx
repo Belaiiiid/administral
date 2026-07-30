@@ -143,6 +143,24 @@ export function CaseFraudCard({ documents }: CaseFraudCardProps) {
                       ))}
                     </div>
 
+                    {fraud.zonesSuspectes && fraud.zonesSuspectes.length > 0 && (
+                      <ul className="space-y-2">
+                        {fraud.zonesSuspectes.map((zone, index) => (
+                          <li
+                            key={`${zone.pageNumber}-${index}`}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2 text-body-sm"
+                          >
+                            <span className="text-on-surface">
+                              Page {zone.pageNumber} — {zone.detectors.map((detector) => detectorLabel[detector] ?? detector).join(', ')}
+                            </span>
+                            {!zone.corroborated && (
+                              <Badge tone="warning">Non corroboré</Badge>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
                     <details className="group space-y-3 rounded-lg border border-border p-3">
                       <summary className="cursor-pointer text-label-md text-on-surface-variant font-medium hover:text-on-surface">
                         Voir les explications de la fraude

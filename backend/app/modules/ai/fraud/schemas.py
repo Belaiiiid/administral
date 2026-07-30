@@ -90,6 +90,7 @@ class SuspectRegionSchema(CamelModel):
     confidence: float
     detectors: list[str]
     explanation: str
+    corroborated: bool
 
 
 class FraudAnalysisSchema(CamelModel):

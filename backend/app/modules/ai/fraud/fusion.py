@@ -88,19 +88,17 @@ def merge_regions(evidences: list[DetectorEvidence], config: dict) -> list[dict]
         suspicion = sum(r.suspicion for r in group) / len(group)
         # Agreement of independent localisers raises confidence, never suspicion.
         confidence = min(1.0, sum(r.confidence for r in group) / len(group) + 0.08 * (len(detectors) - 1))
-        # A single forensic method can be noisy on administrative documents.
-        # Agent-facing boxes therefore need independent corroboration, except
-        # for a very strong, localised TruFor result.
-        trufor_strong = any(r.detector == "trufor" and r.suspicion >= 0.80 and r.confidence >= 0.80 for r in group)
-        ela_strong = any(r.detector == "ela" and r.suspicion >= 0.85 and r.confidence >= 0.60 for r in group)
-        if len(detectors) < 2 and not trufor_strong and not ela_strong:
-            continue
+        # A single forensic method can be noisy on administrative documents, so
+        # regions are tagged rather than hidden: the agent decides whether an
+        # uncorroborated-but-strong signal warrants manual verification.
+        corroborated = len(detectors) >= 2
         merged.append({
             "page_number": group[0].page_number,
             "x": left, "y": top, "width": right - left, "height": bottom - top,
             "suspicion": round(suspicion, 3), "confidence": round(confidence, 3),
             "detectors": detectors,
             "explanation": "Zone signalée par " + ", ".join(detectors) + ".",
+            "corroborated": corroborated,
         })
     ordered = sorted(merged, key=lambda item: (item["page_number"], -(item["suspicion"] * item["confidence"])))
     per_page: dict[int, int] = {}
@@ -174,12 +172,12 @@ def fuse(evidences: list[DetectorEvidence]) -> dict:
                 depreciation_reason = f"Preuve visuelle non corroborée spatialement, mais corroborée globalement (convergence de {convergent_count} détecteurs)."
             elif raw >= 0.8:
                 # Graduated penalty: single signal but very strong
-                calibrated *= 0.50
+                calibrated *= 0.85
                 depreciation_applied = True
                 depreciation_reason = "Preuve visuelle non corroborée, mais score brut suffisamment élevé pour justifier une alerte."
             else:
                 # Standard penalty for noise
-                calibrated *= 0.35
+                calibrated *= 0.60
                 depreciation_applied = True
                 depreciation_reason = "Preuve visuelle non corroborée ou zones masquées par le filtre de présentation."
                 
@@ -215,5 +213,19 @@ def fuse(evidences: list[DetectorEvidence]) -> dict:
         and item["confidence"] >= 0.75
         for item in contributions
     )
-    risk = "ELEVE" if score >= thresholds["eleve"] else "MODERE" if score >= thresholds["modere"] else "A_VERIFIER" if score >= thresholds["faible"] or strong_verifiable_signal else "FAIBLE"
+    # A single visual detector can be penalised down to near-zero by the
+    # uncorroborated-evidence multipliers above, yet still carry a calibrated
+    # score strong enough that an agent should not dismiss it outright. This
+    # bypass surfaces the dossier for manual review without letting one signal
+    # drive the numeric score_final past the ELEVE/MODERE thresholds.
+    strong_visual_signal = any(
+        item["detector"] in visual_detectors and item["score"] is not None and item["score"] >= 0.65
+        for item in contributions
+    )
+    risk = (
+        "ELEVE" if score >= thresholds["eleve"]
+        else "MODERE" if score >= thresholds["modere"]
+        else "A_VERIFIER" if score >= thresholds["faible"] or strong_verifiable_signal or strong_visual_signal
+        else "FAIBLE"
+    )
     return {"score_final": round(score, 3), "confidence": round(confidence, 3), "niveau_risque": risk, "contributions": contributions + inactive_contributions, "regions": merged_regions}

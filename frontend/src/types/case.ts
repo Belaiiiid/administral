@@ -183,6 +183,7 @@ export interface SuspectRegion {
   confidence: number;
   detectors: string[];
   explanation: string;
+  corroborated: boolean;
 }
 
 /**
