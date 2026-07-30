@@ -1,11 +1,9 @@
-import { ArrowRight, Bell, Landmark } from 'lucide-react';
+import { ArrowRight, Landmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
-import { ROUTES } from '@/app/router/paths';
 import { PageHeader, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useSessionStore } from '@/store/sessionStore';
@@ -32,14 +30,6 @@ export default function CitizenDashboardPage() {
           displayName
             ? `Bienvenue ${displayName}, choisissez le service que vous souhaitez utiliser.`
             : 'Choisissez le service que vous souhaitez utiliser.'
-        }
-        actions={
-          <Button asChild variant="outline">
-            <Link to={ROUTES.portalNotifications}>
-              <Bell aria-hidden="true" />
-              Notifications
-            </Link>
-          </Button>
         }
       />
 
@@ -68,12 +58,20 @@ export default function CitizenDashboardPage() {
                     {service.description}
                   </p>
                 </div>
-                {isAvailable && (
-                  <span className="flex items-center gap-1 text-label-md text-primary">
-                    Ouvrir
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </span>
-                )}
+                {/* Always reserved, just hidden when unavailable — every card keeps
+                    the same height instead of the grid's rows sizing unevenly
+                    depending on which services happen to share one. */}
+                <span
+                  className={
+                    isAvailable
+                      ? 'flex items-center gap-1 text-label-md text-primary'
+                      : 'invisible flex items-center gap-1 text-label-md'
+                  }
+                  aria-hidden={!isAvailable}
+                >
+                  Ouvrir
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </span>
               </CardContent>
             </Card>
           );

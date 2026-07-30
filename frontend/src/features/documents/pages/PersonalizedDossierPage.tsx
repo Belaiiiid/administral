@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { birthDateError, socialSecurityNumberError } from '@/lib/civilStatusValidation';
 import { cn } from '@/lib/utils';
 import { profilPartielToSnapshot } from '@/features/citizen/profiling';
 import {
@@ -240,7 +241,12 @@ function CivilStatusCard({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const birthDateInvalid = birthDateError(birthDate);
+  const nirInvalid = nir ? socialSecurityNumberError(nir) : null;
+  const canSave = !birthDateInvalid && !nirInvalid;
+
   const save = async () => {
+    if (!canSave) return;
     setIsSaving(true);
     setError(null);
     try {
@@ -318,8 +324,14 @@ function CivilStatusCard({
                   id="dossier-naissance"
                   type="date"
                   value={birthDate}
+                  aria-invalid={Boolean(birthDateInvalid)}
                   onChange={(event) => setBirthDate(event.target.value)}
                 />
+                {birthDateInvalid && (
+                  <p role="alert" className="text-body-sm text-destructive">
+                    {birthDateInvalid}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="dossier-nir">Numéro de sécurité sociale</Label>
@@ -328,8 +340,14 @@ function CivilStatusCard({
                   inputMode="numeric"
                   placeholder={hasNir ? 'Renseigné — laisser vide pour ne pas modifier' : '13 ou 15 chiffres'}
                   value={nir}
+                  aria-invalid={Boolean(nirInvalid)}
                   onChange={(event) => setNir(event.target.value)}
                 />
+                {nirInvalid && (
+                  <p role="alert" className="text-body-sm text-destructive">
+                    {nirInvalid}
+                  </p>
+                )}
               </div>
             </div>
             {error && (
@@ -338,7 +356,7 @@ function CivilStatusCard({
               </p>
             )}
             <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={isSaving}>
+              <Button size="sm" onClick={save} disabled={isSaving || !canSave}>
                 {isSaving ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                 Enregistrer
               </Button>
@@ -402,6 +420,10 @@ function EstimationCard() {
               <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
                 <dt className="text-on-surface-variant">Loyer retenu</dt>
                 <dd className="text-on-surface">{estimation.loyerRetenu} €</dd>
+              </div>
+              <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
+                <dt className="text-on-surface-variant">Charges retenues</dt>
+                <dd className="text-on-surface">{estimation.chargesRetenues} €</dd>
               </div>
               <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
                 <dt className="text-on-surface-variant">Participation personnelle</dt>

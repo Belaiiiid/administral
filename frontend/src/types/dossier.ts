@@ -63,6 +63,7 @@ export const DOSSIER_STATUS_META: Record<
 export interface EstimationAide {
   montantEstime: number;
   loyerRetenu: number;
+  chargesRetenues: number;
   participationPersonnelle: number;
   estimationPossible: boolean;
   avertissement: string;

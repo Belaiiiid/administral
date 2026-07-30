@@ -39,7 +39,10 @@ export function Header() {
 
   const handleLogout = () => {
     logout();
-    navigate(ROUTES.login, { replace: true });
+    // Not `ROUTES.login`: a citizen who signs out lands back among the public,
+    // exactly like anyone else who has not signed in — the assistant first,
+    // "Se connecter" second (see `HomeRoute`), never dropped straight on a form.
+    navigate(ROUTES.home, { replace: true });
   };
 
   // Role-aware: an agent has no citizen profiling profile, so "Mon profil" must

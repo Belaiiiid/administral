@@ -16,32 +16,47 @@ import json
 import re
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
-from .llm_client import call_llm, call_llm_structured
+from .llm_client import call_llm, call_llm_structured, EXPLAIN_OPTION, SKIP_OPTION, _enforce_standard_options
 from . import rag_pipeline
 
 # MonParcours : vocabulaire de profil dérivé de `ProfilPartiel`, pour que le
 # profiling remplisse exactement les champs dont les règles de checklist se servent.
 from ..checklist_answer import PROFILE_FIELDS_DOC
+from app.modules.citizen import estimation
 
 # Pas d'authentification (canal WhatsApp notamment) : le chat est un espace ouvert, aucun
 # profil connu à l'avance. "Mon dossier" et "le dossier d'un tiers" (ex: mon fils étudiant)
 # demandent donc exactement le même traitement - questions de profiling puis documents
 # nécessaires - d'où une seule intention `documents_necessaires` au lieu de deux.
-VALID_INTENTS = {"documents_necessaires", "rag_general", "fallback"}
+# `estimation` suit le même principe : l'assistant est aveugle à l'authentification (voir
+# `chatbot/service.py`), donc même un citoyen connecté obtient ici une fourchette par
+# tranches, jamais son profil réel — l'estimation à partir de données exactes reste sur
+# la page "Envoyer un dossier" (`GET /citizen/estimation`), pas dans la conversation.
+VALID_INTENTS = {"documents_necessaires", "rag_general", "estimation", "fallback"}
 
-CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour un chatbot d'aide au logement (APL).
-Classe le message du citoyen dans EXACTEMENT une de ces 3 catégories :
+CLASSIFIER_SYSTEM_PROMPT = """Tu es un classifieur d'intention pour l'assistant citoyen de MonParcours,
+qui aide sur plusieurs démarches administratives (aide au logement APL, mais aussi d'autres démarches
+comme le CROUS - bourse, logement étudiant).
+Classe le message du citoyen dans EXACTEMENT une de ces 4 catégories :
 
 - documents_necessaires: le citoyen demande quels documents sont nécessaires pour une demande d'APL
-  (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas d'authentification,
-  donc les deux cas sont traités pareil).
+  spécifiquement (pour lui-même OU pour une autre personne, ex: son fils étudiant - le chat n'a pas
+  d'authentification, donc les deux cas sont traités pareil). Réservé à l'APL : une question sur les
+  documents pour une autre démarche (ex: CROUS) est classée `rag_general`.
   Exemples: "quels documents pour mon dossier ?", "quels documents pour mon fils étudiant ?",
   "je suis propriétaire, il me faudrait quoi ?"
 
-- rag_general: question générale sur la réglementation, les règles, le fonctionnement de l'APL.
-  Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?"
+- estimation: le citoyen veut savoir combien il pourrait toucher au titre de l'APL, un montant d'aide.
+  Réservé à l'APL également (pas de calcul de montant pour les autres démarches).
+  Exemples: "combien je pourrais toucher ?", "à combien s'élève l'APL pour mon loyer ?",
+  "estime mon aide au logement", "quel montant d'APL pour un couple avec un enfant ?"
 
-- fallback: tout le reste (hors-sujet, ambigu, pas lié au logement).
+- rag_general: question générale sur une démarche administrative couverte par le corpus (réglementation,
+  règles, fonctionnement, étapes, suivi) - que ce soit l'APL ou une autre démarche comme le CROUS.
+  Exemples: "comment est calculée l'APL ?", "quel est le délai de traitement ?",
+  "comment faire une demande de bourse CROUS ?", "où en est mon dossier CROUS ?"
+
+- fallback: tout le reste (hors-sujet, ambigu, démarche non couverte par le corpus).
 
 Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "documents_necessaires"}
 """
@@ -207,6 +222,157 @@ def documents_necessaires_node(state: D4State) -> D4State:
     }
 
 
+ABANDON_ESTIMATION = (
+    "Pas de souci : sans cette information je ne peux pas calculer une fourchette "
+    "fiable. Vous pouvez recommencer une estimation quand vous le souhaitez, ou "
+    "vous connecter et compléter votre dossier pour une estimation à partir de "
+    "vos données exactes."
+)
+
+# Ordre fixe des 4 questions par tranches. Une seule à la fois (même contrainte
+# que `documents_necessaires`), jamais en parallèle.
+_ESTIMATION_FIELD_ORDER = ["revenu", "loyer", "zone", "composition"]
+
+_ESTIMATION_QUESTIONS = {
+    "revenu": "Pour une estimation indicative, dans quelle tranche se situent les revenus nets mensuels du foyer ?",
+    "loyer": "Quel est le loyer mensuel hors charges, environ ?",
+    "zone": "Dans quelle zone se situe le logement ?",
+    "composition": "Quelle est la composition du foyer ?",
+}
+
+_ESTIMATION_OPTIONS = {
+    "revenu": [estimation.LABEL_TRANCHE_REVENU[t] for t in estimation.TrancheRevenu],
+    "loyer": [estimation.LABEL_TRANCHE_LOYER[t] for t in estimation.TrancheLoyer],
+    "zone": [estimation.LABEL_ZONE[z] for z in estimation.Zone],
+    "composition": [estimation.LABEL_COMPOSITION[c] for c in estimation.CompositionFoyer],
+}
+
+_ESTIMATION_EXPLANATIONS = {
+    "revenu": (
+        "Il s'agit des revenus nets de l'ensemble du foyer (après cotisations "
+        "sociales, avant impôt sur le revenu) : cumulez les salaires, allocations "
+        "et autres ressources mensuelles du foyer."
+    ),
+    "loyer": "Le montant du loyer seul, hors charges locatives (eau, entretien des parties communes...).",
+    "zone": (
+        "Paris et sa proche banlieue sont en zone 1, les grandes agglomérations en "
+        "zone 2, le reste du territoire en zone 3 — choisissez celle qui se "
+        "rapproche le plus de votre commune."
+    ),
+    "composition": "Choisissez la situation la plus proche : seul(e) ou en couple, et le nombre d'enfants à charge.",
+}
+
+# Reverse lookups (libellé affiché -> valeur d'enum), pour interpréter le choix
+# renvoyé par l'UI (les boutons envoient le libellé tel quel, voir `selectOption`).
+_REVENU_PAR_LABEL = {v: k for k, v in estimation.LABEL_TRANCHE_REVENU.items()}
+_LOYER_PAR_LABEL = {v: k for k, v in estimation.LABEL_TRANCHE_LOYER.items()}
+_ZONE_PAR_LABEL = {v: k for k, v in estimation.LABEL_ZONE.items()}
+_COMPOSITION_PAR_LABEL = {v: k for k, v in estimation.LABEL_COMPOSITION.items()}
+
+
+def _encode_estimation_state(reponses: dict) -> str:
+    """Sérialise les réponses déjà collectées dans `pending_clarification.original_question`.
+
+    Ce champ n'est affiché nulle part côté client (voir `useChatbot.ts` : il vit
+    dans une ref, renvoyé tel quel au tour suivant) - c'est un canal de
+    bookkeeping interne entre deux appels de ce nœud, pas une donnée montrée au
+    citoyen. Le contourner ainsi évite d'introduire une session côté backend
+    juste pour 4 questions à choix fixes."""
+    return json.dumps({"estimation_reponses": reponses}, ensure_ascii=False)
+
+
+def _decode_estimation_state(pending: Optional[dict]) -> dict:
+    if not pending:
+        return {}
+    try:
+        parsed = json.loads(pending.get("original_question") or "")
+        reponses = parsed.get("estimation_reponses")
+        return reponses if isinstance(reponses, dict) else {}
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return {}
+
+
+def _ask_estimation_field(state: D4State, champ: str, reponses: dict, *, prefix: str = "") -> D4State:
+    texte = f"{prefix}{_ESTIMATION_QUESTIONS[champ]}" if prefix else _ESTIMATION_QUESTIONS[champ]
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "sources": [],
+        "response_options": _enforce_standard_options(_ESTIMATION_OPTIONS[champ]),
+        "pending_clarification": {
+            "original_question": _encode_estimation_state(reponses),
+            "intent": "estimation",
+        },
+    }
+
+
+def estimation_node(state: D4State) -> D4State:
+    """Estimation indicative par tranches - zéro LLM pour le calcul (voir
+    `citizen/estimation.py`) : le LLM classifieur ne fait que reconnaître
+    l'intention, les 4 questions et le calcul qui suit sont un pur enchaînement
+    déterministe, réutilisant le mécanisme de clarification existant
+    (`response_options` / `pending_clarification`) sans rien y ajouter côté
+    contrat API ou frontend."""
+    pending = state.get("pending_clarification")
+    is_reply = bool(state.get("is_clarification_reply")) and pending is not None and pending.get("intent") == "estimation"
+    reponses = _decode_estimation_state(pending) if pending else {}
+    message = state["message"]
+
+    if is_reply:
+        champ_en_cours = next((f for f in _ESTIMATION_FIELD_ORDER if f not in reponses), None)
+        if champ_en_cours is not None:
+            if message == EXPLAIN_OPTION:
+                explication = f"{_ESTIMATION_EXPLANATIONS[champ_en_cours]}\n\n"
+                return _ask_estimation_field(state, champ_en_cours, reponses, prefix=explication)
+            if message == SKIP_OPTION:
+                return {
+                    **state,
+                    "response": ABANDON_ESTIMATION,
+                    "answer": ABANDON_ESTIMATION,
+                    "sources": [],
+                    "response_options": None,
+                    "pending_clarification": None,
+                }
+            if message in _ESTIMATION_OPTIONS[champ_en_cours]:
+                reponses = {**reponses, champ_en_cours: message}
+            # Réponse non reconnue (texte libre inattendu) : on repose la même
+            # question plutôt que de deviner - `reponses` reste inchangé.
+
+    champ_manquant = next((f for f in _ESTIMATION_FIELD_ORDER if f not in reponses), None)
+    if champ_manquant is not None:
+        return _ask_estimation_field(state, champ_manquant, reponses)
+
+    # Les 4 tranches sont connues : calcul déterministe, jamais le LLM.
+    try:
+        resultat = estimation.estimer_aide_indicative(
+            tranche_revenu=_REVENU_PAR_LABEL[reponses["revenu"]],
+            tranche_loyer=_LOYER_PAR_LABEL[reponses["loyer"]],
+            zone=_ZONE_PAR_LABEL[reponses["zone"]],
+            composition=_COMPOSITION_PAR_LABEL[reponses["composition"]],
+        )
+        texte = (
+            f"D'après ces informations, l'aide au logement estimée se situe entre "
+            f"{resultat.montant_min} € et {resultat.montant_max} € par mois "
+            f"(estimation centrale : {resultat.montant_median} €).\n\n{resultat.avertissement}"
+        )
+    except Exception as e:  # noqa: BLE001 — l'estimation ne doit jamais planter la conversation
+        print(f"[estimation_node] Erreur de calcul, repli sur message d'excuse: {e}")
+        texte = (
+            "Je n'ai pas pu calculer d'estimation à partir de ces informations. "
+            "Vous pouvez réessayer."
+        )
+
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "sources": [],
+        "response_options": None,
+        "pending_clarification": None,
+    }
+
+
 _rag_pipeline_instance = None
 
 
@@ -263,6 +429,7 @@ def rag_general_node(state: D4State) -> D4State:
             structured[url] = {
                 "title": chunk.get("source_title") or url,
                 "category": chunk.get("category", "demarche"),
+                "url": url,
             }
 
     return {
@@ -276,12 +443,14 @@ def rag_general_node(state: D4State) -> D4State:
 
 
 GREETING_RESPONSE = (
-    "Bonjour ! Je peux vous aider sur l'aide au logement (APL) : questions générales sur la "
-    "réglementation, ou documents nécessaires pour une demande. Que puis-je faire pour vous ?"
+    "Bonjour ! Je peux vous aider sur plusieurs démarches administratives (aide au logement APL, "
+    "CROUS...) : questions générales, ou documents et montant pour une demande d'APL. "
+    "Que puis-je faire pour vous ?"
 )
 FALLBACK_RESPONSE = (
-    "Je ne peux pas répondre à cette question. Je peux vous aider sur les documents nécessaires "
-    "pour une demande d'APL, ou des questions générales sur l'aide au logement."
+    "Je ne peux pas répondre à cette question. Je peux vous aider sur les documents et le montant "
+    "d'une demande d'APL, ou des questions générales sur les démarches administratives que je connais "
+    "(aide au logement, CROUS...)."
 )
 
 
@@ -303,6 +472,7 @@ def build_graph():
 
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("documents_necessaires", documents_necessaires_node)
+    graph.add_node("estimation", estimation_node)
     graph.add_node("rag_general", rag_general_node)
     graph.add_node("fallback", fallback_node)
 
@@ -313,12 +483,13 @@ def build_graph():
         lambda state: state["intent"],
         {
             "documents_necessaires": "documents_necessaires",
+            "estimation": "estimation",
             "rag_general": "rag_general",
             "fallback": "fallback",
         },
     )
 
-    for node_name in ["documents_necessaires", "rag_general", "fallback"]:
+    for node_name in ["documents_necessaires", "estimation", "rag_general", "fallback"]:
         graph.add_edge(node_name, END)
 
     return graph.compile()
