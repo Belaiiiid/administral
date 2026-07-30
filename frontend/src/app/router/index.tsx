@@ -52,8 +52,8 @@ const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
  * "Se connecter" second, never the other way around.
  */
 function HomeRoute() {
-  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
+  const user = useSessionStore((state) => state.user);
+  return user ? <Navigate to={ROUTES.portal} replace /> : <PublicLandingPage />;
 }
 
 const router = createBrowserRouter([
