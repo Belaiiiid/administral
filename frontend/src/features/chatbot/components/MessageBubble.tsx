@@ -1,5 +1,8 @@
-import { BookOpen, Bot, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { ArrowRight, BookOpen, Bot, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
+import { ROUTES } from '@/app/router/paths';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SourceCitation } from '@/features/chatbot/components/SourceCitation';
@@ -31,9 +34,14 @@ export function MessageBubble({
   onOptionSelect,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const navigate = useNavigate();
+  // No backend endpoint persists this vote today — recorded only so the
+  // citizen who clicked gets an honest, immediate acknowledgement instead of
+  // a button that visibly does nothing. Never claims to be saved server-side.
+  const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
 
   return (
-    <li className={cn('flex gap-3', isUser && 'flex-row-reverse')}>
+    <li id={`chat-message-${message.id}`} className={cn('flex gap-3', isUser && 'flex-row-reverse')}>
       <span
         aria-hidden="true"
         className={cn(
@@ -63,6 +71,20 @@ export function MessageBubble({
         </div>
 
         {message.sources && <SourceCitation sources={message.sources} />}
+
+        {message.cta && (
+          <div className="w-full rounded-lg border-l-4 border-l-ai bg-ai-surface p-3">
+            {message.cta.hint && (
+              <p className="mb-2 text-body-sm text-on-surface">{message.cta.hint}</p>
+            )}
+            <Button asChild size="sm" variant="outline" className="bg-surface-lowest">
+              <Link to={message.cta.href}>
+                {message.cta.label}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {message.options && onOptionSelect && (
           <ul className="flex flex-wrap gap-2">
@@ -105,7 +127,12 @@ export function MessageBubble({
 
             <div className="grid gap-3 sm:grid-cols-2">
               {message.recommendation.actions.map((action) => (
-                <Button key={action.id} variant="outline" className="justify-center">
+                <Button
+                  key={action.id}
+                  variant="outline"
+                  className="justify-center"
+                  onClick={() => navigate(action.icon === 'upload' ? ROUTES.dossier : ROUTES.documents)}
+                >
                   {action.icon === 'upload' ? (
                     <FileUp aria-hidden="true" />
                   ) : (
@@ -117,16 +144,29 @@ export function MessageBubble({
             </div>
 
             <div className="mt-4 flex items-center justify-between border-t border-ai/10 pt-3">
-              <span className="text-label-sm italic text-on-surface-variant">Est-ce utile ?</span>
+              <span className="text-label-sm italic text-on-surface-variant">
+                {feedback ? 'Merci pour votre retour !' : 'Est-ce utile ?'}
+              </span>
               <span className="flex gap-1">
-                <Button variant="ghost" size="icon" className="size-9" aria-label="Réponse utile">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('size-9', feedback === 'up' && 'text-primary')}
+                  aria-label="Réponse utile"
+                  aria-pressed={feedback === 'up'}
+                  disabled={feedback !== null}
+                  onClick={() => setFeedback('up')}
+                >
                   <ThumbsUp aria-hidden="true" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-9"
+                  className={cn('size-9', feedback === 'down' && 'text-destructive')}
                   aria-label="Réponse non utile"
+                  aria-pressed={feedback === 'down'}
+                  disabled={feedback !== null}
+                  onClick={() => setFeedback('down')}
                 >
                   <ThumbsDown aria-hidden="true" />
                 </Button>

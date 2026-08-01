@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { APP_CONFIG, FOOTER_LINKS } from '@/app/config/app';
 import { RepublicMark } from '@/components/layout/Logo';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { cn } from '@/lib/utils';
 
 export function Footer({ className }: { className?: string }) {
@@ -34,6 +35,8 @@ export function Footer({ className }: { className?: string }) {
             ))}
           </ul>
         </nav>
+
+        <PartnerLogos />
       </div>
     </footer>
   );

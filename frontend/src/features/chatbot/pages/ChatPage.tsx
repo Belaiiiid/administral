@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
+import { WhatsAppQrCard } from '@/features/chatbot/components/landing/WhatsAppQrCard';
 
 /**
  * The citizen assistant.
@@ -58,6 +59,8 @@ export default function ChatPage() {
             </p>
           </CardContent>
         </Card>
+
+        <WhatsAppQrCard />
       </aside>
     </div>
   );

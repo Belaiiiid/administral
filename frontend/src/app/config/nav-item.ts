@@ -21,6 +21,8 @@ export interface NavItem {
    * Defaults to "exact, or a child segment of `to`".
    */
   match?: (pathname: string) => boolean;
+  /** When true, only users with the ADMIN role see this item. */
+  adminOnly?: boolean;
 }
 
 /** A call-to-action button pinned under the primary rail. */

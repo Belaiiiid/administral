@@ -177,13 +177,23 @@ def upload_document(
 
 
 def remove_document(db: Session, document_id: str) -> None:
+    """Delete a document — and revert the checklist item it satisfied, if any.
+
+    Without the recompute below, a citizen "unchecking" an item by deleting its
+    document would see the item still marked *validated*: `received` is a flag
+    set once by `mark_checklist_received` and otherwise never touched, so it
+    would silently outlive the document that earned it.
+    """
     document = repository.get_document(db, document_id)
     if document is None:
         raise NotFoundError(f"Aucun document ne correspond à l’identifiant « {document_id} ».")
 
     storage.delete(document.stored_path)
     application_id = document.application_id
+    matched_item_key = document.matched_checklist_item_id
     repository.delete_document(db, document)
+    if matched_item_key:
+        repository.recompute_checklist_item_received(db, application_id, matched_item_key)
     _recompute_status(db, application_id)
 
 

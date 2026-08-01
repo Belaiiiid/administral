@@ -1,4 +1,4 @@
-import { Bot, Send } from 'lucide-react';
+import { Bot, Mic, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/shared';
@@ -36,9 +36,23 @@ export interface ChatWindowProps {
   /** Overrides the empty-thread openers — a different assistant (e.g. the CV
    *  coach) needs prompts relevant to *its* domain, not APL's. */
   starterQuestions?: string[];
+  /**
+   * Mic button in the composer, next to Send — omitted wherever no voice
+   * pipeline is mounted (e.g. outside `VoiceAssistantProvider`). Voice is
+   * just another way to produce the message this window already sends;
+   * this component stays presentation-only and owns none of the recording
+   * state itself.
+   */
+  onVoiceInput?: () => void;
+  isRecording?: boolean;
 }
 
-export function ChatWindow({ controller, starterQuestions = DEFAULT_STARTER_QUESTIONS }: ChatWindowProps) {
+export function ChatWindow({
+  controller,
+  starterQuestions = DEFAULT_STARTER_QUESTIONS,
+  onVoiceInput,
+  isRecording = false,
+}: ChatWindowProps) {
   const { messages, isSending, error, send, selectOption } = controller;
   const [draft, setDraft] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
@@ -148,6 +162,20 @@ export function ChatWindow({ controller, starterQuestions = DEFAULT_STARTER_QUES
             placeholder="Posez votre question ici…"
             className="min-h-11 resize-none border-0 focus-visible:ring-0"
           />
+
+          {onVoiceInput && (
+            <Button
+              type="button"
+              size="icon"
+              variant={isRecording ? 'destructive' : 'outline'}
+              aria-label={isRecording ? 'Arrêter l’enregistrement et envoyer' : 'Poser la question à l’oral'}
+              aria-pressed={isRecording}
+              onClick={onVoiceInput}
+              disabled={isSending}
+            >
+              <Mic aria-hidden="true" />
+            </Button>
+          )}
 
           <Button
             type="submit"

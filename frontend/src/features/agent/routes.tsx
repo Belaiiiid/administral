@@ -3,10 +3,6 @@ import type { RouteObject } from 'react-router-dom';
 
 import { AGENT_ROUTES, relativeTo } from '@/features/agent/paths';
 
-/*
- * Every page is code-split, so the Agent Portal contributes nothing to the
- * citizen initial bundle — only this route table, which is metadata.
- */
 const AgentDashboardPage = lazy(() => import('@/features/agent/dashboard/pages/AgentDashboardPage'));
 const CaseListPage = lazy(() => import('@/features/agent/cases/pages/CaseListPage'));
 const CaseDetailPage = lazy(() => import('@/features/agent/cases/pages/CaseDetailPage'));
@@ -33,13 +29,6 @@ const AgentNotificationsPage = lazy(
   () => import('@/features/agent/notifications/pages/AgentNotificationsPage'),
 );
 
-/**
- * The Agent Portal's own route table.
- *
- * The host mounts this as the children of `ROUTES.agent`, so paths are declared
- * relative to `/agent` — `relativeTo()` derives them from the same absolute
- * constants the navigation rail links to, keeping one source of truth.
- */
 export const agentRoutes: RouteObject[] = [
   { index: true, element: <AgentDashboardPage /> },
 

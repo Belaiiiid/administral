@@ -17,6 +17,8 @@ export const APP_CONFIG = {
   whatsappNumber: '15551978604',
   /** RGAA conformance level declared in the footer. */
   accessibilityStatement: 'Accessibilité : totalement conforme',
+  /** Placeholder pending the real wa.me number for the WhatsApp bot channel. */
+  whatsappBotUrl: 'https://wa.me/33000000000',
 } as const;
 
 export const FOOTER_LINKS = [

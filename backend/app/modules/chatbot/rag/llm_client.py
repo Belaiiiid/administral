@@ -112,6 +112,16 @@ def _enforce_standard_options(options):
     return real_options + [EXPLAIN_OPTION, SKIP_OPTION]
 
 
+def with_standard_options(options):
+    """Même garantie, pour les clarifications écrites PAR LE CODE et non par le LLM.
+
+    Une question posée en dur (la date d'une décision contestée, par exemple) doit offrir
+    exactement les mêmes échappatoires au citoyen que celles du LLM : pouvoir demander une
+    explication, et pouvoir passer. Sans ce point d'entrée public, chaque question codée en
+    dur réinventerait ses propres options - et finirait par en oublier une."""
+    return _enforce_standard_options(list(options))
+
+
 def call_llm_structured(messages, model="mistral-small-latest", provider="mistral", temperature=0.0):
     """Comme call_llm, mais force une sortie JSON avec le contrat
     {"type": "answer"|"clarification", "text": str, "options": list|None} et la parse.

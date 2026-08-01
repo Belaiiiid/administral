@@ -11,12 +11,18 @@ dist-ssr
 
 # Python
 .venv/
+.venv-trufor/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 
 # Uploaded files (local storage)
 backend/uploads/
+
+# Local TruFor runtime and downloaded model weights (large binary assets).
+vision_service/weights/
+vision_service/TruFor_weights.zip
+third_party/trufor/
 
 # Citizen AI Assistant — RAG indexes rebuilt at runtime from the committed
 # chunks (data/chunks/*.json). Regenerated on first use; not source.
@@ -25,3 +31,7 @@ backend/app/modules/chatbot/rag/bm25_index.pkl
 backend/app/modules/chatbot/rag/qdrant_index.fingerprint
 
 /*.md
+
+# Journal des questions restées sans réponse : donnée d'exécution, propre à chaque
+# environnement. Il se relit avec `python -m app.modules.chatbot.rag.unanswered_log`.
+backend/app/modules/chatbot/rag/data/questions_sans_reponse.jsonl

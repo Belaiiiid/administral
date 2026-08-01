@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.core.captcha import verify_turnstile
 from app.database.session import get_db
 from app.modules.auth import service
 from app.modules.auth.dependencies import get_current_user, require_admin
@@ -33,11 +34,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     summary="Créer un compte citoyen et se connecter",
 )
 def register(body: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    verify_turnstile(body.turnstile_token)
     return service.register_citizen(db, body)
 
 
 @router.post("/login", response_model=TokenResponse, summary="Se connecter (citoyen ou agent)")
 def login(body: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+    verify_turnstile(body.turnstile_token)
     return service.login(db, body)
 
 
@@ -68,7 +71,7 @@ def verify_email(body: VerifyEmailRequest, db: Annotated[Session, Depends(get_db
 @router.post(
     "/verify-email/resend",
     response_model=MessageResponse,
-    summary="Renvoyer le courriel de confirmation",
+    summary="Renvoyer le courriel de confirmation (authentifié)",
 )
 def resend_verification(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -77,6 +80,27 @@ def resend_verification(
     service.resend_verification_email(db, current_user)
     return MessageResponse(
         message="Un nouveau courriel de confirmation vient de vous être envoyé."
+    )
+
+
+@router.post(
+    "/verify-email/resend-public",
+    response_model=MessageResponse,
+    summary="Renvoyer le courriel de confirmation sans authentification",
+)
+def resend_verification_public(
+    body: RequestPasswordResetRequest, db: Annotated[Session, Depends(get_db)]
+) -> MessageResponse:
+    """Always 200, same as password-reset request.
+
+    Whether the address exists or is already verified is information this
+    endpoint must not reveal, so the same uniform response is returned for
+    every call.
+    """
+    service.resend_verification_public(db, body.email)
+    return MessageResponse(
+        message="Si un compte non confirmé est associé à cette adresse, "
+        "un nouveau lien de confirmation vient de lui être envoyé."
     )
 
 

@@ -8,9 +8,11 @@ import {
   type NavItem,
 } from '@/app/config/navigation';
 import { Logo } from '@/components/layout/Logo';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/store/uiStore';
+import { useSessionStore } from '@/store/sessionStore';
 
 function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const { pathname } = useLocation();
@@ -46,12 +48,13 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   const closeSidebar = useUiStore((state) => state.closeSidebar);
   const onNavigate = inDrawer ? closeSidebar : undefined;
   const { pathname } = useLocation();
+  const userRole = useSessionStore((state) => state.user?.role);
   // Citizen rail or back-office rail, decided by the route (app/config/navigation.ts).
   const { primary, secondary, cta } = resolveNavSections(pathname);
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-low px-4 py-6">
-      <div className="mb-8 flex items-center justify-between gap-2 px-2">
+      <div className="mb-4 flex items-center justify-between gap-2 px-2">
         <Logo />
         {inDrawer && (
           <Button variant="ghost" size="icon" onClick={closeSidebar} aria-label="Fermer le menu">
@@ -60,11 +63,18 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
         )}
       </div>
 
+      <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-label-sm text-on-surface-variant">
+        <span>Propulsé par</span>
+        <PartnerLogos className="flex-wrap gap-3" />
+      </div>
+
       <nav aria-label="Navigation principale" className="flex-1">
         <ul className="flex flex-col gap-1">
-          {primary.map((item) => (
-            <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
-          ))}
+          {primary
+            .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+            .map((item) => (
+              <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+            ))}
         </ul>
       </nav>
 
@@ -79,9 +89,11 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <div className="mt-6 border-t border-border pt-6">
         <ul className="flex flex-col gap-1">
-          {secondary.map((item) => (
-            <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
-          ))}
+          {secondary
+            .filter((item) => !item.adminOnly || userRole === 'ADMIN')
+            .map((item) => (
+              <SidebarLink key={item.id} item={item} onNavigate={onNavigate} />
+            ))}
           <li>
             <NavLink
               to={SIGN_OUT_ITEM.to}

@@ -32,6 +32,10 @@ export function ProfilageOverlay() {
   const [saisie, setSaisie] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // What had focus before this full-screen overlay opened, so closing it (by
+  // Escape or the × button) puts a keyboard/screen-reader user back where
+  // they were instead of dropping focus onto <body>.
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     void demarrer();
@@ -48,6 +52,15 @@ export function ProfilageOverlay() {
     }
   }, [estOuvert, isLoading, profilComplet, questionActuelle?.question]);
 
+  useEffect(() => {
+    if (estOuvert) {
+      previousFocusRef.current = document.activeElement as HTMLElement | null;
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [estOuvert]);
+
   if (!estOuvert) return null;
 
   const handleEnvoyer = (event: React.FormEvent) => {
@@ -63,12 +76,20 @@ export function ProfilageOverlay() {
     void repondre(valeur);
   };
 
+  const handleOverlayKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      fermer();
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-stretch justify-center bg-on-surface/40 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Assistant de profilage APL"
+      onKeyDown={handleOverlayKeyDown}
     >
       <div className="flex h-full w-full max-w-3xl flex-col overflow-hidden bg-surface-lowest shadow-soft sm:h-[min(720px,90vh)] sm:rounded-2xl">
         {/* Header */}

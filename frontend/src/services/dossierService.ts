@@ -21,6 +21,9 @@ export interface DossierService {
   /** Upload one document to the personalised dossier's application. Returns
    *  the stored document, extraction and classification result. */
   upload(applicationId: string, file: File): Promise<CitizenDocument>;
+  /** Remove a previously uploaded document — the checklist item it satisfied
+   *  reverts to `missing` on the next `getDossier()` read. */
+  remove(documentId: string): Promise<void>;
   /** Submit the dossier — emits an agent Case from the citizen Application. */
   submit(applicationId: string, profile?: Record<string, unknown>): Promise<SubmitDossierResult>;
   /** Where the submitted dossier stands in agent review (status + decision). */
@@ -44,6 +47,8 @@ export const dossierService: DossierService = {
       params: { applicationId },
     });
   },
+
+  remove: (documentId) => apiClient.delete<void>(`/documents/${encodeURIComponent(documentId)}`),
 
   submit: (applicationId, profile) =>
     apiClient.post<SubmitDossierResult>(

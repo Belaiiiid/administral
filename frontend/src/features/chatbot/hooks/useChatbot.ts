@@ -111,6 +111,11 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
   // le message suivant.
   const pendingRef = useRef<ChatbotPendingClarification | null>(null);
   const pendingHasOptionsRef = useRef(false);
+  // Branche juridique : quel droit servir. Renvoyé à chaque message parce que le
+  // backend ne garde aucune session — une fois la date connue, elle n'est plus
+  // redemandée.
+  const dateReferenceRef = useRef<string | null>(null);
+  const dateAskedRef = useRef(false);
 
   const ask = useCallback((question: string, isClarificationReply: boolean) => {
     if (!question || isSendingRef.current) return;
@@ -143,10 +148,14 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
         conversationHistory,
         pendingClarification,
         isClarificationReply,
+        dateReference: dateReferenceRef.current,
+        dateAsked: dateAskedRef.current,
       })
       .then((response) => {
         pendingRef.current = response.pendingClarification ?? null;
         pendingHasOptionsRef.current = (response.options?.length ?? 0) > 0;
+        dateReferenceRef.current = response.dateReference ?? null;
+        dateAskedRef.current = response.dateAsked ?? false;
 
         setMessages((current) => [
           ...current,
@@ -157,6 +166,7 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
             createdAt: new Date().toISOString(),
             sources: response.sources,
             options: response.options ?? undefined,
+            cta: response.cta ?? undefined,
           },
         ]);
       })

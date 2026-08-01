@@ -125,6 +125,45 @@ def mark_checklist_received(db: Session, application_id: str, item_key: str) -> 
         db.commit()
 
 
+def recompute_checklist_item_received(db: Session, application_id: str, item_key: str) -> None:
+    """Re-derive one checklist item's `received` flag from the documents still on file.
+
+    Called after a document is deleted: `received` is otherwise a one-way flag
+    (see `mark_checklist_received`), so a citizen who uploaded, got matched, then
+    removed that same document would stay stuck on *validated* forever — the
+    "décocher" action would be a no-op. Re-scanning the remaining documents for
+    this item's key, under the same confidence floor the original match used,
+    is what lets the item actually fall back to *missing*/*uploaded* when its
+    only qualifying document is gone.
+    """
+    item = db.execute(
+        select(ChecklistItem).where(
+            ChecklistItem.application_id == application_id,
+            ChecklistItem.item_key == item_key,
+        )
+    ).scalar_one_or_none()
+    if item is None:
+        return
+
+    remaining = db.execute(
+        select(ApplicationDocument).where(
+            ApplicationDocument.application_id == application_id,
+            ApplicationDocument.matched_checklist_item_id == item_key,
+        )
+    ).scalars().all()
+
+    still_satisfied = any(
+        (doc.classification or {}).get("decision") == "match"
+        and (doc.classification or {}).get("confidence", 0) >= 0.5
+        for doc in remaining
+    )
+
+    if item.received != still_satisfied:
+        item.received = still_satisfied
+        db.add(item)
+        db.commit()
+
+
 def set_application_status(db: Session, application: Application, status: ApplicationStatus) -> None:
     if application.status != status:
         application.status = status
