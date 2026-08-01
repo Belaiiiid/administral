@@ -6,6 +6,7 @@ import { Logo } from '@/components/layout/Logo';
 import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
+import { WhatsAppButton } from '@/features/chatbot/components/WhatsAppButton';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
@@ -71,6 +72,7 @@ function PublicLandingPageContent() {
       </main>
 
       <VoiceAssistantPanel />
+      <WhatsAppButton />
     </div>
   );
 }

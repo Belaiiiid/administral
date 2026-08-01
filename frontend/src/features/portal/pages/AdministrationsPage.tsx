@@ -22,16 +22,15 @@ const ADMINISTRATION_ICONS: Record<AdministrationId, LucideIcon> = {
 /**
  * "Administrations" — the first choice a citizen makes, right after voice
  * onboarding (see `VoiceOnboardingPage`), before any account is required.
- * Only CAF is wired to a real backend today; the rest render as locked tiles
- * rather than pretending to be usable.
+ * CAF and France Travail are wired to real backends; the rest render as
+ * locked tiles rather than pretending to be usable.
  */
 export default function AdministrationsPage() {
   useDocumentTitle('Administrations');
   const navigate = useNavigate();
 
-  const availableActions: VoicePageAction[] = SERVICES.filter(
-    (service) => service.status === 'available',
-  ).map((service) => ({
+  const availableServices = SERVICES.filter((service) => service.status === 'available');
+  const availableActions: VoicePageAction[] = availableServices.map((service) => ({
     id: `select_${service.id}`,
     label: service.name,
     description: `Choisir l’administration ${service.name}`,
@@ -39,14 +38,10 @@ export default function AdministrationsPage() {
   }));
 
   useVoicePage({
-    readableText:
-      'Page des administrations. Choisissez une administration pour accéder à ses services. Seule la CAF est disponible pour le moment, les autres arriveront bientôt.',
+    readableText: `Page des administrations. Choisissez une administration pour accéder à ses services. Disponibles pour le moment : ${availableServices.map((s) => s.name).join(', ')}. Les autres arriveront bientôt.`,
     actions: availableActions,
     actionCallbacks: Object.fromEntries(
-      SERVICES.filter((service) => service.status === 'available').map((service) => [
-        `select_${service.id}`,
-        () => navigate(service.basePath),
-      ]),
+      availableServices.map((service) => [`select_${service.id}`, () => navigate(service.basePath)]),
     ),
   });
 
@@ -72,9 +67,20 @@ export default function AdministrationsPage() {
             >
               <CardContent className="flex h-full flex-col gap-4 p-6">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                    <Icon className="size-6" aria-hidden="true" />
-                  </span>
+                  {service.logoUrl ? (
+                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-1.5">
+                      <img
+                        src={service.logoUrl}
+                        alt=""
+                        aria-hidden="true"
+                        className="size-full object-contain"
+                      />
+                    </span>
+                  ) : (
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                      <Icon className="size-6" aria-hidden="true" />
+                    </span>
+                  )}
                   {!isAvailable && (
                     <Badge tone="neutral">
                       <Lock className="size-3" aria-hidden="true" />

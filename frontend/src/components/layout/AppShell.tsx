@@ -11,6 +11,7 @@ import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
 import { VoiceAssistantPanel } from '@/features/voice/components/VoiceAssistantPanel';
+import { WhatsAppButton } from '@/features/chatbot/components/WhatsAppButton';
 import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 import { useUiStore } from '@/store/uiStore';
@@ -84,7 +85,12 @@ export function AppShell({
         <Footer />
       </div>
 
-      {role === 'citizen' && <FloatingChatbot />}
+      {role === 'citizen' && (
+        <>
+          <FloatingChatbot />
+          <WhatsAppButton />
+        </>
+      )}
       <VoiceAssistantPanel />
     </div>
       </VoiceAssistantProvider>

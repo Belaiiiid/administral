@@ -34,6 +34,10 @@ export const ROUTES = {
   dossier: '/mon-dossier',
   // "Suivre un dossier déposé" — où en est l'instruction du dossier déjà envoyé.
   suivi: '/mon-dossier/suivi',
+  // France Travail — accompagnement emploi, pas un dossier administratif.
+  franceTravail: '/france-travail',
+  franceTravailCvCoach: '/france-travail/cv-coach',
+  franceTravailJobSearch: '/france-travail/recherche',
   documents: '/documents',
   documentsUpload: '/documents/depot',
   chat: '/chat',

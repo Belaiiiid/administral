@@ -42,6 +42,10 @@ const PersonalizedDossierPage = lazy(
 );
 const SuiviDossierPage = lazy(() => import('@/features/documents/pages/SuiviDossierPage'));
 
+const JobMatchPage = lazy(() => import('@/features/france-travail/pages/JobMatchPage'));
+const CvCoachPage = lazy(() => import('@/features/france-travail/pages/CvCoachPage'));
+const JobSearchPage = lazy(() => import('@/features/france-travail/pages/JobSearchPage'));
+
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
 const VoiceOnboardingPage = lazy(() => import('@/features/voice/pages/VoiceOnboardingPage').then(m => ({ default: m.VoiceOnboardingPage })));
 const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLandingPage'));
@@ -123,13 +127,17 @@ const router = createBrowserRouter([
 
           {
             // APL's own profiling gate — see `RequireApplProfile`. Scoped to
-            // just these two routes, not the whole citizen area.
+            // just these two routes, not the whole citizen area — France
+            // Travail's pages below have no APL profile to require.
             element: <RequireApplProfile />,
             children: [
               { path: ROUTES.dossier, element: <PersonalizedDossierPage /> },
               { path: ROUTES.suivi, element: <SuiviDossierPage /> },
             ],
           },
+          { path: ROUTES.franceTravail, element: <JobMatchPage /> },
+          { path: ROUTES.franceTravailCvCoach, element: <CvCoachPage /> },
+          { path: ROUTES.franceTravailJobSearch, element: <JobSearchPage /> },
           { path: ROUTES.documents, element: <DocumentsPage /> },
           { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
 
