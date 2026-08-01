@@ -1,4 +1,4 @@
-import { LogOut, Shield, Users } from 'lucide-react';
+import { LogOut, Users } from 'lucide-react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
