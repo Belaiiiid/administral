@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # foundation this establishes.
     access_token_expire_minutes: int = 30
 
+    # -- Cloudflare Turnstile (anti-bot) -----------------------------------
+    # Optional: when unset, captcha verification is skipped (local dev).
+    turnstile_secret_key: str | None = None
+
     # -- Account tokens (email verification / password reset) --------------
     # Deliberately different lifetimes. A verification link is a convenience and
     # can be re-sent freely, so it lives long enough to survive a spam folder. A
@@ -96,6 +100,14 @@ class Settings(BaseSettings):
     # Forensic (C4) analysis benefits from a stronger model — subtle metadata
     # inconsistencies are a reasoning task, not a classification one.
     mistral_fraud_model: str = "mistral-large-latest"
+    # Optional, separately deployed computer-vision localisation service. It is
+    # deliberately not enabled by default: model weights must be evaluated on
+    # representative administrative documents before it influences triage.
+    fraud_vision_endpoint: str | None = "http://127.0.0.1:8011/analyse"
+    fraud_vision_timeout_seconds: float = 45.0
+    # ELA remains enabled as a corroborating JPEG-only detector. It can never
+    # decide the fraud result by itself; set false only for diagnostics.
+    fraud_enable_ela: bool = True
     # Profiling (citizen.profiling): this project talks to the Mistral API only,
     # so the deterministic rule generator is OFF by default — every profiling
     # turn must call Mistral, and a missing key surfaces as an error rather than

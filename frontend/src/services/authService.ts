@@ -3,6 +3,7 @@ import type {
   AuthTokenResponse,
   AuthUser,
   LoginCredentials,
+  ProvisionStaffPayload,
   RegisterPayload,
   ResetPasswordPayload,
 } from '@/types';
@@ -25,6 +26,8 @@ export interface AuthService {
   verifyEmail(token: string): Promise<AuthUser>;
   /** Ask for a fresh confirmation link. Requires a session. */
   resendVerification(): Promise<AuthMessageResponse>;
+  /** Ask for a fresh confirmation link without being logged in. */
+  resendVerificationPublic(email: string): Promise<AuthMessageResponse>;
 
   /**
    * Ask for a reset link. Resolves identically for a registered and an
@@ -34,6 +37,11 @@ export interface AuthService {
   requestPasswordReset(email: string): Promise<AuthMessageResponse>;
   /** Redeem a reset token and set the new password. No session is issued. */
   resetPassword(payload: ResetPasswordPayload): Promise<AuthMessageResponse>;
+
+  /** Admin: create an agent or admin account. */
+  provisionStaff(payload: ProvisionStaffPayload): Promise<AuthUser>;
+  /** Admin: list all staff accounts. */
+  listStaff(): Promise<AuthUser[]>;
 }
 
 export const authService: AuthService = {
@@ -43,8 +51,14 @@ export const authService: AuthService = {
 
   verifyEmail: (token) => apiClient.post<AuthUser>('/auth/verify-email', { token }),
   resendVerification: () => apiClient.post<AuthMessageResponse>('/auth/verify-email/resend', {}),
+  resendVerificationPublic: (email) =>
+    apiClient.post<AuthMessageResponse>('/auth/verify-email/resend-public', { email }),
 
   requestPasswordReset: (email) =>
     apiClient.post<AuthMessageResponse>('/auth/password-reset/request', { email }),
   resetPassword: (payload) => apiClient.post<AuthMessageResponse>('/auth/password-reset', payload),
+
+  provisionStaff: (payload) =>
+    apiClient.post<AuthUser>('/auth/staff', payload),
+  listStaff: () => apiClient.get<AuthUser[]>('/auth/staff'),
 };

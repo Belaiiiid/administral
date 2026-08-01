@@ -23,6 +23,7 @@ from app.modules.chatbot.router import router as chatbot_router
 from app.modules.profiling.routers import router as profiling_router
 from app.modules.agent.router import router as agent_router
 from app.modules.ai.coherence.router import router as coherence_router
+from app.modules.ai.fraud.router import router as fraud_router
 from app.modules.audit.router import router as audit_router
 from app.modules.auth.router import router as auth_router, staff_router as auth_staff_router
 from app.modules.citizen.router import router as citizen_router
@@ -111,6 +112,7 @@ app.include_router(auth_staff_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
 app.include_router(chatbot_router, prefix="/api")
 app.include_router(coherence_router, prefix="/api")
+app.include_router(fraud_router, prefix="/api")
 app.include_router(citizen_router, prefix="/api")
 # Citizen profiling assistant (A2/A3/A4): /api/session + /api/session/{id}/profilage/tour
 app.include_router(profiling_router, prefix="/api")

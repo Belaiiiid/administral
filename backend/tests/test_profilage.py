@@ -394,14 +394,14 @@ def _valeur_test_pour_etudiant(champ: str):
 def test_a3_profil_complexe_couple_avec_enfants_peut_atteindre_la_limite_de_12(store):
     """⚠️ Compromis explicitement documenté (à signaler à l'utilisateur, RULES.md
     §3) : la cascade étendue (couple + enfants + salarié) compte jusqu'à 15
-    champs à collecter, soit PLUS que la limite stricte de 12 questions. Le
+    champs à collecter, soit PLUS que la limite stricte de 11 questions. Le
     harness doit alors clore sur `profil_complet` (déterministe) sans jamais
-    dépasser 12 tours, MÊME si le profil réel n'est pas entièrement caractérisé.
+    dépasser 11 tours, MÊME si le profil réel n'est pas entièrement caractérisé.
     C'est le comportement voulu par le plafond (RULES.md §2.1) : mieux vaut
     clore prématurément que boucler indéfiniment sur un profil ambigu.
     """
     session = store.creer()
-    for _ in range(LIMITE_TOURS + 2):  # marge de sécurité pour prouver qu'on ne dépasse jamais 12
+    for _ in range(LIMITE_TOURS + 2):  # marge de sécurité pour prouver qu'on ne dépasse jamais 11
         if session.profil_complet:
             break
         tour, _ = _lancer(jouer_tour(session))

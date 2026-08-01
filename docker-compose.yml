@@ -1,0 +1,35 @@
+# Minimal fraud-engine environment: backend + vision_service only.
+# No frontend, no PostgreSQL container — the database stays external/local
+# (see backend/.env), reached from inside the container via host.docker.internal.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - backend/.env
+    environment:
+      # Override whatever backend/.env says: the DB is not in this compose
+      # file, so it must be reached through the host, and TruFor is reached
+      # by its compose service name rather than 127.0.0.1.
+      DATABASE_HOST: host.docker.internal
+      FRAUD_VISION_ENDPOINT: http://vision_service:8011/analyse
+    extra_hosts:
+      # Docker Desktop (Windows/Mac) already resolves this; Linux needs it explicit.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - vision_service
+
+  vision_service:
+    build:
+      context: .
+      dockerfile: vision_service/Dockerfile
+    ports:
+      - "8011:8011"
+    volumes:
+      # Populate these per vision_service/README.md — the official TruFor
+      # source and downloaded weights are not part of the image or the repo.
+      - ./third_party/trufor:/app/third_party/trufor
+      - ./vision_service/weights:/app/vision_service/weights
