@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useVoiceStore } from '../store/voiceStore';
 import { MistralSttProvider } from '../providers/MistralSttProvider';
 import { MistralTtsProvider } from '../providers/MistralTtsProvider';
@@ -8,6 +8,7 @@ import { VoiceCommandExecutor } from '../executors/VoiceCommandExecutor';
 import { VoicePageContext } from '../context/VoicePageContext';
 import type { VoiceIntent, VoicePageAction, SpeechToTextProvider, TextToSpeechProvider } from '../types';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
+import { ROUTES } from '@/app/router/paths';
 
 export type VoiceStatus = 'idle' | 'standby' | 'listening' | 'speaking' | 'error';
 
@@ -45,9 +46,18 @@ export const useVoiceAssistant = () => {
 export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const modeVocal = useVoiceStore((state) => state.modeVocal);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const pageContext = useContext(VoicePageContext);
-  const { readableText, actions, fields } = pageContext || { readableText: '', actions: [], fields: [] };
+  const { readableText, actions, fields, actionCallbacks } = pageContext || {
+    readableText: '',
+    actions: [],
+    fields: [],
+    actionCallbacks: {},
+  };
+
+  // Skip confirmation prompts on the login page to avoid speaking passwords aloud
+  const skipConfirmation = location.pathname === ROUTES.login;
 
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [transcript, setTranscript] = useState('');
@@ -55,6 +65,7 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
   const [error, setError] = useState<string | null>(null);
   const [isWaitingForConfirmation, setWaitingForConfirmation] = useState(false);
   const [pendingAction, setPendingAction] = useState<VoicePageAction | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<VoiceIntent | null>(null);
 
   const ttsProvider = useRef<TextToSpeechProvider | null>(null);
   const sttProvider = useRef<SpeechToTextProvider | null>(null);
@@ -85,7 +96,6 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
     resolver.current = new DeterministicVoiceIntentResolver();
     executor.current = new VoiceCommandExecutor();
     ttsProvider.current.onEnd(() => {
-      // Ensure only one TTS session active and transition cleanly
       sttProvider.current?.stop();
       if (useVoiceStore.getState().modeVocal) startStandby(); else setStatus('idle');
     });
@@ -96,22 +106,48 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
     return (text: string) => {
       if (!resolver.current || !executor.current || !ttsProvider.current) return;
       const activeFieldsList = fields || [];
-      const intent = resolver.current.resolve(text, activeFieldsList, isWaitingForConfirmation);
+      const intent = resolver.current.resolve(text, activeFieldsList, isWaitingForConfirmation, actions || []);
       setTranscript(text); setLastIntent(intent);
+
+      const deps = {
+        navigate,
+        tts: ttsProvider.current,
+        actions: actions || [],
+        fields: activeFieldsList,
+        actionCallbacks: actionCallbacks || {},
+        isWaitingForConfirmation,
+        setWaitingForConfirmation,
+        pendingAction,
+        setPendingAction,
+        pendingIntent,
+        setPendingIntent,
+        readableText: readableText || '',
+        skipConfirmation,
+      };
 
       if (intent.type === 'unknown') {
         (async () => {
           try {
-            const resp = await fetch('/api/voice/classify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript: text, actions: (actions || []).map(a => a.label), fields: (activeFieldsList || []).flatMap(f => f.labels) }) });
+            const resp = await fetch('/api/voice/classify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                transcript: text,
+                actions: (actions || []).map(a => a.label),
+                fields: (activeFieldsList || []).flatMap(f => f.labels),
+              }),
+            });
             if (resp.ok) {
               const data = await resp.json();
-              if (data.type === 'navigate' && (data.target === 'home' || data.target === 'documents')) {
-                const deps = { navigate, tts: ttsProvider.current, actions: actions || [], fields: activeFieldsList, isWaitingForConfirmation, setWaitingForConfirmation, pendingAction, setPendingAction, readableText: readableText || '' };
-                sttProvider.current?.stop(); setStatus('speaking'); executor.current.execute({ type: 'navigate', target: data.target }, deps); return;
+              if (data.type === 'navigate' && (data.target === 'home' || data.target === 'documents' || data.target === 'dossier')) {
+                sttProvider.current?.stop(); setStatus('speaking');
+                executor.current!.execute({ type: 'navigate', target: data.target }, deps);
+                return;
               }
               if (data.type === 'read_page') {
-                const deps = { navigate, tts: ttsProvider.current, actions: actions || [], fields: activeFieldsList, isWaitingForConfirmation, setWaitingForConfirmation, pendingAction, setPendingAction, readableText: readableText || '' };
-                sttProvider.current?.stop(); setStatus('speaking'); executor.current.execute({ type: 'read_page' }, deps); return;
+                sttProvider.current?.stop(); setStatus('speaking');
+                executor.current!.execute({ type: 'read_page' }, deps);
+                return;
               }
               if (data.type === 'stop_speaking') { stopSpeaking(); return; }
               if (data.type === 'explain_actions') {
@@ -125,15 +161,24 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
                 return;
               }
               if (data.type === 'fill_field' && data.value) {
-                const deps = { navigate, tts: ttsProvider.current, actions: actions || [], fields: activeFieldsList, isWaitingForConfirmation, setWaitingForConfirmation, pendingAction, setPendingAction, readableText: readableText || '' };
                 let targetFieldId: string | null = null;
                 if (activeFieldsList.length === 1) targetFieldId = activeFieldsList[0].fieldId;
                 else {
                   const lower = text.toLowerCase();
-                  for (const f of activeFieldsList) { if ((f.labels || []).some((lbl) => lower.includes(String(lbl).toLowerCase()))) { targetFieldId = f.fieldId; break; } }
+                  for (const f of activeFieldsList) {
+                    if ((f.labels || []).some((lbl) => lower.includes(String(lbl).toLowerCase()))) {
+                      targetFieldId = f.fieldId;
+                      break;
+                    }
+                  }
                 }
-                if (targetFieldId) { sttProvider.current?.stop(); setStatus('speaking'); executor.current.execute({ type: 'fill_field', fieldId: targetFieldId, value: String(data.value) }, deps); }
-                else if (ttsProvider.current) { sttProvider.current?.stop(); setStatus('speaking'); ttsProvider.current.speak('Quel champ dois-je remplir ?'); }
+                if (targetFieldId) {
+                  sttProvider.current?.stop(); setStatus('speaking');
+                  executor.current!.execute({ type: 'fill_field', fieldId: targetFieldId, value: String(data.value) }, deps);
+                } else if (ttsProvider.current) {
+                  sttProvider.current?.stop(); setStatus('speaking');
+                  ttsProvider.current.speak('Quel champ dois-je remplir ?');
+                }
                 return;
               }
             }
@@ -146,11 +191,15 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
         return;
       }
 
-      const deps = { navigate, tts: ttsProvider.current, actions: actions || [], fields: activeFieldsList, isWaitingForConfirmation, setWaitingForConfirmation, pendingAction, setPendingAction, readableText: readableText || '' };
-      sttProvider.current?.stop(); setStatus('speaking'); executor.current.execute(intent, deps);
-      setTimeout(() => { if (ttsProvider.current && !ttsProvider.current.isSpeaking() && useVoiceStore.getState().modeVocal) { startStandby(); } }, 300);
+      sttProvider.current?.stop(); setStatus('speaking');
+      executor.current.execute(intent, deps);
+      setTimeout(() => {
+        if (ttsProvider.current && !ttsProvider.current.isSpeaking() && useVoiceStore.getState().modeVocal) {
+          startStandby();
+        }
+      }, 300);
     };
-  }, [actions, fields, isWaitingForConfirmation, pendingAction, readableText, navigate]);
+  }, [actions, fields, actionCallbacks, isWaitingForConfirmation, pendingAction, pendingIntent, readableText, navigate, skipConfirmation]);
 
   useEffect(() => {
     if (modeVocal) { setError(null); startStandby(); }
@@ -181,7 +230,10 @@ export const VoiceAssistantProvider: React.FC<{ children: React.ReactNode }> = (
 
   const stopPushToTalk = () => { commandWindowActive.current = false; sttProvider.current?.stop(); setStatus('standby'); };
 
-  const value = useMemo(() => ({ status, transcript, lastIntent, error, isWaitingForConfirmation, pendingAction, triggerCommand, speakText, stopSpeaking, startListening, startPushToTalk, stopPushToTalk, }), [status, transcript, lastIntent, error, isWaitingForConfirmation, pendingAction, triggerCommand]);
+  const value = useMemo(() => ({
+    status, transcript, lastIntent, error, isWaitingForConfirmation, pendingAction,
+    triggerCommand, speakText, stopSpeaking, startListening, startPushToTalk, stopPushToTalk,
+  }), [status, transcript, lastIntent, error, isWaitingForConfirmation, pendingAction, triggerCommand]);
 
   return <VoiceAssistantContext.Provider value={value}>{children}</VoiceAssistantContext.Provider>;
 };

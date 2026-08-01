@@ -1,12 +1,15 @@
-import { ArrowRight, Bot, Clock, FileCheck2, Landmark, Users } from 'lucide-react';
+import { ArrowRight, Banknote, Bot, Building2, Clock, FileCheck2, Home, Lock, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-import { SERVICES } from '@/app/config/services';
+import { CAF_SERVICES, type CafServiceId } from '@/app/config/cafServices';
+import { ROUTES } from '@/app/router/paths';
 import { PageHeader, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useVoicePage } from '@/features/voice/context/VoicePageContext';
+import type { VoicePageAction } from '@/features/voice/types';
 import { useSessionStore } from '@/store/sessionStore';
 
 interface DashboardStat {
@@ -27,19 +30,47 @@ const DASHBOARD_STATS: DashboardStat[] = [
   { icon: Bot, value: '24h/24, 7j/7', label: 'Disponibilité de l’assistant IA' },
 ];
 
+/** One recognisable icon per CAF service, rather than a single generic mark repeated on every card. */
+const CAF_SERVICE_ICONS: Record<CafServiceId, LucideIcon> = {
+  apl: Home,
+  af: Users,
+  alf: Building2,
+  'prime-activite': Banknote,
+};
+
 /**
- * "Mes services" — the first thing a citizen sees after registering, and the
- * landing page for every later visit. No profile gate here any more: the
- * questions to ask depend on *which* service is opened (APL's are not
- * France Travail's), so profiling now happens per service, on entering it
- * (see `RequireApplProfile`), not once globally before this hub even shows.
+ * "Mes services" — CAF's own services, reached once CAF has been chosen on
+ * `/administrations`. No profile gate here any more: the questions to ask
+ * depend on *which* service is opened, so profiling now happens per service,
+ * on entering it (see `RequireApplProfile`), not once globally before this
+ * hub even shows.
  *
- * Only `caf` (APL) is wired to a real backend; the rest render as disabled
- * tiles rather than pretending to be functional.
+ * Only `apl` is wired to a real backend; the rest render as locked tiles
+ * rather than pretending to be functional. Reachable without an account
+ * (see `ROUTES.administrations`) — opening APL à l'Aide while unauthenticated
+ * sends the citizen to the public chatbot (`ROUTES.home`) instead of the real
+ * dossier, exactly like following any other link into the citizen area would.
  */
 export default function CitizenDashboardPage() {
   useDocumentTitle('Mes services');
-  const { displayName } = useSessionStore();
+  const { displayName, isAuthenticated } = useSessionStore();
+  const navigate = useNavigate();
+
+  const aplAction: VoicePageAction = {
+    id: 'select_apl',
+    label: 'APL à l’Aide',
+    description: 'Ouvrir le service APL à l’Aide',
+    intent: { type: 'click_action', actionId: 'select_apl' },
+  };
+
+  useVoicePage({
+    readableText:
+      'Page des services CAF. Seule l’APL à l’Aide est disponible pour le moment, les autres services arriveront bientôt.',
+    actions: [aplAction],
+    actionCallbacks: {
+      select_apl: () => navigate(isAuthenticated ? ROUTES.dossier : ROUTES.home),
+    },
+  });
 
   return (
     <div className="mx-auto max-w-container">
@@ -72,10 +103,12 @@ export default function CitizenDashboardPage() {
         ))}
       </ul>
 
-      <SectionHeader title="Services publics" as="h2" className="mb-4" />
+      <SectionHeader title="Services CAF" as="h2" className="mb-4" />
       <ul className="grid gap-4 sm:grid-cols-2">
-        {SERVICES.map((service) => {
+        {CAF_SERVICES.map((service) => {
           const isAvailable = service.status === 'available';
+          const target = service.id === 'apl' && !isAuthenticated ? ROUTES.home : service.basePath;
+          const Icon = CAF_SERVICE_ICONS[service.id];
           const content = (
             <Card
               className={
@@ -87,9 +120,14 @@ export default function CitizenDashboardPage() {
               <CardContent className="flex h-full flex-col gap-4 p-6">
                 <div className="flex items-start justify-between gap-3">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                    <Landmark className="size-6" aria-hidden="true" />
+                    <Icon className="size-6" aria-hidden="true" />
                   </span>
-                  {!isAvailable && <Badge tone="neutral">Bientôt disponible</Badge>}
+                  {!isAvailable && (
+                    <Badge tone="neutral">
+                      <Lock className="size-3" aria-hidden="true" />
+                      Bientôt disponible
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-headline-md text-primary">{service.name}</h3>
@@ -118,7 +156,7 @@ export default function CitizenDashboardPage() {
           return (
             <li key={service.id}>
               {isAvailable ? (
-                <Link to={service.basePath} aria-label={`Ouvrir ${service.name}`}>
+                <Link to={target} aria-label={`Ouvrir ${service.name}`}>
                   {content}
                 </Link>
               ) : (

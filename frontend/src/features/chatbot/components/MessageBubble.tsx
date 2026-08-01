@@ -1,6 +1,6 @@
-import { BookOpen, Bot, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { ArrowRight, BookOpen, Bot, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,20 @@ export function MessageBubble({
         </div>
 
         {message.sources && <SourceCitation sources={message.sources} />}
+
+        {message.cta && (
+          <div className="w-full rounded-lg border-l-4 border-l-ai bg-ai-surface p-3">
+            {message.cta.hint && (
+              <p className="mb-2 text-body-sm text-on-surface">{message.cta.hint}</p>
+            )}
+            <Button asChild size="sm" variant="outline" className="bg-surface-lowest">
+              <Link to={message.cta.href}>
+                {message.cta.label}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        )}
 
         {message.options && onOptionSelect && (
           <ul className="flex flex-wrap gap-2">

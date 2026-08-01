@@ -43,6 +43,9 @@ def _warmup_chatbot() -> None:
         from app.modules.chatbot.rag import orchestrator
 
         orchestrator.get_rag_pipeline()
+        # Le graphe juridique (~1 s, en mémoire) : chargé ici pour la même raison que
+        # les index, et parce qu'il partage le pipeline RAG qu'on vient de construire.
+        orchestrator.get_legal_pipeline()
     except Exception:  # noqa: BLE001 — warmup must never affect startup
         pass
 

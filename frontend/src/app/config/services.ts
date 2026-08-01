@@ -1,7 +1,9 @@
+import { ROUTES } from '@/app/router/paths';
 import type { ServiceDefinition } from '@/types';
 
 /**
- * The service registry — the extension point of the platform.
+ * The administrations registry — shown on `/administrations`, the first
+ * choice a citizen makes.
  *
  * Adding a new administration means: append an entry here, create the matching
  * `features/<id>/` module, and register its routes. Nothing else in the shell
@@ -10,11 +12,14 @@ import type { ServiceDefinition } from '@/types';
 export const SERVICES: ServiceDefinition[] = [
   {
     id: 'caf',
-    name: 'APL à l’Aide',
+    name: 'CAF',
     administration: 'CAF',
     description:
       'Gestion simplifiée de vos aides au logement et simulations de droits en temps réel.',
-    basePath: '/mon-dossier',
+    // The only administration wired up today — opens its own services hub
+    // (`/portal`) rather than a service directly, since CAF itself offers
+    // several (APL, AF, ALF, Prime d'activité).
+    basePath: ROUTES.portal,
     status: 'available',
   },
   {

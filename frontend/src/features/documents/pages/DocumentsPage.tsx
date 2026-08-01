@@ -20,6 +20,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { documentService } from '@/services/documentService';
 import type { CitizenDocument, DocumentAnalysisStatus, ProcessStatus } from '@/types';
+import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 
 /** The analysis pipeline has more states than the badge vocabulary exposes. */
 const ANALYSIS_STATUS_TO_PROCESS: Record<DocumentAnalysisStatus, ProcessStatus> = {
@@ -59,6 +60,23 @@ export default function DocumentsPage() {
   useEffect(() => {
     refresh();
   }, []);
+
+  // Register page content for the voice assistant
+  useVoicePage({
+    readableText:
+      'Page Mes documents. Vous retrouvez ici toutes vos pièces justificatives déposées et leur statut d\'analyse. ' +
+      `Vous avez actuellement ${documents.length} document${documents.length !== 1 ? 's' : ''}. ` +
+      'Vous pouvez également déposer un nouveau document ou consulter le centre de documentation.',
+    actions: [
+      {
+        id: 'navigate_dossier',
+        label: 'deposer un document',
+        description: 'Aller à la page de dépôt de dossier',
+        intent: { type: 'navigate', target: 'dossier' },
+        sensitive: false,
+      },
+    ],
+  });
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
