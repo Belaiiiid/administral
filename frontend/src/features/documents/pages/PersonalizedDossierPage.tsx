@@ -37,6 +37,7 @@ import type { DossierReview } from '@/services/documentService';
 import {
   DOSSIER_CATEGORY_LABEL,
   DOSSIER_STATUS_META,
+  type CitizenDocument,
   type DossierCategory,
   type DossierChecklistItem,
   type EstimationAide,
@@ -86,7 +87,26 @@ function groupByCategory(
   return groups;
 }
 
-function ChecklistRow({ item }: { item: DossierChecklistItem }) {
+/**
+ * `ChecklistRow` — reflects a piece's state, and, once received, lets the
+ * citizen undo it. "Décocher" removes the document(s) that satisfied this
+ * item (`dossierService.remove`, matched via `classification.matched
+ * _checklist_document_id === item.documentType`) rather than flipping a
+ * local flag — there is no client-side "checked" state to begin with, the
+ * status is always derived from what actually reached the server, so
+ * unchecking has to go through the same door uploading did.
+ */
+function ChecklistRow({
+  item,
+  onUncheck,
+  isRemoving,
+  disabled,
+}: {
+  item: DossierChecklistItem;
+  onUncheck: () => void;
+  isRemoving: boolean;
+  disabled: boolean;
+}) {
   const meta = DOSSIER_STATUS_META[item.status];
   const Icon = STATUS_ICON[item.status];
   // A piece is "received" the moment a deposited file matched it — the row
@@ -119,50 +139,101 @@ function ChecklistRow({ item }: { item: DossierChecklistItem }) {
             </p>
           </div>
         </div>
-        <Badge tone={meta.tone}>{meta.label}</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge tone={meta.tone}>{meta.label}</Badge>
+          {isReceived && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={disabled || isRemoving}
+              onClick={onUncheck}
+              aria-label={`Décocher « ${item.libelle} » — retirer le document déposé`}
+            >
+              {isRemoving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <X className="size-4" aria-hidden="true" />
+              )}
+              Décocher
+            </Button>
+          )}
+        </div>
       </div>
     </li>
   );
 }
 
+/** One dropped file's journey through `dossierService.upload`. */
+type UploadEntry = {
+  id: string;
+  file: File;
+  status: 'uploading' | 'done' | 'error';
+  error?: string;
+};
+
 /**
- * The one place documents come in — but they go no further than the
- * browser's memory until "Envoyer le dossier à la CAF" is pressed. No upload,
- * no analysis, no server round-trip happens on drop; a `File` picked here and
- * never sent is discarded the moment the tab closes, exactly like a form
- * nobody submitted, because nothing about it ever left the browser.
+ * The one place documents come in — and, since this rewrite, the moment they
+ * actually leave the browser: each drop calls `dossierService.upload`
+ * immediately, not at final submission. A citizen who never comes back to
+ * click "Envoyer le dossier à la CAF" still has their pieces safely on the
+ * application, and — the point of this change — the checklist to the right
+ * updates the moment each upload resolves, instead of staying frozen on
+ * "manquant" until the very end of the flow.
  *
- * The trade-off this buys the citizen-facing side (documents.tsx's B1/B4
- * classification, per-file match score) has to wait until the send: there is
- * no server to ask "does this look right?" before that point. The checklist,
- * to its right, keeps showing what is *required* — it just cannot show what
- * is *matched* until the pieces actually reach the server at submission.
+ * A row shows one of three states: sending (spinner), sent (check — the
+ * checklist has already been refreshed), or failed (with the reason and a
+ * way to retry without re-dropping the file).
  */
 function PendingFileRow({
-  file,
+  entry,
+  onRetry,
   onRemove,
   disabled,
 }: {
-  file: File;
+  entry: UploadEntry;
+  onRetry: () => void;
   onRemove: () => void;
   disabled: boolean;
 }) {
   return (
     <li className="flex items-center gap-4 rounded-lg border border-border bg-surface-lowest p-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-        <FileText className="size-5" aria-hidden="true" />
+      <span
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-lg',
+          entry.status === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-primary-fixed text-primary',
+        )}
+      >
+        {entry.status === 'uploading' ? (
+          <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+        ) : entry.status === 'done' ? (
+          <CheckCircle2 className="size-5" aria-hidden="true" />
+        ) : (
+          <FileText className="size-5" aria-hidden="true" />
+        )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-label-md text-on-surface">{file.name}</p>
-        <p className="text-body-sm text-on-surface-variant">
-          {(file.size / 1024).toFixed(0)} Ko — en attente d’envoi
+        <p className="truncate text-label-md text-on-surface">{entry.file.name}</p>
+        <p
+          className={cn(
+            'text-body-sm',
+            entry.status === 'error' ? 'text-destructive' : 'text-on-surface-variant',
+          )}
+        >
+          {entry.status === 'uploading' && 'Envoi en cours…'}
+          {entry.status === 'done' && `${(entry.file.size / 1024).toFixed(0)} Ko — envoyé`}
+          {entry.status === 'error' && (entry.error ?? 'L’envoi a échoué.')}
         </p>
       </div>
+      {entry.status === 'error' && (
+        <Button variant="outline" size="sm" disabled={disabled} onClick={onRetry}>
+          Réessayer
+        </Button>
+      )}
       <Button
         variant="ghost"
         size="icon"
-        aria-label={`Retirer ${file.name}`}
-        disabled={disabled}
+        aria-label={`Retirer ${entry.file.name}`}
+        disabled={disabled || entry.status === 'uploading'}
         onClick={onRemove}
       >
         <X aria-hidden="true" />
@@ -172,14 +243,16 @@ function PendingFileRow({
 }
 
 function PendingFilesColumn({
-  files,
+  uploads,
   onFilesAdded,
+  onRetry,
   onRemove,
   disabled,
 }: {
-  files: File[];
+  uploads: UploadEntry[];
   onFilesAdded: (files: File[]) => void;
-  onRemove: (index: number) => void;
+  onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
   disabled: boolean;
 }) {
   return (
@@ -189,9 +262,9 @@ function PendingFilesColumn({
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-body-sm text-on-surface-variant">
-          Ajoutez vos justificatifs ici — ils restent dans votre navigateur, rien n’est envoyé
-          tant que vous n’avez pas cliqué sur « Envoyer le dossier à la CAF ». Si vous quittez la
-          page avant, ils sont perdus, comme un formulaire non validé.
+          Ajoutez vos justificatifs ici — chacun est envoyé immédiatement et vient compléter
+          votre dossier ; la liste des pièces ci-contre se met à jour dès qu’il est reçu, sans
+          attendre l’envoi final.
         </p>
         <Dropzone
           title="Glissez vos fichiers ici"
@@ -200,14 +273,15 @@ function PendingFilesColumn({
           onFilesSelected={onFilesAdded}
         />
 
-        {files.length > 0 && (
+        {uploads.length > 0 && (
           <ul className="flex flex-col gap-3">
-            {files.map((file, index) => (
+            {uploads.map((entry) => (
               <PendingFileRow
-                key={`${file.name}-${file.size}-${index}`}
-                file={file}
+                key={entry.id}
+                entry={entry}
                 disabled={disabled}
-                onRemove={() => onRemove(index)}
+                onRetry={() => onRetry(entry.id)}
+                onRemove={() => onRemove(entry.id)}
               />
             ))}
           </ul>
@@ -378,23 +452,23 @@ function CivilStatusCard({
  * an official figure, and deliberately **not** computed until the citizen
  * asks for it: no calculation, no amount, no server call happens on mount.
  *
- * Clicking "Obtenir mon estimation" first checks the same checklist Function
- * 1 already shows (`missingRequiredItems`, derived from the dossier the
- * citizen has actually deposited) — if required pieces are still missing,
- * the estimate is refused with the exact list of what to add rather than
- * silently computed from declarative profile fields alone.
+ * `GET /citizen/estimation` is purely profile-driven (housing situation,
+ * rent, income, household size — see `estimer_aide` backend-side): it has no
+ * dependency on the checklist or on any uploaded document. It used to be
+ * gated here on `missingRequiredItems.length === 0`, a frontend-only
+ * restriction the backend never asked for, which meant "Obtenir mon
+ * estimation" could refuse to even try before a single document existed.
+ * Removed — a citizen can get their estimate the moment their profile is
+ * filled in, uploads or not.
  */
-function EstimationCard({ missingRequiredItems }: { missingRequiredItems: DossierChecklistItem[] }) {
+function EstimationCard() {
   const [estimation, setEstimation] = useState<EstimationAide | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
 
-  const documentsPrets = missingRequiredItems.length === 0;
-
   const lancerEstimation = () => {
     setAttempted(true);
-    if (!documentsPrets) return;
     setIsLoading(true);
     setError(null);
     dossierService
@@ -412,9 +486,8 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
         {!attempted && (
           <div className="space-y-3">
             <p className="text-body-sm text-on-surface-variant">
-              Calculez un montant indicatif, à partir des pièces déjà déposées et des
-              informations validées de votre dossier — rien n’est calculé tant que vous ne le
-              demandez pas.
+              Calculez un montant indicatif, à partir des informations validées de votre profil
+              — rien n’est calculé tant que vous ne le demandez pas.
             </p>
             <Button onClick={lancerEstimation}>
               <Calculator aria-hidden="true" />
@@ -423,31 +496,13 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
           </div>
         )}
 
-        {attempted && !documentsPrets && (
-          <div className="space-y-3">
-            <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              Votre estimation ne peut pas être calculée actuellement. Veuillez fournir les
-              documents suivants :
-            </p>
-            <ul className="list-disc space-y-1 pl-6 text-body-sm text-on-surface">
-              {missingRequiredItems.map((item) => (
-                <li key={item.documentType}>{item.libelle}</li>
-              ))}
-            </ul>
-            <Button variant="outline-primary" size="sm" asChild>
-              <Link to={ROUTES.documentsUpload}>Ajouter les documents</Link>
-            </Button>
-          </div>
-        )}
+        {attempted && isLoading && <Skeleton className="h-20 w-full" />}
 
-        {attempted && documentsPrets && isLoading && <Skeleton className="h-20 w-full" />}
-
-        {attempted && documentsPrets && !isLoading && error && (
+        {attempted && !isLoading && error && (
           <p className="text-body-sm text-on-surface-variant">{error}</p>
         )}
 
-        {attempted && documentsPrets && !isLoading && !error && estimation && !estimation.estimationPossible && (
+        {attempted && !isLoading && !error && estimation && !estimation.estimationPossible && (
           <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             Renseignez votre logement (loyer, statut) dans votre profil pour obtenir une
@@ -455,7 +510,7 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
           </p>
         )}
 
-        {attempted && documentsPrets && !isLoading && !error && estimation && estimation.estimationPossible && (
+        {attempted && !isLoading && !error && estimation && estimation.estimationPossible && (
           <>
             <div className="flex items-baseline gap-2">
               <span className="text-display text-primary">{estimation.montantEstime} €</span>
@@ -478,7 +533,7 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
           </>
         )}
 
-        {attempted && documentsPrets && !isLoading && !error && estimation && (
+        {attempted && !isLoading && !error && estimation && (
           <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
             <Calculator className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             {estimation.avertissement}
@@ -490,13 +545,13 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
 }
 
 /**
- * Transmission to the CAF — and the one moment the pending files actually
- * reach the server. Each is uploaded (storage, OCR, classification, the same
- * pipeline a live-feedback flow would have run earlier) before the
- * application itself is submitted, so by the time the citizen lands on
- * "Suivre un dossier déposé" the checklist already reflects what really
- * arrived. A file that fails to upload is reported but does not block the
- * rest — the citizen still finds out via the completeness rate afterwards.
+ * Transmission to the CAF. Documents no longer wait for this moment to reach
+ * the server — each is uploaded (storage, OCR, classification) as soon as it
+ * is dropped in Function 1, and the checklist above already reflects what
+ * arrived. This step only submits the application itself, keyed on the
+ * profile snapshot; it is the one truly irreversible action on this page, so
+ * it stays a single explicit button rather than something that fires as a
+ * side effect of uploading.
  *
  * Once sent, this simply confirms it and points to "Suivre un dossier
  * déposé" — the status, decision and contestation live there now, not
@@ -504,8 +559,8 @@ function EstimationCard({ missingRequiredItems }: { missingRequiredItems: Dossie
  */
 function SubmissionCard({
   applicationId,
-  pendingFiles,
-  onFilesCommitted,
+  requiredReceivedCount,
+  requiredDocumentCount,
   review,
   canSubmit,
   blockingReason,
@@ -513,8 +568,8 @@ function SubmissionCard({
   onSubmitted,
 }: {
   applicationId: string;
-  pendingFiles: File[];
-  onFilesCommitted: () => void;
+  requiredReceivedCount: number;
+  requiredDocumentCount: number;
   review: DossierReview | null;
   canSubmit: boolean;
   blockingReason: string | null;
@@ -522,32 +577,13 @@ function SubmissionCard({
   onSubmitted: () => void;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadFailures, setUploadFailures] = useState<string[]>([]);
-  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     setIsSubmitting(true);
     setError(null);
-    setUploadFailures([]);
-
-    const failures: string[] = [];
-    for (const [index, file] of pendingFiles.entries()) {
-      setProgress(`Envoi de ${index + 1}/${pendingFiles.length} — ${file.name}`);
-      try {
-        await dossierService.upload(applicationId, file);
-      } catch (cause) {
-        failures.push(
-          `${file.name} : ${cause instanceof Error ? cause.message : 'l’envoi a échoué.'}`,
-        );
-      }
-    }
-    setUploadFailures(failures);
-    setProgress(null);
-
     try {
       await dossierService.submit(applicationId, profileSnapshot);
-      onFilesCommitted();
       onSubmitted();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La soumission du dossier a échoué.');
@@ -582,9 +618,9 @@ function SubmissionCard({
               </p>
             )}
             <p className="text-body-sm text-on-surface-variant">
-              {pendingFiles.length > 0
-                ? `${pendingFiles.length} document(s) prêt(s) à être envoyé(s) avec le dossier.`
-                : 'Aucun document en attente — vous pouvez tout de même transmettre le dossier.'}
+              {requiredDocumentCount > 0
+                ? `${requiredReceivedCount}/${requiredDocumentCount} pièce(s) obligatoire(s) reçue(s).`
+                : 'Aucune pièce obligatoire pour votre situation — vous pouvez transmettre le dossier.'}
             </p>
             <Button block onClick={submit} disabled={!canSubmit || isSubmitting}>
               {isSubmitting ? (
@@ -592,17 +628,8 @@ function SubmissionCard({
               ) : (
                 <Send aria-hidden="true" />
               )}
-              {progress ?? 'Envoyer le dossier à la CAF'}
+              Envoyer le dossier à la CAF
             </Button>
-            {uploadFailures.length > 0 && (
-              <ul className="space-y-1">
-                {uploadFailures.map((message) => (
-                  <li key={message} role="alert" className="text-body-sm text-destructive">
-                    {message}
-                  </li>
-                ))}
-              </ul>
-            )}
             {error && (
               <p role="alert" className="text-body-sm text-destructive">
                 {error}
@@ -622,13 +649,125 @@ export default function PersonalizedDossierPage() {
   const [review, setReview] = useState<DossierReview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Held in the browser only — never uploaded until the dossier is sent.
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // Each dropped file's upload journey — sent to the server immediately, not
+  // held back until the dossier is submitted (see `PendingFileRow`).
+  const [uploads, setUploads] = useState<UploadEntry[]>([]);
+  // The documents actually on file — the only way to know *which* upload(s)
+  // satisfy a given checklist item, so "décocher" knows what to delete.
+  const [documents, setDocuments] = useState<CitizenDocument[]>([]);
+  // Checklist item keys (`documentType`) currently being unchecked, so the
+  // row can show a spinner and disable its own button without a full-page
+  // loading state.
+  const [removingItemKeys, setRemovingItemKeys] = useState<ReadonlySet<string>>(new Set());
+  const [checklistError, setChecklistError] = useState<string | null>(null);
   // Complétude (progress + checklist) never appears automatically — the
   // citizen must click "Consulter la complétude" to reveal it.
   const [showCompletude, setShowCompletude] = useState(false);
 
   const refreshDossier = useCallback(() => dossierService.getDossier().then(setDossier), []);
+
+  const refreshDocuments = useCallback(() => {
+    if (!dossier) return Promise.resolve();
+    return dossierService
+      .listDocuments(dossier.applicationId)
+      .then(setDocuments)
+      .catch(() => undefined);
+  }, [dossier]);
+
+  // Upload each newly-dropped file right away so the checklist reflects it as
+  // soon as the server confirms — this is what makes "the checklist ticks
+  // off while documents load" true instead of only at final submission.
+  const uploadFile = useCallback(
+    (applicationId: string, entry: UploadEntry) => {
+      setUploads((current) =>
+        current.map((u) => (u.id === entry.id ? { ...u, status: 'uploading', error: undefined } : u)),
+      );
+      dossierService
+        .upload(applicationId, entry.file)
+        .then(() => {
+          setUploads((current) =>
+            current.map((u) => (u.id === entry.id ? { ...u, status: 'done' } : u)),
+          );
+          refreshDossier();
+          refreshDocuments();
+        })
+        .catch((cause: unknown) => {
+          setUploads((current) =>
+            current.map((u) =>
+              u.id === entry.id
+                ? {
+                    ...u,
+                    status: 'error',
+                    error: cause instanceof Error ? cause.message : 'L’envoi a échoué.',
+                  }
+                : u,
+            ),
+          );
+        });
+    },
+    [refreshDossier, refreshDocuments],
+  );
+
+  const handleFilesAdded = useCallback(
+    (files: File[]) => {
+      if (!dossier) return;
+      const applicationId = dossier.applicationId;
+      const entries: UploadEntry[] = files.map((file) => ({
+        id: `${file.name}-${file.size}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file,
+        status: 'uploading',
+      }));
+      setUploads((current) => [...current, ...entries]);
+      entries.forEach((entry) => uploadFile(applicationId, entry));
+    },
+    [dossier, uploadFile],
+  );
+
+  const handleRetry = useCallback(
+    (id: string) => {
+      if (!dossier) return;
+      const entry = uploads.find((u) => u.id === id);
+      if (entry) uploadFile(dossier.applicationId, entry);
+    },
+    [dossier, uploads, uploadFile],
+  );
+
+  const handleRemoveUpload = useCallback((id: string) => {
+    setUploads((current) => current.filter((u) => u.id !== id));
+  }, []);
+
+  // "Décocher" an item: delete the document(s) that matched it — the item's
+  // checked state is never a local flag, so unchecking has to remove the
+  // thing that made it checked in the first place, then re-read the dossier
+  // (and the document list) so the row falls back to "missing" on its own.
+  const handleUncheckItem = useCallback(
+    async (item: DossierChecklistItem) => {
+      const matches = documents.filter(
+        (doc) => doc.classification?.matched_checklist_document_id === item.documentType,
+      );
+      if (matches.length === 0) return;
+
+      setChecklistError(null);
+      setRemovingItemKeys((current) => new Set(current).add(item.documentType));
+      try {
+        await Promise.all(matches.map((doc) => dossierService.remove(doc.id)));
+        await Promise.all([refreshDossier(), refreshDocuments()]);
+      } catch (cause) {
+        setChecklistError(
+          cause instanceof Error
+            ? cause.message
+            : `Impossible de décocher « ${item.libelle} ».`,
+        );
+      } finally {
+        setRemovingItemKeys((current) => {
+          const next = new Set(current);
+          next.delete(item.documentType);
+          return next;
+        });
+      }
+    },
+    [documents, refreshDossier, refreshDocuments],
+  );
 
   const load = useCallback(() => {
     setError(null);
@@ -644,6 +783,10 @@ export default function PersonalizedDossierPage() {
           .getReview(dossierData.applicationId)
           .catch(() => null);
         setReview(reviewData);
+        const documentsData = await dossierService
+          .listDocuments(dossierData.applicationId)
+          .catch(() => []);
+        setDocuments(documentsData);
       })
       .catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : 'Chargement impossible.'),
@@ -664,13 +807,6 @@ export default function PersonalizedDossierPage() {
   }, [dossier]);
 
   const groups = useMemo(() => (dossier ? groupByCategory(dossier.items) : []), [dossier]);
-
-  // What "Obtenir mon estimation" checks before calculating anything — the
-  // exact required pieces still missing from the checklist above.
-  const missingRequiredItems = useMemo(
-    () => (dossier ? dossier.items.filter((item) => item.required && item.status === 'missing') : []),
-    [dossier],
-  );
 
   // Submission gating: the administration needs civil status, so the NIR and the
   // birth date must be on file before the dossier can be transmitted.
@@ -787,12 +923,11 @@ export default function PersonalizedDossierPage() {
             <div className="grid gap-gutter lg:grid-cols-3">
               <div className="lg:col-span-2">
                 <PendingFilesColumn
-                  files={pendingFiles}
+                  uploads={uploads}
                   disabled={Boolean(review?.submitted)}
-                  onFilesAdded={(added) => setPendingFiles((current) => [...current, ...added])}
-                  onRemove={(index) =>
-                    setPendingFiles((current) => current.filter((_, i) => i !== index))
-                  }
+                  onFilesAdded={handleFilesAdded}
+                  onRetry={handleRetry}
+                  onRemove={handleRemoveUpload}
                 />
               </div>
 
@@ -804,20 +939,33 @@ export default function PersonalizedDossierPage() {
                     description="Complétez votre profil pour générer la liste de vos justificatifs."
                   />
                 ) : (
-                  groups.map((group) => (
-                    <Card key={group.categorie}>
-                      <CardHeader>
-                        <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h3" />
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="space-y-3">
-                          {group.items.map((item) => (
-                            <ChecklistRow key={item.documentType} item={item} />
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-                  ))
+                  <>
+                    {checklistError && (
+                      <p role="alert" className="text-body-sm text-destructive">
+                        {checklistError}
+                      </p>
+                    )}
+                    {groups.map((group) => (
+                      <Card key={group.categorie}>
+                        <CardHeader>
+                          <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h3" />
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-3">
+                            {group.items.map((item) => (
+                              <ChecklistRow
+                                key={item.documentType}
+                                item={item}
+                                disabled={Boolean(review?.submitted)}
+                                isRemoving={removingItemKeys.has(item.documentType)}
+                                onUncheck={() => handleUncheckItem(item)}
+                              />
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </>
                 )}
               </aside>
             </div>
@@ -826,7 +974,7 @@ export default function PersonalizedDossierPage() {
           {/* Function 2 — Estimation de l'aide */}
           <section className="space-y-gutter">
             <h2 className="text-headline-md text-on-surface">Estimation de l’aide</h2>
-            <EstimationCard missingRequiredItems={missingRequiredItems} />
+            <EstimationCard />
           </section>
 
           {/* Function 3 — Envoyer le dossier à la CAF */}
@@ -834,8 +982,8 @@ export default function PersonalizedDossierPage() {
             <h2 className="text-headline-md text-on-surface">Envoyer le dossier à la CAF</h2>
             <SubmissionCard
               applicationId={dossier.applicationId}
-              pendingFiles={pendingFiles}
-              onFilesCommitted={() => setPendingFiles([])}
+              requiredReceivedCount={dossier.requiredReceivedCount}
+              requiredDocumentCount={dossier.requiredDocumentCount}
               review={review}
               canSubmit={canSubmit}
               blockingReason={blockingReason}
