@@ -61,6 +61,11 @@ RAISON_HORS_SUJET = "hors_sujet"                  # le classifieur n'a rien reco
 RAISON_AUCUN_ARTICLE = "aucun_article_trouve"     # branche juridique : rien dans le graphe
 RAISON_REFERENCE_INCONNUE = "reference_inconnue"  # article cité absent du graphe
 RAISON_EXTRAITS_INSUFFISANTS = "extraits_insuffisants"  # RAG : le corpus ne permet pas de répondre
+#: Le modèle n'a pas rendu le JSON demandé, même après relance (voir
+#: `llm_client.LlmContractError`). Seule raison de cette liste qui ne dit rien du corpus :
+#: elle ne demande pas d'enrichir les sources mais de surveiller le modèle. Sans elle,
+#: cette panne-là ne laissait aucune trace du tout.
+RAISON_REPONSE_ILLISIBLE = "reponse_illisible"
 
 
 def lire_journal(limite=None):
