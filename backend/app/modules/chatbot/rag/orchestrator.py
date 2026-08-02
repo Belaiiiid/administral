@@ -20,6 +20,7 @@ from langgraph.graph import StateGraph, END
 from .llm_client import (
     EXPLAIN_OPTION,
     SKIP_OPTION,
+    LlmContractError,
     _enforce_standard_options,
     call_llm,
     call_llm_structured,
@@ -35,6 +36,7 @@ from .unanswered_log import (
     RAISON_EXTRAITS_INSUFFISANTS,
     RAISON_HORS_SUJET,
     RAISON_REFERENCE_INCONNUE,
+    RAISON_REPONSE_ILLISIBLE,
     REDIRECTION_OFFICIELLE,
     log_unanswered,
 )
@@ -279,7 +281,26 @@ def documents_necessaires_node(state: D4State) -> D4State:
     messages.extend(state["conversation_history"])
     messages.append({"role": "user", "content": state["message"]})
 
-    result = call_llm_structured(messages=messages, temperature=0.2)
+    try:
+        result = call_llm_structured(messages=messages, temperature=0.2)
+    except LlmContractError:
+        # `collected_profile` reste None : c'est LUI qui autorise la couche service à
+        # produire la checklist. Un tour raté ne doit pas pouvoir présenter le socle
+        # commun comme une liste personnalisée - le citoyen a répondu à des questions,
+        # et ces réponses viennent d'être perdues.
+        log_unanswered(
+            state["message"], "documents_necessaires", RAISON_REPONSE_ILLISIBLE,
+            user_role=state.get("user_role") or "citizen",
+        )
+        return {
+            **state,
+            "response": REDIRECTION_OFFICIELLE,
+            "answer": REDIRECTION_OFFICIELLE,
+            "sources": [],
+            "response_options": None,
+            "pending_clarification": None,
+            "collected_profile": None,
+        }
 
     if result["type"] == "clarification":
         return {
@@ -484,7 +505,15 @@ def rag_general_node(state: D4State) -> D4State:
 
     role = state.get("user_role") or "citizen"
     categories = CATEGORIES_BY_ROLE.get(role, CATEGORIES_BY_ROLE["citizen"])
-    result = get_rag_pipeline().answer(query, category=categories, conversation_history=state["conversation_history"])
+    try:
+        result = get_rag_pipeline().answer(query, category=categories, conversation_history=state["conversation_history"])
+    except LlmContractError:
+        # Le pire cas de cette branche : afficher un texte illisible AVEC les sources
+        # officielles retrouvées en dessous. La réponse paraîtrait fondée alors qu'elle
+        # ne l'est pas. On renvoie donc au canal officiel, sans aucune source.
+        log_unanswered(query, "rag_general", RAISON_REPONSE_ILLISIBLE, user_role=role)
+        return {**state, "response": REDIRECTION_OFFICIELLE, "answer": REDIRECTION_OFFICIELLE,
+                "sources": [], "response_options": None, "pending_clarification": None}
 
     if result["type"] == "clarification":
         return {
@@ -499,7 +528,12 @@ def rag_general_node(state: D4State) -> D4State:
     # Le corpus ne permettait pas de répondre : le LLM le signale (repondu=false), le code
     # substitue le renvoi officiel et consigne la question. On ne laisse pas passer une
     # demi-réponse - et surtout on garde la trace de ce qui manquait.
-    if result.get("repondu") is False:
+    #
+    # Le champ est EXIGÉ, pas seulement lu : un `repondu` absent était auparavant traité
+    # comme un oui, si bien qu'il suffisait au modèle d'oublier le champ pour que sa
+    # réponse passe pour fondée. Sur des droits sociaux, l'oubli doit coûter un renvoi de
+    # trop, pas une réponse de trop - et le journal dira si le modèle l'oublie souvent.
+    if not result.get("repondu"):
         log_unanswered(
             query, "rag_general", RAISON_EXTRAITS_INSUFFISANTS,
             details={"resume_manque": result["text"][:300]}, user_role=role,

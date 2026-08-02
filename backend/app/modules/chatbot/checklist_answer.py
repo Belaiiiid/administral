@@ -116,16 +116,36 @@ def build_profil(raw: dict | None) -> ProfilPartiel:
         return ProfilPartiel()
 
 
+#: Phrase de clôture quand le profiling a effectivement recueilli quelque chose.
+_CLOTURE_PERSONNALISEE = (
+    "Cette liste est établie à partir de ce que vous m’avez indiqué. Si votre "
+    "situation change, elle peut évoluer."
+)
+#: Et quand il n'a rien recueilli. Le cas existe pour de bon : un citoyen qui passe
+#: toutes les questions arrive ici avec un profil vide. Lui servir la même phrase
+#: présenterait le socle commun comme une liste personnalisée — une liste générique
+#: annoncée comme sur-mesure est plus trompeuse qu'une liste générique assumée.
+_CLOTURE_SOCLE_COMMUN = (
+    "Ce sont les pièces demandées dans tous les cas. Décrivez-moi votre situation "
+    "(logement, activité, situation familiale) et je vous dirai ce qu’il faut y ajouter."
+)
+
+
 def render_checklist(raw_profile: dict | None, intro: str | None = None) -> str:
     """Texte final de l'intention `documents_necessaires` : la vraie checklist.
 
     Rendu en texte simple (une pièce par ligne, avec sa justification) car c'est
     ce que la bulle de conversation affiche. Les obligatoires d'abord, puis les
     pièces recommandées, chacune expliquée — la justification vient des règles,
-    pas du modèle."""
+    pas du modèle.
+
+    N'est atteint QUE lorsque le profiling a abouti : un tour où le modèle n'a pas
+    respecté son contrat n'arrive pas ici (voir `orchestrator.documents_necessaires_node`),
+    sans quoi une panne se déguiserait en checklist personnalisée."""
     from app.modules.ai.checklist.service import generate_checklist
 
     profil = build_profil(raw_profile)
+    profil_vide = not profil.model_dump(exclude_none=True)
     items = generate_checklist(profil)
 
     obligatoires = [item for item in items if item.obligatoire]
@@ -144,8 +164,5 @@ def render_checklist(raw_profile: dict | None, intro: str | None = None) -> str:
         for item in recommandes:
             lines.append(f"• {item.libelle} — {item.justification}")
     lines.append("")
-    lines.append(
-        "Cette liste est établie à partir de ce que vous m’avez indiqué. Si votre "
-        "situation change, elle peut évoluer."
-    )
+    lines.append(_CLOTURE_SOCLE_COMMUN if profil_vide else _CLOTURE_PERSONNALISEE)
     return "\n".join(lines)

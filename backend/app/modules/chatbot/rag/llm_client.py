@@ -122,26 +122,67 @@ def with_standard_options(options):
     return _enforce_standard_options(list(options))
 
 
+class LlmContractError(RuntimeError):
+    """Le modèle n'a pas rendu le JSON demandé, et on refuse d'en faire une réponse.
+
+    Volontairement une EXCEPTION plutôt qu'une valeur de repli. Le repli précédent
+    ({"type": "answer", "text": <texte brut>}) était indistinguable d'une vraie réponse :
+    les appelants testaient `type == "clarification"` et traitaient tout le reste comme
+    définitif, si bien qu'un JSON tronqué était affiché tel quel au citoyen - avec, sur la
+    branche RAG, des sources officielles épinglées dessous. Une erreur qui ressemble à une
+    réponse sourcée est précisément ce que le reste de ce moteur s'efforce d'éviter.
+
+    Lever change le SENS DU DÉFAUT : un appelant qui n'y pense pas laisse remonter
+    l'exception jusqu'au filet de `service.answer_question`, qui rend un message
+    d'indisponibilité. C'est moche, mais c'est sûr — là où l'ancien défaut était
+    « montrer n'importe quoi »."""
+
+
+#: Une seule relance avant d'abandonner. La génération tourne à temperature 0.2 : un JSON
+#: mal formé est le plus souvent un accident, et la deuxième tentative passe. Au-delà, on
+#: fait attendre le citoyen pour un modèle qui, visiblement, ne suit pas le contrat.
+_STRUCTURED_ATTEMPTS = 2
+
+
+def _parse_structured(raw):
+    """Valide le contrat, ou lève. Ne rattrape RIEN : c'est l'appelant qui décide."""
+    parsed = json.loads(raw)  # lève sur JSON invalide, None, texte libre
+    if not isinstance(parsed, dict):
+        raise ValueError("le JSON rendu n'est pas un objet")
+    if parsed.get("type") not in ("answer", "clarification") or not parsed.get("text"):
+        raise ValueError("forme JSON inattendue")
+    parsed.setdefault("options", None)
+    if parsed["type"] == "clarification" and isinstance(parsed["options"], list):
+        parsed["options"] = _enforce_standard_options(parsed["options"])
+    return parsed
+
+
 def call_llm_structured(messages, model="mistral-small-latest", provider="mistral", temperature=0.0):
     """Comme call_llm, mais force une sortie JSON avec le contrat
     {"type": "answer"|"clarification", "text": str, "options": list|None} et la parse.
     Si "options" est une liste (clarification à choix), EXPLAIN_OPTION et SKIP_OPTION sont
     garantis présents en fin de liste par le code (voir _enforce_standard_options).
-    En cas de JSON malformé ou de forme inattendue (jamais de crash), repli sur
-    {"type": "answer", "text": <texte brut>, "options": None} - le prompt système
-    appelant doit décrire ce contrat explicitement (cf. GENERATION_SYSTEM_PROMPT,
-    DOCUMENTS_SYSTEM_PROMPT)."""
-    raw = call_llm(messages=messages, model=model, provider=provider, temperature=temperature, json_mode=True)
-    try:
-        parsed = json.loads(raw)
-        if parsed.get("type") not in ("answer", "clarification") or not parsed.get("text"):
-            raise ValueError("forme JSON inattendue")
-        parsed.setdefault("options", None)
-        if parsed["type"] == "clarification" and isinstance(parsed["options"], list):
-            parsed["options"] = _enforce_standard_options(parsed["options"])
-        return parsed
-    except Exception:
-        return {"type": "answer", "text": raw, "options": None}
+
+    Lève `LlmContractError` si le contrat n'est pas tenu après une relance - le prompt
+    système appelant doit le décrire explicitement (cf. GENERATION_SYSTEM_PROMPT,
+    DOCUMENTS_SYSTEM_PROMPT). Une panne d'API, elle, remonte telle quelle depuis
+    `call_llm` : ce n'est pas la même chose qu'un modèle qui répond à côté."""
+    dernier_motif = None
+    for _tentative in range(_STRUCTURED_ATTEMPTS):
+        raw = call_llm(
+            messages=messages, model=model, provider=provider,
+            temperature=temperature, json_mode=True,
+        )
+        try:
+            return _parse_structured(raw)
+        except (json.JSONDecodeError, ValueError, TypeError, AttributeError) as exc:
+            # Le texte brut n'est gardé que pour le diagnostic, tronqué : il ne doit
+            # jamais ressortir vers le citoyen, c'est tout l'objet de ce correctif.
+            dernier_motif = f"{exc} — début de la réponse : {str(raw)[:200]!r}"
+
+    raise LlmContractError(
+        f"Réponse illisible après {_STRUCTURED_ATTEMPTS} tentatives ({dernier_motif})"
+    )
 
 
 if __name__ == "__main__":
