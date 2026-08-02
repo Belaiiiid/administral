@@ -27,6 +27,9 @@ from .llm_client import (
 )
 from . import rag_pipeline
 from . import legal_pipeline
+# Politesse : fonction de texte pure, isolée dans son module - elle n'a besoin ni d'un
+# LLM ni d'un index, et se teste donc sans rien charger de tout ça (voir `politesse`).
+from .politesse import courtoisie, is_greeting  # noqa: F401 — `is_greeting` reste public
 from .unanswered_log import (
     RAISON_AUCUN_ARTICLE,
     RAISON_EXTRAITS_INSUFFISANTS,
@@ -93,47 +96,6 @@ demande un MONTANT reste `estimation`.
 
 Réponds UNIQUEMENT avec un JSON de la forme: {"intent": "documents_necessaires"}
 """
-
-# Formules de politesse, traitées SANS appel au classifieur : très fréquentes en ouverture
-# comme en clôture de conversation, jamais ambiguës, et surtout mal servies par le message
-# hors-sujet. Répondre « je ne peux vous aider que sur l'APL » à quelqu'un qui dit « merci »
-# est brutal et donne l'impression d'un robot qui n'écoute pas.
-GREETING_WORDS = {
-    "bonjour", "bonsoir", "salut", "coucou", "hello", "hi", "hey",
-    "bjr", "slt", "cc", "yo",
-}
-THANKS_WORDS = {
-    "merci", "mercii", "mrc", "thanks", "thx", "nickel", "parfait", "super", "genial",
-    "génial", "top", "impeccable",
-}
-FAREWELL_WORDS = {
-    "revoir", "bye", "ciao", "adieu", "bonne", "journee", "journée", "soiree", "soirée",
-}
-
-
-def courtoisie(message: str):
-    """Rend "salutation", "remerciement", "au_revoir", ou None.
-
-    Détection légère par mots-clés (pas de LLM) : le message doit être court et
-    essentiellement composé de la formule, pour ne pas confondre avec une vraie question
-    qui contiendrait accidentellement un mot proche - « merci de me dire quels documents
-    fournir » est une question, pas un remerciement, et compte plus de 5 mots."""
-    words = re.findall(r"[a-zà-ÿ]+", message.lower())
-    if not (0 < len(words) <= 5):
-        return None
-    if any(w in GREETING_WORDS for w in words):
-        return "salutation"
-    if any(w in THANKS_WORDS for w in words):
-        return "remerciement"
-    if any(w in FAREWELL_WORDS for w in words):
-        return "au_revoir"
-    return None
-
-
-def is_greeting(message: str) -> bool:
-    """Conservé pour les appelants existants : une salutation au sens strict."""
-    return courtoisie(message) == "salutation"
-
 
 def cite_un_article(message: str) -> bool:
     """Le message contient-il une référence d'article (« L. 822-2 », « R822-5 ») ?
