@@ -26,6 +26,7 @@ d'`apl_rag`) :
 
 from __future__ import annotations
 
+import threading
 import time
 
 from app.core.logger import logger
@@ -46,12 +47,19 @@ _VALID_CATEGORIES = {c.value for c in SourceCategory}
 # The compiled LangGraph is built once (it wires the nodes); the heavy RAG
 # pipeline behind `rag_general` stays lazily built inside the orchestrator.
 _graph = None
+#: Le endpoint est synchrone, donc servi par un pool de threads : sans verrou, deux
+#: premières requêtes simultanées compilaient chacune leur graphe. Peu coûteux ici
+#: (le graphe ne fait que câbler les nœuds), mais c'est le même défaut que sur les
+#: singletons lourds et il ne coûte rien de le fermer aussi.
+_graph_lock = threading.Lock()
 
 
 def _get_graph():
     global _graph
     if _graph is None:
-        _graph = orchestrator.build_graph()
+        with _graph_lock:
+            if _graph is None:
+                _graph = orchestrator.build_graph()
     return _graph
 
 
