@@ -35,7 +35,7 @@ RÈGLES DE SÛRETÉ appliquées ici :
 from datetime import date
 
 from .legal_kg import get_kg
-from .llm_client import call_llm
+from .llm_client import call_llm, historique_de_confiance
 
 # La branche juridique ratisse plus large que `rag_general` (top_k=3). Mesuré sur les
 # questions de QUESTIONS_CITOYENS.md : l'article attendu est dans le top 5 six fois sur
@@ -253,7 +253,7 @@ class LegalPipeline:
         )
 
         messages = [{"role": "system", "content": LEGAL_GENERATION_SYSTEM_PROMPT}]
-        messages.extend(conversation_history or [])
+        messages.extend(historique_de_confiance(conversation_history))
         messages.append({"role": "user", "content": user_prompt})
 
         return call_llm(messages=messages, model=model, temperature=0.2)
