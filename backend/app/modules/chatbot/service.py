@@ -169,10 +169,10 @@ def answer_question(
                 "response": None,
                 "response_options": None,
                 "pending_clarification": pending,
-                # Le flag vient de l'UI telle quelle : c'est elle qui sait si le
-                # message est une réponse au popup, et lui seul fait contourner le
-                # classifieur (décision 7).
-                "is_clarification_reply": ctx.is_clarification_reply,
+                # Vient de l'UI telle quelle : elle seule sait si le citoyen a cliqué un
+                # choix ou écrit sa réponse. Elle rapporte ce fait ; c'est le moteur qui
+                # en tire une conclusion (voir `orchestrator._repond_a_la_clarification`).
+                "clarification_reply": ctx.clarification_reply,
                 "user_role": _user_role(user),
                 "answer": None,
                 "sources": None,

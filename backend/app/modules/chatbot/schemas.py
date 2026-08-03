@@ -7,9 +7,14 @@ d'`apl_rag`) :
 
 - réponse : `options` (les choix à afficher) et `pendingClarification` (à quoi la
   prochaine réponse se rattache) ;
-- requête : `isClarificationReply` — **injecté par l'UI, jamais déduit du texte**
-  — qui fait contourner le classifieur d'intention, et `pendingClarification`
-  renvoyé tel quel.
+- requête : `clarificationReply` — **injecté par l'UI, jamais déduit du texte** —
+  qui dit COMMENT le message a été produit (clic sur un choix, ou saisie pendant
+  qu'une question était posée), et `pendingClarification` renvoyé tel quel.
+
+Ce champ portait auparavant un booléen, donc un verdict : « ceci est une réponse ».
+L'UI ne peut pas le rendre — elle ne connaît pas le vocabulaire des questions. Elle
+rapporte maintenant un fait observable, et le serveur décide. La frontière est la
+même que partout ailleurs ici.
 
 Le backend ne garde aucune session : comme `conversationHistory`, l'état de
 clarification fait l'aller-retour par le client. C'est ce qui permet au même
@@ -145,10 +150,22 @@ class ChatbotContextSchema(CamelModel):
         default_factory=list, max_length=HISTORIQUE_MAX
     )
     pending_clarification: PendingClarificationSchema | None = None
-    #: True uniquement quand le message vient du popup de clarification (clic sur
-    #: une option ou saisie dans le champ dédié). Jamais déduit du contenu du
-    #: message côté backend — c'est l'UI qui sait d'où vient la réponse.
-    is_clarification_reply: bool = False
+    #: COMMENT le message a été produit, quand une clarification était en attente.
+    #: `None` = aucune clarification en cours (message spontané).
+    #:
+    #: Remplace un booléen « est-ce une réponse ? ». La nuance décide de tout : ce
+    #: booléen demandait à l'UI un JUGEMENT qu'elle ne peut pas rendre. Ne disposant que
+    #: d'un indice — des boutons sont-ils affichés ? — elle concluait que tout texte tapé
+    #: était un changement de sujet. Une réponse écrite ou DICTÉE (« je suis locataire »)
+    #: n'atteignait donc jamais `profilage_documents.reconnaitre`, pourtant écrit pour
+    #: elle ; pire, elle repartait au classifieur, et si celui-ci tombait ailleurs
+    #: l'entretien en cours était effacé.
+    #:
+    #: L'UI ne rapporte donc plus qu'un FAIT dont elle est seule témoin — un clic ou une
+    #: saisie — et le backend tranche, lui seul disposant du vocabulaire de chaque
+    #: question. Le partage est le même que pour le reste du contrat : au client ce qu'il
+    #: observe, au serveur ce qu'il décide.
+    clarification_reply: Literal["option", "text"] | None = None
     #: Date du droit à appliquer sur la branche juridique : celle de la décision que le
     #: citoyen conteste. Absente = droit en vigueur aujourd'hui. Comme l'historique, elle
     #: fait l'aller-retour par le client (aucune session serveur).

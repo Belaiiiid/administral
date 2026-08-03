@@ -95,12 +95,19 @@ export interface ChatbotContext {
   /** La clarification en attente, telle que reçue au tour précédent. */
   pendingClarification?: ChatbotPendingClarification;
   /**
-   * `true` seulement quand le message répond à la clarification (clic sur une
-   * option, ou saisie alors qu'une question à réponse libre est posée). Le
-   * backend s'y fie pour court-circuiter sa classification d'intention : c'est
-   * l'UI qui sait d'où vient la réponse, il ne le devine jamais du texte.
+   * COMMENT le message a été produit, quand une question de l'assistant était
+   * affichée. `undefined` = message spontané, aucune question en attente.
+   *
+   * Remplace un booléen « est-ce une réponse ? ». Ce booléen demandait à l'UI un
+   * jugement qu'elle ne peut pas rendre : ne disposant que d'un indice — des
+   * boutons sont-ils affichés ? — elle traitait tout texte tapé comme un
+   * changement de sujet. Une réponse écrite ou dictée n'atteignait donc jamais la
+   * reconnaissance côté serveur, et l'entretien en cours pouvait être effacé.
+   *
+   * L'UI rapporte désormais un fait dont elle est seule témoin, et le backend
+   * décide — lui seul connaît le vocabulaire attendu de chaque question.
    */
-  isClarificationReply?: boolean;
+  clarificationReply?: 'option' | 'text' | null;
   /**
    * Droit applicable demandé sur la branche juridique : la date de la décision
    * contestée. Le backend ne garde pas de session, cet état vit ici entre deux

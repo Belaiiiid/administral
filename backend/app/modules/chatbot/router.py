@@ -45,7 +45,8 @@ router = APIRouter(prefix="/citizen/chatbot", tags=["chatbot"])
         "nécessaires (questions de profilage puis checklist personnalisée), et "
         "hors-sujet. Une réponse peut être une question de clarification : elle "
         "porte alors `options` et `pendingClarification`, que l'UI renvoie avec "
-        "`isClarificationReply`."
+        "`clarificationReply` — « option » si le citoyen a cliqué un choix, "
+        "« text » s'il a écrit ou dicté sa réponse."
     ),
 )
 def send_message(

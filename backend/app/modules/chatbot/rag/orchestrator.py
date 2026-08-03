@@ -162,8 +162,11 @@ class D4State(TypedDict):
     pending_clarification: Optional[dict]  # {"original_question": str, "intent": str} si le tour
                                             # précédent attend une réponse de clarification, sinon None
                                             # ("intent" indique vers quel nœud renvoyer la réponse)
-    is_clarification_reply: bool         # True si CE message est une réponse structurée au popup de
-                                          # clarification (injecté par l'appelant/UI, pas déduit du texte)
+    clarification_reply: Optional[str]   # "option" | "text" | None — COMMENT le message a été produit
+                                          # pendant qu'une clarification était posée (injecté par
+                                          # l'appelant/UI, jamais déduit du texte). Un clic est une
+                                          # réponse certaine ; une saisie n'est confiée qu'aux nœuds
+                                          # qui savent la reconnaître (NOEUDS_QUI_VALIDENT_LE_TEXTE).
     user_role: Optional[str]             # "citizen" (défaut) ou "agent" - injecté par l'appelant/UI,
                                           # jamais déduit du contenu du message. Détermine les catégories
                                           # de chunks accessibles, voir CATEGORIES_BY_ROLE.
@@ -232,11 +235,42 @@ def route_intent_llm(state: D4State) -> str:
 
 
 # --- Noeuds ---
+#: Nœuds capables de RECONNAÎTRE une réponse écrite : ils disposent du vocabulaire de
+#: leurs propres questions (mots-clés d'un choix, format d'une date) et savent donc dire
+#: « ceci répond » ou « ceci ne répond pas ». On peut leur confier une saisie libre : ce
+#: qu'ils ne reconnaissent pas, ils le reposent, sans jamais deviner.
+#:
+#: `rag_general` n'y est pas, et c'est délibéré : ses clarifications sont écrites par le
+#: modèle, il n'a aucun vocabulaire attendu et prendrait n'importe quel texte pour une
+#: réponse. Une saisie libre pendant une de ses questions reste donc un changement de
+#: sujet, comme avant.
+NOEUDS_QUI_VALIDENT_LE_TEXTE = {
+    "documents_necessaires",
+    "estimation",
+    "fondement_juridique",
+}
+
+
+def _repond_a_la_clarification(state: D4State, pending) -> bool:
+    """Ce message doit-il retourner au nœud qui attendait, sans repasser au classifieur ?
+
+    Un CLIC est un fait : le citoyen a choisi parmi ce qu'on lui proposait, il n'y a rien
+    à interpréter. Une SAISIE ne se tranche qu'avec le vocabulaire de la question — ce que
+    seuls certains nœuds possèdent. On la leur confie ; ailleurs, elle repart au
+    classifieur comme un message ordinaire."""
+    kind = state.get("clarification_reply")
+    if not kind or not pending:
+        return False
+    if kind == "option":
+        return True
+    return pending.get("intent") in NOEUDS_QUI_VALIDENT_LE_TEXTE
+
+
 def orchestrator_node(state: D4State) -> D4State:
     pending = state.get("pending_clarification")
-    # Reponse structuree au popup de clarification -> on ne reclassifie pas, on renvoie
-    # directement au noeud qui avait pose la question (rag_general OU documents_necessaires).
-    if state.get("is_clarification_reply") and pending:
+    # Reponse au popup de clarification -> on ne reclassifie pas, on renvoie directement
+    # au noeud qui avait pose la question.
+    if _repond_a_la_clarification(state, pending):
         return {**state, "intent": pending["intent"]}
     # Politesse ("Bonjour", "merci", "bonne journee") -> pas la peine d'appeler le
     # classifieur LLM, tres frequent en ouverture comme en cloture, et jamais ambigu.
@@ -286,7 +320,7 @@ def documents_necessaires_node(state: D4State) -> D4State:
     en cours, et deux entretiens identiques donnent exactement la même chose."""
     pending = state.get("pending_clarification")
     en_cours = bool(pending) and pending.get("intent") == "documents_necessaires"
-    is_reply = bool(state.get("is_clarification_reply")) and en_cours
+    is_reply = bool(state.get("clarification_reply")) and en_cours
     reponses = profilage_documents.decoder_etat(pending) if en_cours else {}
     message = state["message"]
 
@@ -412,7 +446,7 @@ def estimation_node(state: D4State) -> D4State:
     (`response_options` / `pending_clarification`) sans rien y ajouter côté
     contrat API ou frontend."""
     pending = state.get("pending_clarification")
-    is_reply = bool(state.get("is_clarification_reply")) and pending is not None and pending.get("intent") == "estimation"
+    is_reply = bool(state.get("clarification_reply")) and pending is not None and pending.get("intent") == "estimation"
     reponses = _decode_estimation_state(pending) if pending else {}
     message = state["message"]
 
@@ -590,7 +624,7 @@ def rag_general_node(state: D4State) -> D4State:
     pending = state.get("pending_clarification")
     en_cours = bool(pending) and pending.get("intent") == "rag_general"
     etat = _decoder_etat_rag(pending) if en_cours else None
-    is_reply = bool(state.get("is_clarification_reply")) and etat is not None
+    is_reply = bool(state.get("clarification_reply")) and etat is not None
 
     if is_reply:
         question = etat["question"]
@@ -766,7 +800,7 @@ def fondement_juridique_node(state: D4State) -> D4State:
     prompt interdit la reformulation approximative, parce que sur du texte juridique la
     précision perdue est justement ce qui coûte cher au citoyen."""
     pending = state.get("pending_clarification") or {}
-    is_reply = bool(state.get("is_clarification_reply") and pending)
+    is_reply = bool(state.get("clarification_reply") and pending)
     step = pending.get("step") if is_reply else None
     original_question = pending.get("original_question") if is_reply else state["message"]
     message = (state["message"] or "").strip()
@@ -968,21 +1002,25 @@ if __name__ == "__main__":
     response_options = None
 
     while True:
-        is_clarification_reply = False
+        clarification_reply = None
 
         if response_options:
             print("\nOptions :")
             for i, opt in enumerate(response_options, 1):
                 print(f"  {i}. {opt}")
-            raw = input("\nVous (numero, ou texte libre pour changer de sujet): ").strip()
+            raw = input("\nVous (numero, ou reponse ecrite): ").strip()
             if raw.lower() in ("exit()", "exit", "quit", "quit()"):
                 print("Fin de la session.")
                 break
             if raw.isdigit() and 1 <= int(raw) <= len(response_options):
                 message = response_options[int(raw) - 1]
-                is_clarification_reply = True
+                clarification_reply = "option"
             else:
-                message = raw  # pas une option valide -> traite comme un message libre (nouvelle intention possible)
+                # Le simulateur reproduit la nouvelle règle : une saisie pendant qu'une
+                # question est posée n'est plus d'office un changement de sujet, c'est au
+                # nœud de dire s'il la reconnaît.
+                message = raw
+                clarification_reply = "text"
         elif pending_clarification:
             # clarification a reponse libre (pas d'options) - simulateur du champ texte du popup
             message = input("\nVous (reponds a la clarification, ou tape 'annuler' pour changer de sujet): ").strip()
@@ -990,7 +1028,7 @@ if __name__ == "__main__":
                 print("Fin de la session.")
                 break
             if message.lower() not in ("annuler",):
-                is_clarification_reply = True
+                clarification_reply = "text"
         else:
             message = input("\nVous: ").strip()
             if message.lower() in ("exit()", "exit", "quit", "quit()"):
@@ -1008,7 +1046,7 @@ if __name__ == "__main__":
             "response": None,
             "response_options": None,
             "pending_clarification": pending_clarification,
-            "is_clarification_reply": is_clarification_reply,
+            "clarification_reply": clarification_reply,
             "user_role": user_role,
             "answer": None,
             "sources": None,
