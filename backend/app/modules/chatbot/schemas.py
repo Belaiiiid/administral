@@ -19,7 +19,7 @@ moteur de servir le portail web et un canal sans session (WhatsApp).
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -85,6 +85,9 @@ CONTENT_ABSURDE = 20_000
 #: Le client envoie déjà les 6 derniers tours (`chatbotService.ts`). La borne est haute
 #: exprès : elle n'existe pas pour ajuster le contexte mais pour empêcher l'abus.
 HISTORIQUE_MAX = 20
+#: Plancher de plausibilité pour la date d'une décision reçue. Doit rester aligné sur
+#: `orchestrator.parse_date_fr`, qui applique la même borne au texte écrit par le citoyen.
+DATE_DECISION_MIN = date(1990, 1, 1)
 
 
 class ChatMessageSchema(CamelModel):
@@ -146,10 +149,38 @@ class ChatbotContextSchema(CamelModel):
     #: une option ou saisie dans le champ dédié). Jamais déduit du contenu du
     #: message côté backend — c'est l'UI qui sait d'où vient la réponse.
     is_clarification_reply: bool = False
-    #: Date (ISO) du droit à appliquer sur la branche juridique : celle de la décision
-    #: que le citoyen conteste. Absente = droit en vigueur aujourd'hui. Comme
-    #: l'historique, elle fait l'aller-retour par le client (aucune session serveur).
-    date_reference: str | None = None
+    #: Date du droit à appliquer sur la branche juridique : celle de la décision que le
+    #: citoyen conteste. Absente = droit en vigueur aujourd'hui. Comme l'historique, elle
+    #: fait l'aller-retour par le client (aucune session serveur).
+    #:
+    #: TYPÉE, et non plus une chaîne libre. C'est le champ du contrat qui mérite la
+    #: validation la plus stricte : il décide de QUELLE VERSION de la loi le citoyen se
+    #: voit appliquer. En chaîne libre, une valeur non ISO partait jusqu'à
+    #: `date.fromisoformat`, y levait, et ressortait en 200 OK « l'assistant est
+    #: momentanément indisponible » — pour ce qui est une requête invalide, donc un 422.
+    #:
+    #: Cela ferme aussi un contournement : `parse_date_fr` refuse le futur et l'avant-1990
+    #: quand le citoyen ÉCRIT une date, mais un client qui renseignait ce champ
+    #: directement échappait entièrement à ce contrôle.
+    date_reference: date | None = None
+
+    @field_validator("date_reference")
+    @classmethod
+    def _date_plausible(cls, valeur: date | None) -> date | None:
+        """Mêmes bornes que `orchestrator.parse_date_fr` : une décision reçue ne peut
+        être ni à venir, ni antérieure à 1990.
+
+        Les bornes sont écrites ici ET là-bas, à dessein : le moteur ne doit pas dépendre
+        de la couche API (il sert aussi un canal sans HTTP). Le jour où `parse_date_fr`
+        sortira dans son propre module feuille — c'est au programme (M1) — les deux
+        pourront partager la même constante."""
+        if valeur is None:
+            return None
+        if valeur > date.today():
+            raise ValueError("une décision déjà reçue ne peut pas porter une date future")
+        if valeur < DATE_DECISION_MIN:
+            raise ValueError(f"date antérieure à {DATE_DECISION_MIN.year}, invraisemblable")
+        return valeur
     #: True une fois la question de date posée ET tranchée, pour ne pas la reposer à
     #: chaque question juridique de la même conversation.
     date_asked: bool = False
@@ -170,8 +201,10 @@ class ChatbotResponseSchema(CamelModel):
     options: list[str] | None = None
     #: Non nul tant que l'assistant attend une réponse à sa question.
     pending_clarification: PendingClarificationSchema | None = None
-    #: État du dialogue de date, à renvoyer tel quel avec le message suivant.
-    date_reference: str | None = None
+    #: État du dialogue de date, à renvoyer tel quel avec le message suivant. Non validée
+    #: ici : elle sort du moteur, qui la produit via `parse_date_fr` — déjà bornée. La
+    #: revalider ferait d'une anomalie interne un 500 au lieu d'une réponse.
+    date_reference: date | None = None
     date_asked: bool = False
     #: Proposition d'action sur MonParcours, quand la réponse s'y prête. `None` sur
     #: une question de clarification (on n'interrompt pas un dialogue en cours) et

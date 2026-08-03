@@ -179,7 +179,11 @@ def answer_question(
                 "collected_profile": None,
                 # Branche juridique : quel droit servir (celui de la décision contestée)
                 # et si la question a déjà été tranchée dans cette conversation.
-                "date_reference": ctx.date_reference,
+                # Le moteur transporte cette date en ISO, pas en `date` : son état fait
+                # l'aller-retour par le client en JSON et doit rester sérialisable tel
+                # quel, y compris pour un canal qui n'aurait pas de couche Pydantic.
+                # La validation, elle, appartient à la frontière HTTP (voir `schemas`).
+                "date_reference": ctx.date_reference.isoformat() if ctx.date_reference else None,
                 "date_asked": ctx.date_asked,
             }
         )
