@@ -39,12 +39,12 @@ classifieur). Il ne conduit simplement plus l'entretien.
 
 from __future__ import annotations
 
-import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Optional
 
+from . import etat_dialogue
 from app.modules.profiling.schemas.profil import (
     StatutLogement,
     StatutMarital,
@@ -319,25 +319,18 @@ def profil_declare(reponses: dict) -> dict:
 
 
 # --- État entre deux tours ---------------------------------------------------
-# Même canal que `estimation_node` : les réponses déjà données voyagent dans
-# `pending_clarification.original_question`, que le client renvoie tel quel sans
-# jamais l'afficher. C'est ce qui évite d'ouvrir une session côté serveur pour
-# quatre questions à choix fixes.
+# Canal commun à tous les dialogues du moteur, voir `etat_dialogue` : les réponses
+# déjà données voyagent par le client. C'est ce qui évite d'ouvrir une session
+# côté serveur pour quatre questions à choix fixes.
 _CLE_ETAT = "documents_reponses"
 
 
 def encoder_etat(reponses: dict) -> str:
-    return json.dumps({_CLE_ETAT: reponses}, ensure_ascii=False)
+    return etat_dialogue.encoder(_CLE_ETAT, reponses)
 
 
 def decoder_etat(pending: Optional[dict]) -> dict:
-    if not pending:
-        return {}
-    try:
-        contenu = json.loads(pending.get("original_question") or "")
-        reponses = contenu.get(_CLE_ETAT)
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        return {}
+    reponses = etat_dialogue.decoder(pending, _CLE_ETAT)
     if not isinstance(reponses, dict):
         return {}
     # On ne garde que des champs connus : l'état vient du client, une clé

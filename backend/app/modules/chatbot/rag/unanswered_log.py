@@ -66,6 +66,10 @@ RAISON_EXTRAITS_INSUFFISANTS = "extraits_insuffisants"  # RAG : le corpus ne per
 #: elle ne demande pas d'enrichir les sources mais de surveiller le modèle. Sans elle,
 #: cette panne-là ne laissait aucune trace du tout.
 RAISON_REPONSE_ILLISIBLE = "reponse_illisible"
+#: Le plafond de clarifications est atteint et le modèle voulait encore questionner : le
+#: code a tranché. Souvent le signe que le corpus ne contient pas de quoi répondre et que
+#: le modèle tourne autour - donc une piste d'enrichissement, pas seulement un incident.
+RAISON_TROP_DE_CLARIFICATIONS = "trop_de_clarifications"
 
 
 def lire_journal(limite=None):

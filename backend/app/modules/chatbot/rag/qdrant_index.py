@@ -4,7 +4,11 @@ import os
 import hashlib
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchAny
-from sentence_transformers import SentenceTransformer
+
+# `sentence_transformers` (et le torch qu'il tire) est importé DANS build_index et non
+# ici : c'est le seul endroit qui en a besoin, `search` recevant le modèle déjà chargé.
+# Au niveau du module, il faisait payer une trentaine de secondes de chargement à tout
+# ce qui importe l'orchestrateur - y compris une suite de tests qui ne cherche rien.
 
 # Paths resolved relative to this module so the embedded Qdrant store and the
 # chunks are found regardless of the process working directory. File layout and
@@ -38,6 +42,8 @@ def load_all_chunks():
 
 
 def build_index():
+    from sentence_transformers import SentenceTransformer
+
     fingerprint = compute_fingerprint()
 
     print(f"\nChargement du modèle d'embeddings '{MODEL_NAME}'...")
