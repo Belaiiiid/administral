@@ -25,6 +25,7 @@ from .llm_client import (
     call_llm,
     with_standard_options,
 )
+from app.core.logger import logger
 from . import rag_pipeline
 from . import legal_pipeline
 from . import etat_dialogue
@@ -206,8 +207,11 @@ def route_intent_llm(state: D4State) -> str:
         if intent in VALID_INTENTS:
             return intent
         return "fallback"
-    except Exception as e:
-        print(f"[route_intent_llm] Erreur classification, repli sur fallback: {e}")
+    except Exception:  # noqa: BLE001 — le classifieur ne doit jamais planter un tour
+        # Repli silencieux pour le citoyen, jamais pour l'équipe : un classifieur qui
+        # échoue envoie TOUTES les questions en hors-sujet, ce qui ressemble de loin à
+        # « le corpus ne couvre pas grand-chose ».
+        logger.exception("chatbot: classification impossible, repli sur fallback")
         return "fallback"
 
 
@@ -433,8 +437,14 @@ def estimation_node(state: D4State) -> D4State:
             f"{resultat.montant_min} € et {resultat.montant_max} € par mois "
             f"(estimation centrale : {resultat.montant_median} €).\n\n{resultat.avertissement}"
         )
-    except Exception as e:  # noqa: BLE001 — l'estimation ne doit jamais planter la conversation
-        print(f"[estimation_node] Erreur de calcul, repli sur message d'excuse: {e}")
+    except Exception:  # noqa: BLE001 — l'estimation ne doit jamais planter la conversation
+        # Le calcul est déterministe : s'il échoue, c'est un défaut du code ou du barème,
+        # pas une réponse du modèle. Sans trace, il est indétectable - le citoyen reçoit
+        # une excuse polie et l'incident disparaît.
+        logger.exception(
+            "chatbot: calcul d'estimation impossible",
+            {"champs": sorted(reponses)},
+        )
         texte = (
             "Je n'ai pas pu calculer d'estimation à partir de ces informations. "
             "Vous pouvez réessayer."
@@ -460,6 +470,22 @@ def get_rag_pipeline():
     if _rag_pipeline_instance is None:
         _rag_pipeline_instance = rag_pipeline.RagPipeline()
     return _rag_pipeline_instance
+
+
+def mode_recherche() -> str:
+    """« hybride », « bm25_seul », ou « non_initialise » — SANS construire le pipeline.
+
+    Le repli en BM25 seul est silencieux par conception (l'assistant doit répondre même
+    sans couche sémantique), et c'est précisément ce qui le rend dangereux : une fois
+    la ligne de démarrage passée, plus rien ne dit qu'on tourne en mode dégradé. En le
+    remontant à chaque tour, une dégradation durable devient visible dans les métriques
+    au lieu de se deviner à la qualité des réponses.
+
+    Ne force JAMAIS la construction : appelé sur un tour de politesse, cela déclencherait
+    le chargement complet des index pour écrire une ligne de log."""
+    if _rag_pipeline_instance is None:
+        return "non_initialise"
+    return "hybride" if _rag_pipeline_instance.semantic_available else "bm25_seul"
 
 
 SHOW_SOURCES = True  # bascule simple : afficher ou non les sources au citoyen

@@ -26,6 +26,9 @@ d'`apl_rag`) :
 
 from __future__ import annotations
 
+import time
+
+from app.core.logger import logger
 from app.modules.auth.models import Role, User
 from app.modules.chatbot.checklist_answer import render_checklist
 from app.modules.chatbot.rag import orchestrator
@@ -142,6 +145,12 @@ def answer_question(
     # generation step (Mistral) can still raise if the API is unavailable. The
     # assistant must degrade to a message, never a 500 — a broken chatbot mid-demo
     # is worse than a graceful "try again".
+    #
+    # Le filet ne doit pas pour autant AVALER la panne : « momentanément
+    # indisponible » côté citoyen et rien du tout côté équipe, c'est un incident
+    # qu'on ne peut ni compter ni comprendre. Le message reste identique pour le
+    # citoyen, la cause est écrite dans les logs.
+    debut = time.perf_counter()
     try:
         state = _get_graph().invoke(
             {
@@ -167,6 +176,16 @@ def answer_question(
             }
         )
     except Exception:  # noqa: BLE001 — any engine failure degrades, never crashes
+        logger.exception(
+            "chatbot: échec du moteur",
+            {
+                "etape": "graph",
+                "mode_recherche": orchestrator.mode_recherche(),
+                "duree_ms": round((time.perf_counter() - debut) * 1000),
+                "role": _user_role(user),
+                "en_clarification": pending is not None,
+            },
+        )
         return _unavailable()
 
     intent = state.get("intent")
@@ -178,12 +197,36 @@ def answer_question(
         try:
             answer = render_checklist(state["collected_profile"], intro=answer)
         except Exception:  # noqa: BLE001 — la checklist ne doit pas casser la réponse
+            logger.exception(
+                "chatbot: échec du rendu de la checklist",
+                {"etape": "checklist", "champs_collectes": sorted(state["collected_profile"])},
+            )
             return _unavailable()
 
     next_pending = state.get("pending_clarification")
+    sources = _to_sources(state.get("sources"))
+
+    # Une ligne par tour : de quoi suivre la santé de l'assistant sans rien lire de ce
+    # que le citoyen a écrit. Le CONTENU n'a qu'un seul endroit légitime, le journal des
+    # questions sans réponse, qui existe pour ça et ne consigne aucune identité. Ici on
+    # ne garde que des métriques : la branche empruntée, le mode de recherche effectif
+    # (une bascule durable en BM25 seul ne se voit nulle part ailleurs), le temps de
+    # réponse, et si le tour a produit une question plutôt qu'une réponse.
+    logger.info(
+        "chatbot: tour traité",
+        {
+            "intent": intent,
+            "mode_recherche": orchestrator.mode_recherche(),
+            "duree_ms": round((time.perf_counter() - debut) * 1000),
+            "role": _user_role(user),
+            "sources": len(sources),
+            "clarification": next_pending is not None,
+        },
+    )
+
     return ChatbotResponseSchema(
         answer=answer,
-        sources=_to_sources(state.get("sources")),
+        sources=sources,
         options=state.get("response_options"),
         pending_clarification=(
             PendingClarificationSchema(

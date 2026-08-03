@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 from datetime import UTC, datetime
 from typing import Any
 
@@ -36,6 +37,27 @@ class _Logger:
 
     def error(self, message: str, context: dict[str, Any] | None = None) -> None:
         _emit("error", message, context)
+
+    def exception(self, message: str, context: dict[str, Any] | None = None) -> None:
+        """Une erreur AVEC la trace de l'exception en cours de traitement.
+
+        À appeler depuis un bloc `except`. C'est ce qui manquait pour qu'un
+        `except Exception` puisse être à la fois silencieux pour le citoyen et
+        exploitable pour l'équipe : sans la trace, « une erreur est survenue » ne
+        dit pas où, et l'incident reste aussi opaque que s'il n'avait rien écrit.
+
+        Le type et le message de l'exception sont sortis dans leurs propres
+        champs : c'est sur eux qu'on regroupe et qu'on compte des incidents, la
+        trace complète servant ensuite à comprendre un cas précis.
+
+        Hors d'un bloc `except`, se comporte simplement comme `error`.
+        """
+        exc_type, exc, _ = sys.exc_info()
+        details = dict(context or {})
+        if exc is not None:
+            details["error"] = f"{exc_type.__name__}: {exc}"
+            details["traceback"] = traceback.format_exc()
+        _emit("error", message, details)
 
 
 logger = _Logger()
