@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Grid3x3, Lock } from 'lucide-react';
+import { ArrowRight, Briefcase, HeartPulse, Home, Lock, Receipt } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
@@ -15,12 +16,12 @@ import {
 import { cn } from '@/lib/utils';
 import type { AdministrationId } from '@/types';
 
-/** Illustrative benefit tags shown under each service — presentation only. */
-const SERVICE_SUBTAGS: Record<AdministrationId, string[]> = {
-  caf: ['APL', 'AF', 'ALF', 'Prime d’activité'],
-  'france-travail': ['ARE', 'Offres d’emploi', 'Formation', 'CEP'],
-  'assurance-maladie': ['Carte Vitale', 'Remboursements', 'Congés maladie'],
-  impots: ['Avis d’imposition', 'RFR', 'Simulateur'],
+/** One recognisable icon per administration for the badge overlapping the photo panel. */
+const ADMINISTRATION_ICONS: Record<AdministrationId, LucideIcon> = {
+  caf: Home,
+  'france-travail': Briefcase,
+  'assurance-maladie': HeartPulse,
+  impots: Receipt,
 };
 
 /**
@@ -51,95 +52,91 @@ export function LandingServices() {
   return (
     <section id="services" className="bg-surface">
       <div className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow">Services principaux</p>
-          <h2 className="mt-4 text-3xl font-extrabold leading-tight text-ink">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="eyebrow text-base">Services principaux</p>
+          <h2 className="mt-4 text-5xl font-extrabold leading-tight text-ink">
             Vos services essentiels réunis au même endroit
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
             Accédez facilement aux services publics les plus utilisés. D’autres services seront
             progressivement disponibles.
           </p>
-          <Link
-            to={ROUTES.administrations}
-            className="mt-8 inline-flex items-center gap-3 rounded-md bg-marianne px-6 py-3.5 text-sm font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
-          >
-            Voir tous les services
-            <Grid3x3 className="size-4" aria-hidden="true" />
-          </Link>
         </div>
 
         <div className="mt-14">
           <Carousel opts={{ loop: true, align: 'start' }} setApi={setApi} className="mx-auto max-w-6xl">
-            <CarouselContent>
+            <CarouselContent className="-ml-6">
               {SERVICES.map((service) => {
                 const isAvailable = service.status === 'available';
+                const Icon = ADMINISTRATION_ICONS[service.id];
+                const accentSolid = 'bg-[#132a6e]';
+                const panelTint = isAvailable ? 'bg-brand-soft' : 'bg-destructive-surface';
+
                 return (
-                  <CarouselItem key={service.id} className="sm:basis-1/2 lg:basis-1/3">
-                    <article className="flex h-full flex-col rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg">
-                      <div className="flex items-center gap-4">
-                        <span className="flex h-12 w-20 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-white p-2">
-                          {service.logoUrl ? (
-                            <img
-                              src={service.logoUrl}
-                              alt={service.name}
-                              className="max-h-8 max-w-full object-contain"
-                            />
-                          ) : (
-                            <span className="font-display text-xs font-bold text-brand">
-                              {service.name}
-                            </span>
-                          )}
-                        </span>
-                        <div>
-                          <p className="font-display text-xl font-bold text-ink">{service.name}</p>
-                          <p className="text-xs text-muted-foreground">{service.administration}</p>
-                        </div>
-                      </div>
-
-                      <p className="mt-5 flex-1 text-sm leading-relaxed text-muted-foreground">
-                        {service.description}
-                      </p>
-
-                      <div className="mt-5">
-                        <p className="text-xs font-bold uppercase tracking-wide text-brand">
-                          Services {isAvailable ? 'disponibles' : 'à venir'}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {SERVICE_SUBTAGS[service.id].map((item) => (
-                            <span
-                              key={item}
-                              className="rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand"
-                            >
-                              {item}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mt-6 border-t border-border/60 pt-4">
-                        {isAvailable ? (
-                          <Link
-                            to={service.basePath}
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-brand"
-                          >
-                            Accéder au service
-                            <ArrowRight className="size-4" aria-hidden="true" />
-                          </Link>
+                  <CarouselItem key={service.id} className="pl-6 sm:basis-1/2 lg:basis-1/3">
+                    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg">
+                      <div className={cn('relative h-56 w-full shrink-0', panelTint)}>
+                        {service.photoUrl ? (
+                          <img
+                            src={service.photoUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 size-full object-cover"
+                          />
+                        ) : service.logoUrl ? (
+                          <img
+                            src={service.logoUrl}
+                            alt={service.name}
+                            className="absolute inset-0 m-auto max-h-16 max-w-[70%] object-contain"
+                          />
                         ) : (
-                          <span className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                            <Lock className="size-3.5" aria-hidden="true" />
-                            Bientôt disponible
+                          <span className="absolute inset-0 flex items-center justify-center font-display text-sm font-bold text-brand">
+                            {service.name}
                           </span>
                         )}
+
+                        <span
+                          className={cn(
+                            'absolute bottom-0 left-6 z-10 flex size-14 translate-y-1/2 items-center justify-center rounded-full text-white shadow-md ring-4 ring-white',
+                            accentSolid,
+                          )}
+                        >
+                          <Icon className="size-6" aria-hidden="true" />
+                        </span>
+                      </div>
+
+                      <div className="flex flex-1 flex-col p-6 pt-8">
+                        <p className="line-clamp-2 font-display text-xl font-bold text-ink">
+                          {service.name}
+                        </p>
+                        <p className="mt-2 line-clamp-3 flex-1 text-base leading-relaxed text-muted-foreground">
+                          {service.description}
+                        </p>
+
+                        <div className="mt-4 border-t border-border/60 pt-4">
+                          {isAvailable ? (
+                            <Link
+                              to={service.basePath}
+                              className="inline-flex items-center gap-2 text-sm font-semibold text-brand"
+                            >
+                              Accéder au service
+                              <ArrowRight className="size-4" aria-hidden="true" />
+                            </Link>
+                          ) : (
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-destructive">
+                              <Lock className="size-3.5" aria-hidden="true" />
+                              Bientôt disponible
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </article>
                   </CarouselItem>
                 );
               })}
             </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex" />
-            <CarouselNext className="hidden sm:flex" />
+            <CarouselPrevious className="-left-4 hidden sm:flex sm:-left-16" />
+            <CarouselNext className="-right-4 hidden sm:flex sm:-right-16" />
           </Carousel>
 
           {count > 1 && (
@@ -158,6 +155,15 @@ export function LandingServices() {
               ))}
             </div>
           )}
+
+          <div className="mt-10 flex justify-center">
+            <Link
+              to={ROUTES.administrations}
+              className="inline-flex items-center gap-3 rounded-md bg-marianne px-7 py-4 text-base font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
+            >
+              Voir tous les services
+            </Link>
+          </div>
         </div>
       </div>
     </section>

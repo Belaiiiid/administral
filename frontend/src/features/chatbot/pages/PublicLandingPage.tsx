@@ -7,7 +7,6 @@ import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { LandingAI } from '@/features/chatbot/components/landing/LandingAI';
-import { LandingCafServices } from '@/features/chatbot/components/landing/LandingCafServices';
 import { LandingFeatures } from '@/features/chatbot/components/landing/LandingFeatures';
 import { LandingHeader } from '@/features/chatbot/components/landing/LandingHeader';
 import { LandingHero } from '@/features/chatbot/components/landing/LandingHero';
@@ -150,7 +149,6 @@ function LandingContent() {
           <>
             <LandingHero onStart={() => handleStart('text')} />
             <LandingServices />
-            <LandingCafServices />
             <LandingFeatures
               onStartChat={() => handleStart('text')}
               onStartVoice={() => handleStart('voice')}

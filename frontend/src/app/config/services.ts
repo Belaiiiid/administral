@@ -22,6 +22,7 @@ export const SERVICES: ServiceDefinition[] = [
     basePath: ROUTES.portal,
     status: 'available',
     logoUrl: '/caf-logo.svg',
+    photoUrl: '/caf.jpg',
   },
   {
     id: 'france-travail',
@@ -32,6 +33,7 @@ export const SERVICES: ServiceDefinition[] = [
     basePath: '/france-travail',
     status: 'available',
     logoUrl: '/france-travail-logo.svg',
+    photoUrl: '/franceTravail.jpg',
   },
   {
     id: 'assurance-maladie',
@@ -41,6 +43,7 @@ export const SERVICES: ServiceDefinition[] = [
     basePath: '/assurance-maladie',
     status: 'coming_soon',
     logoUrl: '/assurance-maladie-logo.svg',
+    photoUrl: '/assuranceMaladie.jpg',
   },
   {
     id: 'impots',
@@ -50,6 +53,7 @@ export const SERVICES: ServiceDefinition[] = [
       'Visualisation de vos avis d’imposition et aide au calcul du revenu fiscal de référence.',
     basePath: '/impots',
     status: 'coming_soon',
+    photoUrl: '/impots.jpg',
   },
 ];
 

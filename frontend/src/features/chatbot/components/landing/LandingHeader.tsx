@@ -21,7 +21,7 @@ export function LandingHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-50 bg-background">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
         <Link to={ROUTES.home} className="flex items-center gap-3">
           <img src={logo} alt="Administral" className="h-16 w-16 shrink-0 object-contain" />
