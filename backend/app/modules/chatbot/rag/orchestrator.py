@@ -23,11 +23,11 @@ from .llm_client import (
     LlmContractError,
     _enforce_standard_options,
     call_llm,
-    call_llm_structured,
     with_standard_options,
 )
 from . import rag_pipeline
 from . import legal_pipeline
+from . import profilage_documents
 # Politesse : fonction de texte pure, isolée dans son module - elle n'a besoin ni d'un
 # LLM ni d'un index, et se teste donc sans rien charger de tout ça (voir `politesse`).
 from .politesse import courtoisie, is_greeting  # noqa: F401 — `is_greeting` reste public
@@ -44,9 +44,6 @@ from .unanswered_log import (
 # charge pas le graphe. Le graphe lui-meme n'est ouvert qu'a la premiere question juridique.
 from .kg_apl.query import extract_references
 
-# MonParcours : vocabulaire de profil dérivé de `ProfilPartiel`, pour que le
-# profiling remplisse exactement les champs dont les règles de checklist se servent.
-from ..checklist_answer import PROFILE_FIELDS_DOC
 from app.modules.citizen import estimation
 
 # Pas d'authentification (canal WhatsApp notamment) : le chat est un espace ouvert, aucun
@@ -231,97 +228,78 @@ def orchestrator_node(state: D4State) -> D4State:
     return {**state, "intent": intent}
 
 
-# MonParcours : la fin du prompt diffère du repo `apl_rag`. Là-bas, le nœud conclut par
-# un "[MOCK]" faute de générateur de checklist ; ici il conclut en renvoyant le profil
-# collecté, que la couche service passe aux règles de checklist MonParcours. Le LLM
-# collecte des faits déclarés, il ne choisit JAMAIS les documents.
-DOCUMENTS_SYSTEM_PROMPT = f"""Tu aides un citoyen à savoir quels documents sont nécessaires pour une
-demande d'aide au logement (APL) - pour lui-même OU pour une autre personne (ex: son fils étudiant),
-les deux cas se traitent pareil.
+#: Phrase d'introduction de la checklist. Écrite ici plutôt que demandée au modèle :
+#: c'est une phrase de liaison, pas une réponse - la faire générer coûterait un appel
+#: pour un résultat qui ne varie pas.
+INTRO_CHECKLIST = "Merci. D'après ce que vous m'avez indiqué, voici ce qu'il vous faut."
 
-Le chat n'a pas d'authentification : tu ne connais RIEN sur la situation de la personne concernée au
-départ. Avant de pouvoir lister les documents nécessaires, pose des questions de profiling courtes sur
-sa situation (statut logement, statut professionnel, situation familiale).
 
-RÈGLES :
-- Pose une question de profiling à la fois, jamais plusieurs en même temps.
-- Ne pose jamais plus de 4 questions de profiling au total sur une même conversation (regarde
-  l'historique fourni pour savoir combien tu en as déjà posées). Si le citoyen répond "Passer cette
-  question", ce n'est pas la peine d'insister sur CE point précis - tu peux poser une AUTRE question
-  de profiling si une autre info manque encore, dans la limite des 4.
-- Priorise les questions qui changent vraiment la liste des documents : le statut du logement, puis
-  le statut professionnel, puis la situation familiale.
-- Si le citoyen répond "Je ne comprends pas, expliquez-moi" à une question de profiling, explique-la
-  en langage très simple (un exemple concret aide), PUIS repose la même question (reformulée plus
-  simplement si possible) - ne l'ignore pas et ne devine pas sa situation à sa place.
-- Ne liste JAMAIS toi-même les documents : la liste est établie ensuite à partir du profil que tu as
-  collecté. Ta réponse finale se limite à une phrase d'introduction courte.
-
-FORMAT DE SORTIE :
-Réponds UNIQUEMENT avec un JSON de la forme :
-{{"type": "clarification", "text": "la question posée", "options": [...] ou null}}
-tant qu'il te manque des informations, ou, quand tu en as assez (ou après la limite) :
-{{"type": "answer", "text": "une phrase d'introduction courte", "profil": {{...}}}}
-- "options": liste de choix courts (2 à 4) si la question a un nombre limité de réponses plausibles.
-  Mets "options": null si la réponse attendue est une valeur libre.
-- Ne mets PAS toi-même d'option "passer cette question" ou "je ne comprends pas" dans ta liste -
-  elles sont ajoutées automatiquement, inutile de les dupliquer.
-- "profil": UNIQUEMENT les champs ci-dessous, et uniquement ceux que le citoyen a réellement indiqués
-  (n'invente rien, ne devine rien - un champ absent est traité comme "inconnu") :
-{PROFILE_FIELDS_DOC}
-"""
+def _demander_champ(state: D4State, champ: str, reponses: dict, *, prefixe: str = "") -> D4State:
+    question = profilage_documents.QUESTIONS[champ]
+    texte = f"{prefixe}{question.texte}" if prefixe else question.texte
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "sources": [],
+        "response_options": _enforce_standard_options(profilage_documents.options(champ)),
+        "pending_clarification": {
+            "original_question": profilage_documents.encoder_etat(reponses),
+            "intent": "documents_necessaires",
+        },
+        "collected_profile": None,
+    }
 
 
 def documents_necessaires_node(state: D4State) -> D4State:
+    """Entretien de profilage MENÉ PAR LE CODE, sur le modèle d'`estimation_node`.
+
+    Le modèle a reconnu l'intention ; il ne conduit pas l'échange. Les questions, leur
+    ordre et le moment de s'arrêter viennent de `profilage_documents`, où la liste des
+    champs est finie - le plafond de quatre questions est donc une propriété du parcours
+    et non une consigne que le modèle pourrait perdre de vue (il la perdait : voir le
+    module pour le détail de la fenêtre d'historique tronquée).
+
+    Aucun appel LLM ici. Une panne du modèle ne peut donc plus interrompre un entretien
+    en cours, et deux entretiens identiques donnent exactement la même chose."""
     pending = state.get("pending_clarification")
-    is_reply = state.get("is_clarification_reply") and pending is not None
-    original_question = pending["original_question"] if is_reply else state["message"]
+    en_cours = bool(pending) and pending.get("intent") == "documents_necessaires"
+    is_reply = bool(state.get("is_clarification_reply")) and en_cours
+    reponses = profilage_documents.decoder_etat(pending) if en_cours else {}
+    message = state["message"]
 
-    messages = [{"role": "system", "content": DOCUMENTS_SYSTEM_PROMPT}]
-    messages.extend(state["conversation_history"])
-    messages.append({"role": "user", "content": state["message"]})
+    if is_reply:
+        champ = profilage_documents.prochain_champ(reponses)
+        if champ is not None:
+            if message == EXPLAIN_OPTION:
+                explication = f"{profilage_documents.QUESTIONS[champ].explication}\n\n"
+                return _demander_champ(state, champ, reponses, prefixe=explication)
+            if message == SKIP_OPTION:
+                # Passée = posée : on enchaîne sur la suivante au lieu d'insister, et
+                # cette question-là ne reviendra pas.
+                reponses = profilage_documents.enregistrer(reponses, champ, None)
+            else:
+                choix = profilage_documents.reconnaitre(champ, message)
+                if choix is not None:
+                    reponses = profilage_documents.enregistrer(reponses, champ, choix)
+                # Réponse non reconnue : on repose la même question. Deviner ici
+                # fausserait la liste des pièces, ce qui coûte au citoyen un dossier
+                # incomplet - le prix d'une question reposée est sans commune mesure.
 
-    try:
-        result = call_llm_structured(messages=messages, temperature=0.2)
-    except LlmContractError:
-        # `collected_profile` reste None : c'est LUI qui autorise la couche service à
-        # produire la checklist. Un tour raté ne doit pas pouvoir présenter le socle
-        # commun comme une liste personnalisée - le citoyen a répondu à des questions,
-        # et ces réponses viennent d'être perdues.
-        log_unanswered(
-            state["message"], "documents_necessaires", RAISON_REPONSE_ILLISIBLE,
-            user_role=state.get("user_role") or "citizen",
-        )
-        return {
-            **state,
-            "response": REDIRECTION_OFFICIELLE,
-            "answer": REDIRECTION_OFFICIELLE,
-            "sources": [],
-            "response_options": None,
-            "pending_clarification": None,
-            "collected_profile": None,
-        }
+    champ_manquant = profilage_documents.prochain_champ(reponses)
+    if champ_manquant is not None:
+        return _demander_champ(state, champ_manquant, reponses)
 
-    if result["type"] == "clarification":
-        return {
-            **state,
-            "response": result["text"],
-            "answer": result["text"],
-            "response_options": result["options"],
-            "pending_clarification": {"original_question": original_question, "intent": "documents_necessaires"},
-            "collected_profile": None,
-        }
-
-    # MonParcours : le profil déclaré part vers la couche service, qui produit la vraie
-    # checklist. `response` reste la phrase d'introduction du LLM (ce que voit le CLI).
-    profile = result.get("profil")
+    # Entretien terminé : le profil déclaré part vers la couche service, qui produit la
+    # vraie checklist MonParcours. `collected_profile` non-None est ce qui l'y autorise.
     return {
         **state,
-        "response": result["text"],
-        "answer": result["text"],
+        "response": INTRO_CHECKLIST,
+        "answer": INTRO_CHECKLIST,
+        "sources": [],
         "response_options": None,
         "pending_clarification": None,
-        "collected_profile": profile if isinstance(profile, dict) else {},
+        "collected_profile": profilage_documents.profil_declare(reponses),
     }
 
 
