@@ -9,7 +9,7 @@ Swagger UI:  http://localhost:8000/docs
 
 from __future__ import annotations
 
-import threading
+import os
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.exceptions import DomainError, domain_error_handler
+from app.core.logger import logger
 from app.database.session import check_health, verify_connection
 from app.modules.chatbot.router import router as chatbot_router
 from app.modules.profiling.routers import router as profiling_router
@@ -35,13 +36,34 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.settings.router import router as settings_router
 
 
-def _warmup_chatbot() -> None:
-    """Pre-build the RAG pipeline (embeddings model + indexes) in the background.
+#: Permet de sauter le préchauffage (tests, itération rapide en dev). Le moteur se
+#: construira alors à la première question qui en a besoin, sous verrou.
+_WARMUP_ENABLED = os.environ.get("CHATBOT_WARMUP", "1").lower() not in ("0", "false", "no")
 
-    The first `rag_general` request otherwise pays a one-off ~15s model load;
-    warming it at startup means the assistant answers promptly during a demo.
-    Best-effort: any failure here is swallowed — the assistant degrades
-    gracefully at request time (see chatbot service safety net)."""
+
+def _warmup_chatbot() -> None:
+    """Construit le moteur (index, embeddings, graphe juridique) AVANT de servir.
+
+    Fait volontairement de façon SYNCHRONE, et plus dans un thread démon. Le
+    préchauffage en arrière-plan créait une course : pendant les ~25 s de
+    chargement, une requête entrante trouvait le singleton encore vide et
+    commençait sa PROPRE construction. Deux modèles d'embeddings en mémoire, et
+    surtout deux ouvertures du même dossier Qdrant — qui n'en admet qu'une. Le
+    perdant récupérait une erreur, dégradait en BM25 seul, et c'est cette
+    instance-là qui pouvait rester en cache pour toute la vie du process.
+
+    Bloquer le démarrage est le comportement correct : tant que le moteur n'est
+    pas prêt, le service n'est pas prêt. Un serveur qui accepte du trafic avant
+    d'être en état est plus difficile à diagnostiquer qu'un serveur qui met
+    trente secondes à démarrer. Le chargement sémantique reste borné par
+    `CHATBOT_SEMANTIC_TIMEOUT_S`, donc l'attente ne peut pas être infinie.
+
+    Best-effort quant à l'échec : une panne ici est consignée, pas fatale — le
+    moteur retentera à la première question et dégradera proprement s'il ne peut
+    pas."""
+    if not _WARMUP_ENABLED:
+        logger.info("chatbot: préchauffage désactivé (CHATBOT_WARMUP=0)")
+        return
     try:
         from app.modules.chatbot.rag import orchestrator
 
@@ -50,7 +72,10 @@ def _warmup_chatbot() -> None:
         # les index, et parce qu'il partage le pipeline RAG qu'on vient de construire.
         orchestrator.get_legal_pipeline()
     except Exception:  # noqa: BLE001 — warmup must never affect startup
-        pass
+        # Ne pas affecter le démarrage ne veut pas dire ne rien dire : un préchauffage
+        # raté laisse la première question du citoyen payer le chargement complet, ou
+        # échouer. `pass` rendait les deux indistinguables d'un démarrage sain.
+        logger.exception("chatbot: préchauffage du moteur en échec")
 
 
 @asynccontextmanager
@@ -60,11 +85,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     Failing here stops startup with a legible message. Letting the app bind the
     port and discover the database is unreachable on the first request means a
     broken environment looks healthy — it answers, then fails every call.
+
+    Même raisonnement pour l'assistant, d'où le préchauffage synchrone ci-dessous.
     """
     verify_connection()
-    # Warm the Citizen AI Assistant in a daemon thread so startup is not blocked
-    # and the first demo question is fast.
-    threading.Thread(target=_warmup_chatbot, daemon=True).start()
+    _warmup_chatbot()
     yield
 
 
@@ -92,16 +117,29 @@ app.add_middleware(
 app.add_exception_handler(DomainError, domain_error_handler)
 
 
-@app.get("/api/health", tags=["health"], summary="Liveness et accessibilité de la base")
+@app.get("/api/health", tags=["health"], summary="Liveness, base et mode de l'assistant")
 def health() -> dict[str, object]:
     """503 when the database is unreachable, rather than 200-with-a-flag.
 
     A process that cannot serve a single useful request is not healthy, and
     anything reading the status code has to be able to see that.
+
+    Le mode de recherche de l'assistant est rendu ici, mais NE FAIT PAS basculer le
+    statut. La nuance est délibérée : en BM25 seul l'assistant répond toujours, avec
+    des sources, simplement moins bien. Basculer le statut ferait retirer le service
+    du trafic par un répartiteur de charge - on remplacerait des réponses dégradées
+    par pas de réponse du tout. C'est une information d'exploitation, à surveiller et
+    à alerter, pas un signal de vie.
+
+    « non_initialise » n'est pas une panne : c'est un processus dont le préchauffage
+    est désactivé et à qui personne n'a encore posé de question.
     """
+    from app.modules.chatbot.rag import budget, orchestrator
+
     database = check_health()
 
     return {
+        "assistant": {"mode_recherche": orchestrator.mode_recherche(), **budget.etat()},
         "status": "ok" if database["reachable"] else "degraded",
         "database": database,
     }

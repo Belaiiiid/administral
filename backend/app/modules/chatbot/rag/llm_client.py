@@ -14,11 +14,23 @@ from mistralai.client import Mistral
 from dotenv import load_dotenv
 from langsmith import traceable
 
+from app.core.logger import logger
+from . import budget
+
 # `openai` n'est utilisé que par les providers compatibles OpenAI (benchmarking) :
 # il est importé paresseusement dans get_openai_compatible_client() pour que la
 # prod MonParcours (Mistral uniquement) n'ait pas à l'installer.
 
 load_dotenv()
+
+#: Délai maximal d'un appel au modèle. Sans lui, aucune borne : une connexion qui reste
+#: ouverte sans jamais répondre immobilise indéfiniment un worker du pool de threads
+#: FastAPI (le endpoint est un `def` synchrone). Quelques connexions dans cet état et le
+#: pool est plein — l'API entière cesse de répondre, pas seulement l'assistant.
+#:
+#: 25 s : au-delà, le citoyen a de toute façon renoncé, et lui rendre « momentanément
+#: indisponible » vaut mieux que de tenir la ligne ouverte pour lui.
+_TIMEOUT_S = float(os.environ.get("CHATBOT_LLM_TIMEOUT_S", "25"))
 
 _mistral_client = None
 _openai_compatible_clients = {}  # provider -> client OpenAI configuré
@@ -46,7 +58,7 @@ def get_mistral_client():
                 "Fais: export MISTRAL_API_KEY=ta_cle (Linux/Mac) ou "
                 "$env:MISTRAL_API_KEY='ta_cle' (PowerShell)"
             )
-        _mistral_client = Mistral(api_key=api_key)
+        _mistral_client = Mistral(api_key=api_key, timeout_ms=int(_TIMEOUT_S * 1000))
     return _mistral_client
 
 
@@ -63,7 +75,9 @@ def get_openai_compatible_client(provider):
                 f"Variable d'environnement {config['env_var']} manquante pour le provider '{provider}'. "
                 f"Ajoute-la dans .env."
             )
-        _openai_compatible_clients[provider] = OpenAI(base_url=config["base_url"], api_key=api_key)
+        _openai_compatible_clients[provider] = OpenAI(
+            base_url=config["base_url"], api_key=api_key, timeout=_TIMEOUT_S
+        )
     return _openai_compatible_clients[provider]
 
 
@@ -95,7 +109,30 @@ def call_llm(messages, model="mistral-small-latest", provider="mistral", json_mo
             temperature=temperature,
             **kwargs,
         )
+    _comptabiliser(response, model)
     return response.choices[0].message.content
+
+
+def _comptabiliser(response, model) -> None:
+    """Relève la consommation de l'appel qui vient d'aboutir.
+
+    Ici et nulle part ailleurs : c'est le point de passage unique de tous les appels
+    au modèle, donc le seul endroit où l'on ne peut pas oublier une branche. Le
+    décompte remontait jusqu'ici puis était jeté avec l'objet de réponse — on ne
+    savait donc pas ce que coûte un tour, et on ne pouvait fixer aucun budget
+    autrement qu'au jugé.
+
+    Ne fait jamais échouer l'appel : une réponse obtenue ne doit pas être perdue
+    parce qu'un compteur n'a pas su se mettre à jour."""
+    try:
+        usage = getattr(response, "usage", None)
+        budget.enregistrer(
+            jetons_entree=getattr(usage, "prompt_tokens", 0) or 0,
+            jetons_sortie=getattr(usage, "completion_tokens", 0) or 0,
+            modele=model,
+        )
+    except Exception:  # noqa: BLE001 — la comptabilité n'est pas la réponse
+        logger.exception("chatbot: comptabilisation de l'appel impossible")
 
 
 # Options standard ajoutées à TOUTE clarification à choix (garanties par le code, pas par le
@@ -103,6 +140,40 @@ def call_llm(messages, model="mistral-small-latest", provider="mistral", json_mo
 # plutôt que de deviner, et toujours pouvoir passer la question).
 EXPLAIN_OPTION = "Je ne comprends pas, expliquez-moi"
 SKIP_OPTION = "Passer cette question"
+
+
+#: Les seuls rôles qu'un tour PASSÉ peut porter. `system` en est volontairement absent :
+#: c'est la couche d'instructions du modèle, elle n'appartient qu'au code.
+ROLES_DE_CONVERSATION = ("user", "assistant")
+#: Bornes appliquées au moment d'écrire le prompt, indépendamment de qui a fourni
+#: l'historique (voir `historique_de_confiance`).
+HISTORIQUE_TOURS_MAX = 20
+HISTORIQUE_CONTENU_MAX = 4000
+
+
+def historique_de_confiance(conversation_history):
+    """Filtre un historique fourni par l'appelant avant de l'écrire dans un prompt.
+
+    L'historique ne vient JAMAIS du serveur : le moteur ne garde aucune session, c'est
+    le client qui le renvoie à chaque tour. Il est donc, par construction, une entrée
+    non fiable recopiée dans le prompt — et un `{"role": "system"}` glissé dedans
+    ajoute des consignes au modèle sur toutes les branches.
+
+    Le schéma HTTP borne déjà tout cela. Ce filtre-ci existe parce que le schéma ne
+    protège QUE la route HTTP, alors que ce moteur est explicitement prévu pour servir
+    un second canal sans compte (WhatsApp, cf. les docstrings du module) qui ne passera
+    pas par lui. La garantie doit tenir là où le prompt s'écrit, pas seulement à la
+    porte d'entrée : un tour au rôle inconnu est écarté, jamais réinterprété."""
+    propres = []
+    for tour in conversation_history or []:
+        if not isinstance(tour, dict):
+            continue
+        role = tour.get("role")
+        contenu = tour.get("content")
+        if role not in ROLES_DE_CONVERSATION or not isinstance(contenu, str) or not contenu:
+            continue
+        propres.append({"role": role, "content": contenu[:HISTORIQUE_CONTENU_MAX]})
+    return propres[-HISTORIQUE_TOURS_MAX:]
 
 
 def _enforce_standard_options(options):
@@ -122,26 +193,67 @@ def with_standard_options(options):
     return _enforce_standard_options(list(options))
 
 
+class LlmContractError(RuntimeError):
+    """Le modèle n'a pas rendu le JSON demandé, et on refuse d'en faire une réponse.
+
+    Volontairement une EXCEPTION plutôt qu'une valeur de repli. Le repli précédent
+    ({"type": "answer", "text": <texte brut>}) était indistinguable d'une vraie réponse :
+    les appelants testaient `type == "clarification"` et traitaient tout le reste comme
+    définitif, si bien qu'un JSON tronqué était affiché tel quel au citoyen - avec, sur la
+    branche RAG, des sources officielles épinglées dessous. Une erreur qui ressemble à une
+    réponse sourcée est précisément ce que le reste de ce moteur s'efforce d'éviter.
+
+    Lever change le SENS DU DÉFAUT : un appelant qui n'y pense pas laisse remonter
+    l'exception jusqu'au filet de `service.answer_question`, qui rend un message
+    d'indisponibilité. C'est moche, mais c'est sûr — là où l'ancien défaut était
+    « montrer n'importe quoi »."""
+
+
+#: Une seule relance avant d'abandonner. La génération tourne à temperature 0.2 : un JSON
+#: mal formé est le plus souvent un accident, et la deuxième tentative passe. Au-delà, on
+#: fait attendre le citoyen pour un modèle qui, visiblement, ne suit pas le contrat.
+_STRUCTURED_ATTEMPTS = 2
+
+
+def _parse_structured(raw):
+    """Valide le contrat, ou lève. Ne rattrape RIEN : c'est l'appelant qui décide."""
+    parsed = json.loads(raw)  # lève sur JSON invalide, None, texte libre
+    if not isinstance(parsed, dict):
+        raise ValueError("le JSON rendu n'est pas un objet")
+    if parsed.get("type") not in ("answer", "clarification") or not parsed.get("text"):
+        raise ValueError("forme JSON inattendue")
+    parsed.setdefault("options", None)
+    if parsed["type"] == "clarification" and isinstance(parsed["options"], list):
+        parsed["options"] = _enforce_standard_options(parsed["options"])
+    return parsed
+
+
 def call_llm_structured(messages, model="mistral-small-latest", provider="mistral", temperature=0.0):
     """Comme call_llm, mais force une sortie JSON avec le contrat
     {"type": "answer"|"clarification", "text": str, "options": list|None} et la parse.
     Si "options" est une liste (clarification à choix), EXPLAIN_OPTION et SKIP_OPTION sont
     garantis présents en fin de liste par le code (voir _enforce_standard_options).
-    En cas de JSON malformé ou de forme inattendue (jamais de crash), repli sur
-    {"type": "answer", "text": <texte brut>, "options": None} - le prompt système
-    appelant doit décrire ce contrat explicitement (cf. GENERATION_SYSTEM_PROMPT,
-    DOCUMENTS_SYSTEM_PROMPT)."""
-    raw = call_llm(messages=messages, model=model, provider=provider, temperature=temperature, json_mode=True)
-    try:
-        parsed = json.loads(raw)
-        if parsed.get("type") not in ("answer", "clarification") or not parsed.get("text"):
-            raise ValueError("forme JSON inattendue")
-        parsed.setdefault("options", None)
-        if parsed["type"] == "clarification" and isinstance(parsed["options"], list):
-            parsed["options"] = _enforce_standard_options(parsed["options"])
-        return parsed
-    except Exception:
-        return {"type": "answer", "text": raw, "options": None}
+
+    Lève `LlmContractError` si le contrat n'est pas tenu après une relance - le prompt
+    système appelant doit le décrire explicitement (cf. GENERATION_SYSTEM_PROMPT,
+    DOCUMENTS_SYSTEM_PROMPT). Une panne d'API, elle, remonte telle quelle depuis
+    `call_llm` : ce n'est pas la même chose qu'un modèle qui répond à côté."""
+    dernier_motif = None
+    for _tentative in range(_STRUCTURED_ATTEMPTS):
+        raw = call_llm(
+            messages=messages, model=model, provider=provider,
+            temperature=temperature, json_mode=True,
+        )
+        try:
+            return _parse_structured(raw)
+        except (json.JSONDecodeError, ValueError, TypeError, AttributeError) as exc:
+            # Le texte brut n'est gardé que pour le diagnostic, tronqué : il ne doit
+            # jamais ressortir vers le citoyen, c'est tout l'objet de ce correctif.
+            dernier_motif = f"{exc} — début de la réponse : {str(raw)[:200]!r}"
+
+    raise LlmContractError(
+        f"Réponse illisible après {_STRUCTURED_ATTEMPTS} tentatives ({dernier_motif})"
+    )
 
 
 if __name__ == "__main__":

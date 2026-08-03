@@ -47,13 +47,16 @@ export interface ChatbotController {
  * behind `chatbotService`, and behind it the backend that retrieves the sources
  * and composes the answer.
  *
- * Une seule règle de conversation vit ici, et elle est délibérée : quand
- * l'assistant pose une question **à choix**, un texte tapé dans le composeur est
- * traité comme un changement de sujet (il repasse par la classification), tandis
- * qu'un clic sur un choix est une réponse. Quand la question attend une **valeur
- * libre** (un montant, une date — pas d'`options`), le texte tapé EST la réponse.
- * Le backend ne devine jamais cette distinction : c'est l'UI qui sait d'où vient
- * le message.
+ * Ce hook ne décide plus si un message répond à la question posée. Il rapporte
+ * COMMENT il a été produit — un clic sur un choix, ou une saisie pendant qu'une
+ * question était affichée — et le backend tranche, lui seul connaissant le
+ * vocabulaire attendu (mots-clés d'un choix, format d'une date).
+ *
+ * La règle précédente jugeait ici même, sur le seul indice disponible : des
+ * boutons sont-ils affichés ? Les questions de l'entretien « documents » en
+ * affichant toujours, une réponse écrite ou dictée était systématiquement prise
+ * pour un changement de sujet — jamais reconnue, et susceptible d'effacer
+ * l'entretien en cours. Le serveur, lui, sait reconnaître « je suis locataire ».
  *
  * Signed-in citizens get one more thing for free: on mount, their persisted
  * thread (`GET /citizen/chatbot/history`) seeds `messages`, so leaving `/chat`
@@ -110,14 +113,16 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
   // dans le state : rien ne s'affiche à partir de lui, il ne sert qu'à décrire
   // le message suivant.
   const pendingRef = useRef<ChatbotPendingClarification | null>(null);
-  const pendingHasOptionsRef = useRef(false);
+  // (Il y avait ici un `pendingHasOptionsRef` : savoir si la question affichait des
+  // boutons servait à deviner, côté client, si un texte tapé était une réponse. Ce n'est
+  // plus au client d'en juger, et plus rien ne le lit.)
   // Branche juridique : quel droit servir. Renvoyé à chaque message parce que le
   // backend ne garde aucune session — une fois la date connue, elle n'est plus
   // redemandée.
   const dateReferenceRef = useRef<string | null>(null);
   const dateAskedRef = useRef(false);
 
-  const ask = useCallback((question: string, isClarificationReply: boolean) => {
+  const ask = useCallback((question: string, clarificationReply: 'option' | 'text' | null) => {
     if (!question || isSendingRef.current) return;
 
     /*
@@ -147,13 +152,12 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
         ...contextRef.current,
         conversationHistory,
         pendingClarification,
-        isClarificationReply,
+        clarificationReply,
         dateReference: dateReferenceRef.current,
         dateAsked: dateAskedRef.current,
       })
       .then((response) => {
         pendingRef.current = response.pendingClarification ?? null;
-        pendingHasOptionsRef.current = (response.options?.length ?? 0) > 0;
         dateReferenceRef.current = response.dateReference ?? null;
         dateAskedRef.current = response.dateAsked ?? false;
 
@@ -179,17 +183,25 @@ export function useChatbot(context?: ChatbotContext): ChatbotController {
   const send = useCallback(
     (message: string) => {
       const question = message.trim();
-      // Réponse libre attendue (clarification sans choix) → c'est une réponse.
-      // Question à choix en attente → un texte tapé change de sujet.
-      const answersFreeValue = pendingRef.current !== null && !pendingHasOptionsRef.current;
-      ask(question, answersFreeValue);
+      // Une saisie faite pendant qu'une question est posée est signalée comme telle, et
+      // c'est TOUT ce qui est affirmé ici. Décider si elle répond à la question ou change
+      // de sujet demande le vocabulaire attendu — les mots-clés d'un choix, le format
+      // d'une date — que seul le backend possède.
+      //
+      // Auparavant cette ligne tranchait à sa place, sur le seul indice disponible : des
+      // boutons sont-ils affichés ? Comme les questions de l'entretien en affichent
+      // toujours, toute réponse écrite ou dictée était classée « changement de sujet »,
+      // n'atteignait jamais la reconnaissance côté serveur, et pouvait effacer
+      // l'entretien en cours si le classifieur tombait ailleurs.
+      ask(question, pendingRef.current !== null ? 'text' : null);
     },
     [ask],
   );
 
   const selectOption = useCallback(
     (option: string) => {
-      ask(option.trim(), pendingRef.current !== null);
+      // Un clic ne s'interprète pas : le citoyen a choisi parmi ce qu'on lui proposait.
+      ask(option.trim(), pendingRef.current !== null ? 'option' : null);
     },
     [ask],
   );

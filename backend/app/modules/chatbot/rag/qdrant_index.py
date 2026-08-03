@@ -2,9 +2,20 @@ import json
 import glob
 import os
 import hashlib
+import time
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchAny
-from sentence_transformers import SentenceTransformer
+
+from app.core.logger import logger
+# Le chargement des chunks était dupliqué à l'identique ici et dans `bm25_index` — deux
+# copies du même parcours de `data/chunks/`, donc deux endroits à corriger le jour où le
+# format change. Les deux index lisent le même corpus : une seule lecture fait foi.
+from . import bm25_index
+
+# `sentence_transformers` (et le torch qu'il tire) est importé DANS build_index et non
+# ici : c'est le seul endroit qui en a besoin, `search` recevant le modèle déjà chargé.
+# Au niveau du module, il faisait payer une trentaine de secondes de chargement à tout
+# ce qui importe l'orchestrateur - y compris une suite de tests qui ne cherche rien.
 
 # Paths resolved relative to this module so the embedded Qdrant store and the
 # chunks are found regardless of the process working directory. File layout and
@@ -28,20 +39,20 @@ def compute_fingerprint():
 def load_all_chunks():
     """Même logique que bm25_index.py : charge tous les fichiers chunks_*.json,
     peu importe la source d'origine."""
-    chunks = []
-    for path in sorted(glob.glob(f"{CHUNKS_DIR}/chunks_*.json")):
-        with open(path, encoding="utf-8") as f:
-            source_chunks = json.load(f)
-        chunks.extend(source_chunks)
-        print(f"  {path}: {len(source_chunks)} chunks")
-    return chunks
+    return bm25_index.load_all_chunks()
 
 
 def build_index():
+    from sentence_transformers import SentenceTransformer
+
+    debut = time.perf_counter()
     fingerprint = compute_fingerprint()
 
-    print(f"\nChargement du modèle d'embeddings '{MODEL_NAME}'...")
     model = SentenceTransformer(MODEL_NAME)  # nécessaire dans tous les cas pour encoder les requêtes plus tard
+    logger.info(
+        "chatbot: modèle d'embeddings chargé",
+        {"modele": MODEL_NAME, "duree_ms": round((time.perf_counter() - debut) * 1000)},
+    )
 
     client = QdrantClient(path=QDRANT_PATH)
 
@@ -53,17 +64,24 @@ def build_index():
         with open(FINGERPRINT_FILE) as f:
             saved_fingerprint = f.read().strip()
         if saved_fingerprint == fingerprint:
-            count = client.count(COLLECTION_NAME).count
-            print(f"Index Qdrant déjà à jour ({count} chunks), pas de régénération des embeddings -> {QDRANT_PATH}")
+            logger.info(
+                "chatbot: index Qdrant à jour, embeddings non régénérés",
+                {
+                    "chunks": client.count(COLLECTION_NAME).count,
+                    "duree_ms": round((time.perf_counter() - debut) * 1000),
+                },
+            )
             return client, model
 
-    print("Chargement des chunks par source:")
     chunks = load_all_chunks()
 
     vector_size = model.get_sentence_embedding_dimension()
-    print(f"Dimension des vecteurs: {vector_size}")
-
-    print("Génération des embeddings...")
+    # La régénération est la seule opération vraiment longue du démarrage : on l'annonce
+    # AVANT de la lancer, sinon un log qui n'apparaît qu'à la fin laisse croire à un gel.
+    logger.info(
+        "chatbot: génération des embeddings en cours",
+        {"chunks": len(chunks), "dimension": vector_size},
+    )
     texts = [c["text"] for c in chunks]
     embeddings = model.encode(texts, show_progress_bar=True)
 
@@ -87,7 +105,14 @@ def build_index():
     with open(FINGERPRINT_FILE, "w") as f:
         f.write(fingerprint)
 
-    print(f"\n{len(points)} chunks (re)indexés dans Qdrant (local: {QDRANT_PATH})")
+    logger.info(
+        "chatbot: index Qdrant reconstruit",
+        {
+            "chunks": len(points),
+            "dimension": vector_size,
+            "duree_ms": round((time.perf_counter() - debut) * 1000),
+        },
+    )
     return client, model
 
 

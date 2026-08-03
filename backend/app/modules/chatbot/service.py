@@ -26,9 +26,13 @@ d'`apl_rag`) :
 
 from __future__ import annotations
 
+import threading
+import time
+
+from app.core.logger import logger
 from app.modules.auth.models import Role, User
 from app.modules.chatbot.checklist_answer import render_checklist
-from app.modules.chatbot.rag import orchestrator
+from app.modules.chatbot.rag import budget, orchestrator
 from app.modules.chatbot.schemas import (
     ChatbotContextSchema,
     ChatbotCtaSchema,
@@ -43,12 +47,19 @@ _VALID_CATEGORIES = {c.value for c in SourceCategory}
 # The compiled LangGraph is built once (it wires the nodes); the heavy RAG
 # pipeline behind `rag_general` stays lazily built inside the orchestrator.
 _graph = None
+#: Le endpoint est synchrone, donc servi par un pool de threads : sans verrou, deux
+#: premières requêtes simultanées compilaient chacune leur graphe. Peu coûteux ici
+#: (le graphe ne fait que câbler les nœuds), mais c'est le même défaut que sur les
+#: singletons lourds et il ne coûte rien de le fermer aussi.
+_graph_lock = threading.Lock()
 
 
 def _get_graph():
     global _graph
     if _graph is None:
-        _graph = orchestrator.build_graph()
+        with _graph_lock:
+            if _graph is None:
+                _graph = orchestrator.build_graph()
     return _graph
 
 
@@ -142,6 +153,20 @@ def answer_question(
     # generation step (Mistral) can still raise if the API is unavailable. The
     # assistant must degrade to a message, never a 500 — a broken chatbot mid-demo
     # is worse than a graceful "try again".
+    #
+    # Le filet ne doit pas pour autant AVALER la panne : « momentanément
+    # indisponible » côté citoyen et rien du tout côté équipe, c'est un incident
+    # qu'on ne peut ni compter ni comprendre. Le message reste identique pour le
+    # citoyen, la cause est écrite dans les logs.
+    # Disjoncteur de dépense : passé le budget du jour, on n'appelle plus le modèle du
+    # tout. Vérifié ICI et non dans `call_llm`, parce que le classifieur rattrape toute
+    # exception et retomberait sur « hors-sujet » — le citoyen recevrait un refus de
+    # sujet au lieu d'une indisponibilité, et la question irait grossir le journal des
+    # questions sans réponse comme si le corpus était en cause.
+    if budget.depasse():
+        return _unavailable()
+
+    debut = time.perf_counter()
     try:
         state = _get_graph().invoke(
             {
@@ -152,21 +177,35 @@ def answer_question(
                 "response": None,
                 "response_options": None,
                 "pending_clarification": pending,
-                # Le flag vient de l'UI telle quelle : c'est elle qui sait si le
-                # message est une réponse au popup, et lui seul fait contourner le
-                # classifieur (décision 7).
-                "is_clarification_reply": ctx.is_clarification_reply,
+                # Vient de l'UI telle quelle : elle seule sait si le citoyen a cliqué un
+                # choix ou écrit sa réponse. Elle rapporte ce fait ; c'est le moteur qui
+                # en tire une conclusion (voir `orchestrator._repond_a_la_clarification`).
+                "clarification_reply": ctx.clarification_reply,
                 "user_role": _user_role(user),
                 "answer": None,
                 "sources": None,
                 "collected_profile": None,
                 # Branche juridique : quel droit servir (celui de la décision contestée)
                 # et si la question a déjà été tranchée dans cette conversation.
-                "date_reference": ctx.date_reference,
+                # Le moteur transporte cette date en ISO, pas en `date` : son état fait
+                # l'aller-retour par le client en JSON et doit rester sérialisable tel
+                # quel, y compris pour un canal qui n'aurait pas de couche Pydantic.
+                # La validation, elle, appartient à la frontière HTTP (voir `schemas`).
+                "date_reference": ctx.date_reference.isoformat() if ctx.date_reference else None,
                 "date_asked": ctx.date_asked,
             }
         )
     except Exception:  # noqa: BLE001 — any engine failure degrades, never crashes
+        logger.exception(
+            "chatbot: échec du moteur",
+            {
+                "etape": "graph",
+                "mode_recherche": orchestrator.mode_recherche(),
+                "duree_ms": round((time.perf_counter() - debut) * 1000),
+                "role": _user_role(user),
+                "en_clarification": pending is not None,
+            },
+        )
         return _unavailable()
 
     intent = state.get("intent")
@@ -178,12 +217,36 @@ def answer_question(
         try:
             answer = render_checklist(state["collected_profile"], intro=answer)
         except Exception:  # noqa: BLE001 — la checklist ne doit pas casser la réponse
+            logger.exception(
+                "chatbot: échec du rendu de la checklist",
+                {"etape": "checklist", "champs_collectes": sorted(state["collected_profile"])},
+            )
             return _unavailable()
 
     next_pending = state.get("pending_clarification")
+    sources = _to_sources(state.get("sources"))
+
+    # Une ligne par tour : de quoi suivre la santé de l'assistant sans rien lire de ce
+    # que le citoyen a écrit. Le CONTENU n'a qu'un seul endroit légitime, le journal des
+    # questions sans réponse, qui existe pour ça et ne consigne aucune identité. Ici on
+    # ne garde que des métriques : la branche empruntée, le mode de recherche effectif
+    # (une bascule durable en BM25 seul ne se voit nulle part ailleurs), le temps de
+    # réponse, et si le tour a produit une question plutôt qu'une réponse.
+    logger.info(
+        "chatbot: tour traité",
+        {
+            "intent": intent,
+            "mode_recherche": orchestrator.mode_recherche(),
+            "duree_ms": round((time.perf_counter() - debut) * 1000),
+            "role": _user_role(user),
+            "sources": len(sources),
+            "clarification": next_pending is not None,
+        },
+    )
+
     return ChatbotResponseSchema(
         answer=answer,
-        sources=_to_sources(state.get("sources")),
+        sources=sources,
         options=state.get("response_options"),
         pending_clarification=(
             PendingClarificationSchema(
