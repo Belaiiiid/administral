@@ -52,14 +52,20 @@ router = APIRouter(prefix="/citizen/chatbot", tags=["chatbot"])
 def send_message(
     body: ChatbotRequestSchema,
     current_user: Annotated[User | None, Depends(get_current_user_optional)],
-    db: Annotated[Session, Depends(get_db)],
 ) -> ChatbotResponseSchema:
+    """Pas de `Depends(get_db)` ici, volontairement.
+
+    Une session injectée est empruntée au pool pour TOUTE la durée de la requête,
+    donc pendant les secondes d'attente du modèle, alors que la base n'est touchée
+    qu'à la dernière ligne. `record_turn` ouvre donc la sienne, brève (voir
+    `history`). Le tour de conversation ne retient plus une connexion PostgreSQL
+    pendant qu'il attend Mistral."""
     response = service.answer_question(body.message, body.context, current_user)
 
     # Persistance pour l'affichage uniquement (voir `history.py`) : jamais pour
     # un visiteur anonyme, jamais relue par le moteur ci-dessus.
     if current_user is not None:
-        history.record_turn(db, current_user.id, body.message, response)
+        history.record_turn(current_user.id, body.message, response)
 
     return response
 

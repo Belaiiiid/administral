@@ -20,6 +20,15 @@ from langsmith import traceable
 
 load_dotenv()
 
+#: Délai maximal d'un appel au modèle. Sans lui, aucune borne : une connexion qui reste
+#: ouverte sans jamais répondre immobilise indéfiniment un worker du pool de threads
+#: FastAPI (le endpoint est un `def` synchrone). Quelques connexions dans cet état et le
+#: pool est plein — l'API entière cesse de répondre, pas seulement l'assistant.
+#:
+#: 25 s : au-delà, le citoyen a de toute façon renoncé, et lui rendre « momentanément
+#: indisponible » vaut mieux que de tenir la ligne ouverte pour lui.
+_TIMEOUT_S = float(os.environ.get("CHATBOT_LLM_TIMEOUT_S", "25"))
+
 _mistral_client = None
 _openai_compatible_clients = {}  # provider -> client OpenAI configuré
 
@@ -46,7 +55,7 @@ def get_mistral_client():
                 "Fais: export MISTRAL_API_KEY=ta_cle (Linux/Mac) ou "
                 "$env:MISTRAL_API_KEY='ta_cle' (PowerShell)"
             )
-        _mistral_client = Mistral(api_key=api_key)
+        _mistral_client = Mistral(api_key=api_key, timeout_ms=int(_TIMEOUT_S * 1000))
     return _mistral_client
 
 
@@ -63,7 +72,9 @@ def get_openai_compatible_client(provider):
                 f"Variable d'environnement {config['env_var']} manquante pour le provider '{provider}'. "
                 f"Ajoute-la dans .env."
             )
-        _openai_compatible_clients[provider] = OpenAI(base_url=config["base_url"], api_key=api_key)
+        _openai_compatible_clients[provider] = OpenAI(
+            base_url=config["base_url"], api_key=api_key, timeout=_TIMEOUT_S
+        )
     return _openai_compatible_clients[provider]
 
 
