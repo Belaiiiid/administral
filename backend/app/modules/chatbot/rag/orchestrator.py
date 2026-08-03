@@ -27,6 +27,7 @@ from .llm_client import (
 )
 from . import rag_pipeline
 from . import legal_pipeline
+from . import etat_dialogue
 from . import profilage_documents
 # Politesse : fonction de texte pure, isolée dans son module - elle n'a besoin ni d'un
 # LLM ni d'un index, et se teste donc sans rien charger de tout ça (voir `politesse`).
@@ -37,6 +38,7 @@ from .unanswered_log import (
     RAISON_HORS_SUJET,
     RAISON_REFERENCE_INCONNUE,
     RAISON_REPONSE_ILLISIBLE,
+    RAISON_TROP_DE_CLARIFICATIONS,
     REDIRECTION_OFFICIELLE,
     log_unanswered,
 )
@@ -358,19 +360,13 @@ def _encode_estimation_state(reponses: dict) -> str:
     dans une ref, renvoyé tel quel au tour suivant) - c'est un canal de
     bookkeeping interne entre deux appels de ce nœud, pas une donnée montrée au
     citoyen. Le contourner ainsi évite d'introduire une session côté backend
-    juste pour 4 questions à choix fixes."""
-    return json.dumps({"estimation_reponses": reponses}, ensure_ascii=False)
+    juste pour 4 questions à choix fixes. Mécanique commune : `etat_dialogue`."""
+    return etat_dialogue.encoder("estimation_reponses", reponses)
 
 
 def _decode_estimation_state(pending: Optional[dict]) -> dict:
-    if not pending:
-        return {}
-    try:
-        parsed = json.loads(pending.get("original_question") or "")
-        reponses = parsed.get("estimation_reponses")
-        return reponses if isinstance(reponses, dict) else {}
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        return {}
+    reponses = etat_dialogue.decoder(pending, "estimation_reponses")
+    return reponses if isinstance(reponses, dict) else {}
 
 
 def _ask_estimation_field(state: D4State, champ: str, reponses: dict, *, prefix: str = "") -> D4State:
@@ -468,23 +464,92 @@ def get_rag_pipeline():
 
 SHOW_SOURCES = True  # bascule simple : afficher ou non les sources au citoyen
 
+#: Plafond de questions de clarification sur UNE question du citoyen. Tenu par le code :
+#: le prompt demandait au modèle de compter les siennes en relisant l'historique, que le
+#: client tronque aux 6 derniers messages - il ne voyait donc jamais son propre plafond.
+RAG_CLARIFICATIONS_MAX = 4
+
+#: Ajoutée au prompt au dernier tour. Le modèle est prévenu qu'il doit conclure ; s'il
+#: pose quand même une question, le code tranche à sa place (voir plus bas).
+CONSIGNE_REPONSE_OBLIGATOIRE = (
+    "Tu as déjà posé le nombre maximum de questions de clarification pour cette question. "
+    "Tu DOIS répondre maintenant à partir des extraits disponibles, en signalant "
+    "clairement ce que tu ne peux pas trancher faute d'information. Ne pose plus de question."
+)
+
+_CLE_RAG = "rag_clarification"
+#: Borne de sûreté sur l'état renvoyé par le client : au-delà, c'est du bruit ou une
+#: main malveillante, et ni l'un ni l'autre ne doit gonfler le prompt.
+_MAX_REPONSES_GARDEES = 10
+
+
+def _encoder_etat_rag(question: str, reponses: list[str], posees: int) -> str:
+    return etat_dialogue.encoder(
+        _CLE_RAG,
+        {"question": question, "reponses": reponses[-_MAX_REPONSES_GARDEES:], "posees": posees},
+    )
+
+
+def _decoder_etat_rag(pending: Optional[dict]) -> Optional[dict]:
+    """L'état d'un dialogue de clarification en cours, ou None s'il n'y en a pas.
+
+    Revalide tout : l'état vient du client. Un compteur bidonné ne donnerait de toute
+    façon qu'une conversation plus longue à celui qui le bidonne."""
+    brut = etat_dialogue.decoder(pending, _CLE_RAG)
+    if not isinstance(brut, dict):
+        return None
+    question = brut.get("question")
+    reponses = brut.get("reponses")
+    posees = brut.get("posees")
+    if not isinstance(question, str) or not question:
+        return None
+    return {
+        "question": question,
+        "reponses": [r for r in reponses if isinstance(r, str)][-_MAX_REPONSES_GARDEES:]
+        if isinstance(reponses, list) else [],
+        "posees": posees if isinstance(posees, int) and posees >= 0 else 0,
+    }
+
 
 def rag_general_node(state: D4State) -> D4State:
+    """Question générale : retrieval hybride puis génération sourcée.
+
+    Les réponses aux clarifications sont ACCUMULÉES. Auparavant la requête valait
+    « question d'origine + dernier message » : la réponse à la clarification précédente
+    était perdue à chaque tour, donc deux « Oui » de suite produisaient exactement la même
+    requête, les mêmes extraits, et la même question reposée à l'identique. Le citoyen ne
+    s'en sortait qu'en tapant une phrase plus longue. Elles sont donc toutes conservées, et
+    leur nombre est plafonné ici plutôt que confié au modèle."""
     pending = state.get("pending_clarification")
-    is_reply = state.get("is_clarification_reply") and pending is not None
+    en_cours = bool(pending) and pending.get("intent") == "rag_general"
+    etat = _decoder_etat_rag(pending) if en_cours else None
+    is_reply = bool(state.get("is_clarification_reply")) and etat is not None
 
     if is_reply:
-        # on combine la question d'origine (pour un bon retrieval) avec la reponse au popup
-        original_question = pending["original_question"]
-        query = f"{original_question} {state['message']}"
+        question = etat["question"]
+        reponses = [*etat["reponses"], state["message"]]
+        posees = etat["posees"]
     else:
-        original_question = state["message"]
-        query = state["message"]
+        question, reponses, posees = state["message"], [], 0
+
+    # « Je ne comprends pas » et « Passer » sont des actions, pas des informations : le
+    # modèle doit les voir (il explique, puis repose), mais les mêler à la requête de
+    # recherche polluerait le retrieval avec des mots qui ne disent rien du sujet.
+    informatives = [r for r in reponses if r not in (EXPLAIN_OPTION, SKIP_OPTION)]
+    requete_recherche = " ".join([question, *informatives])
+    query = " ".join([question, *reponses])
 
     role = state.get("user_role") or "citizen"
     categories = CATEGORIES_BY_ROLE.get(role, CATEGORIES_BY_ROLE["citizen"])
+    dernier_tour = posees >= RAG_CLARIFICATIONS_MAX
     try:
-        result = get_rag_pipeline().answer(query, category=categories, conversation_history=state["conversation_history"])
+        result = get_rag_pipeline().answer(
+            query,
+            category=categories,
+            conversation_history=state["conversation_history"],
+            requete_recherche=requete_recherche,
+            consigne_finale=CONSIGNE_REPONSE_OBLIGATOIRE if dernier_tour else None,
+        )
     except LlmContractError:
         # Le pire cas de cette branche : afficher un texte illisible AVEC les sources
         # officielles retrouvées en dessous. La réponse paraîtrait fondée alors qu'elle
@@ -494,13 +559,26 @@ def rag_general_node(state: D4State) -> D4State:
                 "sources": [], "response_options": None, "pending_clarification": None}
 
     if result["type"] == "clarification":
+        if dernier_tour:
+            # Le modèle a été prévenu et interroge quand même : c'est le code qui
+            # tranche. Consigné, parce qu'une question qui tourne en rond dit quelque
+            # chose du corpus autant que du modèle.
+            log_unanswered(
+                requete_recherche, "rag_general", RAISON_TROP_DE_CLARIFICATIONS,
+                details={"questions_posees": posees}, user_role=role,
+            )
+            return {**state, "response": REDIRECTION_OFFICIELLE, "answer": REDIRECTION_OFFICIELLE,
+                    "sources": [], "response_options": None, "pending_clarification": None}
         return {
             **state,
             "response": result["text"],
             "answer": result["text"],
             "sources": [],  # une clarification n'est pas une réponse sourcée
             "response_options": result["options"],
-            "pending_clarification": {"original_question": original_question, "intent": "rag_general"},
+            "pending_clarification": {
+                "original_question": _encoder_etat_rag(question, reponses, posees + 1),
+                "intent": "rag_general",
+            },
         }
 
     # Le corpus ne permettait pas de répondre : le LLM le signale (repondu=false), le code

@@ -144,14 +144,20 @@ class RagPipeline:
             return bm25_results[:top_k]
         return reciprocal_rank_fusion(bm25_results, semantic_results, top_k=top_k)
 
-    def generate_answer(self, query, retrieved_chunks, conversation_history=None, model="mistral-small-latest", provider="mistral"):
+    def generate_answer(self, query, retrieved_chunks, conversation_history=None, model="mistral-small-latest", provider="mistral", consigne_finale=None):
         """Retourne un dict {"type": "answer"|"clarification", "text": str, "options": list|None}.
-        En cas de JSON malformé (jamais de crash), repli sur {"type": "answer", "text": <texte brut>}."""
+        Lève `LlmContractError` si le modèle ne rend pas le JSON demandé (voir llm_client).
+
+        `consigne_finale` : instruction ajoutée pour ce tour seulement, par exemple pour
+        exiger une réponse quand le plafond de clarifications est atteint. Placée après
+        la question, à l'endroit le plus proche de la génération."""
         context = "\n\n".join(
             f"[Extrait {i+1}] (source: {chunk['source_url']})\n{chunk['text']}"
             for i, (chunk, _score) in enumerate(retrieved_chunks)
         )
         user_prompt = f"Extraits disponibles :\n\n{context}\n\nQuestion du citoyen : {query}"
+        if consigne_finale:
+            user_prompt = f"{user_prompt}\n\n{consigne_finale}"
 
         messages = [{"role": "system", "content": GENERATION_SYSTEM_PROMPT}]
         messages.extend(conversation_history or [])
@@ -159,9 +165,17 @@ class RagPipeline:
 
         return call_llm_structured(messages=messages, model=model, provider=provider, temperature=0.2)
 
-    def answer(self, query, top_k=3, category="demarche", conversation_history=None, model="mistral-small-latest", provider="mistral"):
-        retrieved = self.retrieve(query, top_k=top_k, category=category)
-        generated = self.generate_answer(query, retrieved, conversation_history=conversation_history, model=model, provider=provider)
+    def answer(self, query, top_k=3, category="demarche", conversation_history=None, model="mistral-small-latest", provider="mistral", requete_recherche=None, consigne_finale=None):
+        """`requete_recherche` permet de CHERCHER avec autre chose que ce qu'on montre au
+        modèle. Un dialogue de clarification en a besoin : les réponses données sont
+        indispensables au retrieval, mais « Je ne comprends pas, expliquez-moi » n'apporte
+        aucun mot utile à une recherche lexicale et en dégraderait le résultat. Par défaut,
+        les deux sont la même chose."""
+        retrieved = self.retrieve(requete_recherche or query, top_k=top_k, category=category)
+        generated = self.generate_answer(
+            query, retrieved, conversation_history=conversation_history,
+            model=model, provider=provider, consigne_finale=consigne_finale,
+        )
         sources = list({chunk["source_url"] for chunk, _ in retrieved})
         return {**generated, "sources": sources, "retrieved_chunks": retrieved}
 
