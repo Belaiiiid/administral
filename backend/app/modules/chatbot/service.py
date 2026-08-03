@@ -32,7 +32,7 @@ import time
 from app.core.logger import logger
 from app.modules.auth.models import Role, User
 from app.modules.chatbot.checklist_answer import render_checklist
-from app.modules.chatbot.rag import orchestrator
+from app.modules.chatbot.rag import budget, orchestrator
 from app.modules.chatbot.schemas import (
     ChatbotContextSchema,
     ChatbotCtaSchema,
@@ -158,6 +158,14 @@ def answer_question(
     # indisponible » côté citoyen et rien du tout côté équipe, c'est un incident
     # qu'on ne peut ni compter ni comprendre. Le message reste identique pour le
     # citoyen, la cause est écrite dans les logs.
+    # Disjoncteur de dépense : passé le budget du jour, on n'appelle plus le modèle du
+    # tout. Vérifié ICI et non dans `call_llm`, parce que le classifieur rattrape toute
+    # exception et retomberait sur « hors-sujet » — le citoyen recevrait un refus de
+    # sujet au lieu d'une indisponibilité, et la question irait grossir le journal des
+    # questions sans réponse comme si le corpus était en cause.
+    if budget.depasse():
+        return _unavailable()
+
     debut = time.perf_counter()
     try:
         state = _get_graph().invoke(

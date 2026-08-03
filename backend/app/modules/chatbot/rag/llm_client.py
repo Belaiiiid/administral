@@ -14,6 +14,9 @@ from mistralai.client import Mistral
 from dotenv import load_dotenv
 from langsmith import traceable
 
+from app.core.logger import logger
+from . import budget
+
 # `openai` n'est utilisé que par les providers compatibles OpenAI (benchmarking) :
 # il est importé paresseusement dans get_openai_compatible_client() pour que la
 # prod MonParcours (Mistral uniquement) n'ait pas à l'installer.
@@ -106,7 +109,30 @@ def call_llm(messages, model="mistral-small-latest", provider="mistral", json_mo
             temperature=temperature,
             **kwargs,
         )
+    _comptabiliser(response, model)
     return response.choices[0].message.content
+
+
+def _comptabiliser(response, model) -> None:
+    """Relève la consommation de l'appel qui vient d'aboutir.
+
+    Ici et nulle part ailleurs : c'est le point de passage unique de tous les appels
+    au modèle, donc le seul endroit où l'on ne peut pas oublier une branche. Le
+    décompte remontait jusqu'ici puis était jeté avec l'objet de réponse — on ne
+    savait donc pas ce que coûte un tour, et on ne pouvait fixer aucun budget
+    autrement qu'au jugé.
+
+    Ne fait jamais échouer l'appel : une réponse obtenue ne doit pas être perdue
+    parce qu'un compteur n'a pas su se mettre à jour."""
+    try:
+        usage = getattr(response, "usage", None)
+        budget.enregistrer(
+            jetons_entree=getattr(usage, "prompt_tokens", 0) or 0,
+            jetons_sortie=getattr(usage, "completion_tokens", 0) or 0,
+            modele=model,
+        )
+    except Exception:  # noqa: BLE001 — la comptabilité n'est pas la réponse
+        logger.exception("chatbot: comptabilisation de l'appel impossible")
 
 
 # Options standard ajoutées à TOUTE clarification à choix (garanties par le code, pas par le

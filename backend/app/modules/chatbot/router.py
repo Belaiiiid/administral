@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.modules.chatbot import history, service
+from app.modules.chatbot import history, quotas, service
 from app.modules.chatbot.schemas import (
     ChatbotRequestSchema,
     ChatbotResponseSchema,
@@ -50,6 +50,7 @@ router = APIRouter(prefix="/citizen/chatbot", tags=["chatbot"])
     ),
 )
 def send_message(
+    request: Request,
     body: ChatbotRequestSchema,
     current_user: Annotated[User | None, Depends(get_current_user_optional)],
 ) -> ChatbotResponseSchema:
@@ -60,6 +61,11 @@ def send_message(
     qu'à la dernière ligne. `record_turn` ouvre donc la sienne, brève (voir
     `history`). Le tour de conversation ne retient plus une connexion PostgreSQL
     pendant qu'il attend Mistral."""
+    # Avant toute chose : un appel refusé ne doit rien coûter. Le quota est vérifié ici,
+    # donc avant le service, avant le moteur, avant le moindre appel facturé — et avant
+    # d'occuper un worker pendant plusieurs secondes.
+    quotas.verifier(request, current_user)
+
     response = service.answer_question(body.message, body.context, current_user)
 
     # Persistance pour l'affichage uniquement (voir `history.py`) : jamais pour
