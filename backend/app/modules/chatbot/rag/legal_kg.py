@@ -14,7 +14,9 @@ c'est ce qui permet de re-porter le tout tel quel chez MonParcours, où le proce
 démarre depuis `backend/` (même raison que dans `bm25_index.py`).
 """
 import os
+import time
 
+from app.core.logger import logger
 from .kg_apl.kg_local import KgLocal
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,13 +33,20 @@ def get_kg():
     question d'un citoyen (voir décision 9 du CLAUDE.md)."""
     global _kg_instance
     if _kg_instance is None:
-        print("Chargement du knowledge graph juridique (une seule fois)...")
+        debut = time.perf_counter()
         _kg_instance = KgLocal(KG_FILE)
         meta = _kg_instance.meta
-        print(
-            f"Graphe prêt : {meta['nb_articles']} articles "
-            f"({meta['nb_articles_avec_texte']} avec texte), "
-            f"{meta['nb_versions']} versions, {meta['nb_liens']} liens.\n"
+        # Les compteurs sont la seule façon de voir qu'un graphe s'est appauvri : un
+        # fichier tronqué se charge sans erreur et ne se remarque qu'aux réponses.
+        logger.info(
+            "chatbot: knowledge graph juridique chargé",
+            {
+                "articles": meta["nb_articles"],
+                "articles_avec_texte": meta["nb_articles_avec_texte"],
+                "versions": meta["nb_versions"],
+                "liens": meta["nb_liens"],
+                "duree_ms": round((time.perf_counter() - debut) * 1000),
+            },
         )
     return _kg_instance
 
