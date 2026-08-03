@@ -74,6 +74,80 @@ def _mots(message: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", plat)
 
 
+# --- Tolérance aux fautes de frappe ------------------------------------------
+#
+# « marci », « banjour » : une lettre de travers, et le message partait au classifieur,
+# qui n'y reconnaissait rien et répondait « Je ne peux pas répondre à cette question ».
+# Sec pour le citoyen, mais surtout : chaque faute de frappe atterrissait dans
+# `unanswered_log` comme une question hors-sujet. Ce journal sert à dire ce qui MANQUE au
+# corpus ; le remplir de « marci » brouille le seul signal de retour du produit.
+#
+# La tolérance est étroite à dessein : UNE lettre d'écart, et seulement sur les mots d'au
+# moins quatre lettres. « top » ou « cc » restent exacts - trop courts pour qu'une lettre
+# d'écart veuille encore dire la même chose. Le vrai garde-fou reste ailleurs : un mot
+# approchant ne suffit jamais, il faut que le message entier soit de la politesse.
+_DISTANCE_MAX = 1
+_LONGUEUR_MIN_APPROX = 4
+
+
+def _a_une_faute_pres(mot: str, reference: str) -> bool:
+    """Une substitution, une insertion, une suppression, ou deux lettres inversées.
+
+    L'inversion compte pour UNE faute, alors qu'elle vaut deux substitutions : c'est la
+    faute de frappe la plus courante au clavier (« bonsior », « mecri »), et deux lettres
+    voisines échangées ne produisent pratiquement jamais un autre mot réel.
+
+    Écrit à la main plutôt que via une distance complète : on n'a pas besoin de savoir de
+    combien deux mots diffèrent, seulement s'ils diffèrent d'au plus une faute."""
+    if mot == reference:
+        return True
+    court, long = sorted((mot, reference), key=len)
+    if len(long) - len(court) > _DISTANCE_MAX:
+        return False
+
+    if len(court) == len(long):
+        ecarts = [i for i, (a, b) in enumerate(zip(court, long)) if a != b]
+        if len(ecarts) == _DISTANCE_MAX:  # une substitution
+            return True
+        # deux lettres voisines échangées
+        return (
+            len(ecarts) == 2
+            and ecarts[1] == ecarts[0] + 1
+            and court[ecarts[0]] == long[ecarts[1]]
+            and court[ecarts[1]] == long[ecarts[0]]
+        )
+
+    # une lettre en trop : les deux mots coïncident de part et d'autre de cette lettre
+    i = 0
+    while i < len(court) and court[i] == long[i]:
+        i += 1
+    return court[i:] == long[i + 1:]
+
+
+def _meme_mot(mot: str, reference: str) -> bool:
+    """Égalité, ou faute de frappe d'une lettre sur un mot assez long pour le supporter."""
+    if mot == reference:
+        return True
+    if len(mot) < _LONGUEUR_MIN_APPROX or len(reference) < _LONGUEUR_MIN_APPROX:
+        return False
+    return _a_une_faute_pres(mot, reference)
+
+
+def _categorie(mot: str):
+    """La forme de politesse que ce mot exprime, ou None si ce n'en est pas une.
+
+    L'ordre des essais compte : un mot proche de deux vocabulaires à la fois (cas de
+    figure théorique, aucun aujourd'hui) est rangé dans le plus fréquent."""
+    for vocabulaire, forme in (
+        (GREETING_WORDS, "salutation"),
+        (THANKS_WORDS, "remerciement"),
+        (FAREWELL_WORDS, "au_revoir"),
+    ):
+        if any(_meme_mot(mot, reference) for reference in vocabulaire):
+            return forme
+    return None
+
+
 def _retirer_phrases_au_revoir(mots: list[str]) -> tuple[list[str], bool]:
     """Retire les suites « au revoir », « bonne journée »... et dit si on en a trouvé une."""
     restants: list[str] = []
@@ -81,7 +155,12 @@ def _retirer_phrases_au_revoir(mots: list[str]) -> tuple[list[str], bool]:
     i = 0
     while i < len(mots):
         phrase = next(
-            (p for p in FAREWELL_PHRASES if tuple(mots[i:i + len(p)]) == p), None
+            (
+                p for p in FAREWELL_PHRASES
+                if len(mots) - i >= len(p)
+                and all(_meme_mot(mots[i + n], attendu) for n, attendu in enumerate(p))
+            ),
+            None,
         )
         if phrase:
             trouve = True
@@ -102,28 +181,30 @@ def courtoisie(message: str):
 
     On retire donc les formules et les mots outils qui les entourent : s'il reste le
     moindre mot porteur de sens, ce n'est pas de la politesse. Il n'y a volontairement pas
-    de limite en nombre de mots : c'en était un substitut approximatif."""
+    de limite en nombre de mots : c'en était un substitut approximatif.
+
+    Les formules sont reconnues à une faute de frappe près (« marci », « banjour ») ; les
+    mots outils, non. Une faute sur « beaucoup » est plus rare qu'une faute sur le mot que
+    le citoyen tape en premier, et l'élargissement se paierait en faux positifs."""
     mots = _mots(message)
     if not mots:
         return None
 
     mots, phrase_au_revoir = _retirer_phrases_au_revoir(mots)
     restants = [mot for mot in mots if mot not in FILLER_WORDS]
+    formes = [_categorie(mot) for mot in restants]
 
     # Un seul mot hors politesse suffit à faire du message une vraie question.
-    if any(
-        mot not in GREETING_WORDS and mot not in THANKS_WORDS and mot not in FAREWELL_WORDS
-        for mot in restants
-    ):
+    if any(forme is None for forme in formes):
         return None
 
     # Message purement poli : reste à dire de quelle politesse il s'agit. L'ordre compte
     # peu (« bonjour et merci » est l'un ou l'autre), on tranche par le plus fréquent.
-    if any(mot in GREETING_WORDS for mot in restants):
+    if "salutation" in formes:
         return "salutation"
-    if any(mot in THANKS_WORDS for mot in restants):
+    if "remerciement" in formes:
         return "remerciement"
-    if phrase_au_revoir or any(mot in FAREWELL_WORDS for mot in restants):
+    if phrase_au_revoir or "au_revoir" in formes:
         return "au_revoir"
     # Rien que des mots outils (« et vous ? ») : pas une politesse, pas notre affaire.
     return None

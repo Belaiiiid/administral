@@ -7,6 +7,7 @@ import { ROUTES } from '@/app/router/paths';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { AppShell } from '@/components/layout/AppShell';
 import { AuthLayout } from '@/components/layout/AuthLayout';
+import { CitizenAppShell } from '@/components/layout/CitizenAppShell';
 import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
@@ -103,10 +104,14 @@ const router = createBrowserRouter([
     // opening APL à l'Aide while unauthenticated does (handled inside
     // `CitizenDashboardPage`, which sends that case to the public chatbot
     // instead of a login wall). No sidebar: there is nothing yet for one to
-    // navigate before a service is picked (see `AppShell`). No header either:
-    // no session-specific state to show, and a visitor with no account can
+    // navigate before a service is picked. No header either: no
+    // session-specific state to show, and a visitor with no account can
     // reach both of these pages.
-    element: <AppShell hideSidebar hideHeader />,
+    //
+    // Administral redesign: `CitizenAppShell` (not `AppShell`) — see
+    // src/index.css `.citizen-scope`. Kept off the agent back-office, which
+    // still renders through `AppShell` below.
+    element: <CitizenAppShell variant="minimal" />,
     children: [
       { path: ROUTES.administrations, element: <AdministrationsPage /> },
       { path: ROUTES.portal, element: <CitizenDashboardPage /> },
@@ -117,14 +122,17 @@ const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        // Inside a service (APL today) — the sidebar applies.
-        element: <AppShell />,
+        // Administral redesign: every citizen-only surface except France
+        // Travail (explicitly out of scope). These pages' own content is not
+        // yet restyled, but the shell around them — header, sidebar, and
+        // critically the logo — now shows the real Administral identity
+        // instead of the old generic mark.
+        element: <CitizenAppShell />,
         children: [
           { path: ROUTES.portalNotifications, element: <NotificationsPage /> },
-
+          { path: ROUTES.settings, element: <CitizenSettingsPage /> },
           { path: ROUTES.profile, element: <ProfilePage /> },
           { path: ROUTES.profileAccessibility, element: <AccessibilityPreferencesPage /> },
-          { path: ROUTES.settings, element: <CitizenSettingsPage /> },
 
           {
             // APL's own profiling gate — see `RequireApplProfile`. Scoped to
@@ -136,13 +144,20 @@ const router = createBrowserRouter([
               { path: ROUTES.suivi, element: <SuiviDossierPage /> },
             ],
           },
+          { path: ROUTES.documents, element: <DocumentsPage /> },
+          { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
+          { path: ROUTES.chat, element: <ChatPage /> },
+        ],
+      },
+      {
+        // France Travail — out of scope for the Administral redesign, kept
+        // on the original shell (and its own sidebar rail, see
+        // `resolveNavSections`).
+        element: <AppShell />,
+        children: [
           { path: ROUTES.franceTravail, element: <JobMatchPage /> },
           { path: ROUTES.franceTravailCvCoach, element: <CvCoachPage /> },
           { path: ROUTES.franceTravailJobSearch, element: <JobSearchPage /> },
-          { path: ROUTES.documents, element: <DocumentsPage /> },
-          { path: ROUTES.documentsUpload, element: <DocumentUploadPage /> },
-
-          { path: ROUTES.chat, element: <ChatPage /> },
         ],
       },
     ],

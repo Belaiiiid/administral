@@ -15,11 +15,13 @@ toujours, même sans la couche sémantique.
 """
 import os
 import threading
+import time
 
+from app.core.logger import logger
 from . import bm25_index
 from . import qdrant_index
 from .hybrid_search import reciprocal_rank_fusion
-from .llm_client import call_llm_structured
+from .llm_client import call_llm_structured, historique_de_confiance
 
 # La recherche sémantique est activée par défaut mais bornée : si l'index n'est
 # pas prêt dans ce délai (typiquement le téléchargement du modèle d'embeddings au
@@ -76,7 +78,7 @@ ou, si tu as besoin d'une clarification :
 
 class RagPipeline:
     def __init__(self):
-        print("Initialisation du pipeline RAG (une seule fois)...")
+        debut = time.perf_counter()
         # BM25 : pur Python, aucune dépendance réseau — toujours disponible.
         self.bm25, self.chunks = bm25_index.build_index()
 
@@ -88,8 +90,19 @@ class RagPipeline:
         if _SEMANTIC_ENABLED:
             self._try_build_semantic()
 
-        mode = "hybride (BM25 + sémantique)" if self.semantic_available else "BM25 seul"
-        print(f"Pipeline RAG prêt — recherche {mode}.\n")
+        # `warn` et non `info` quand la couche sémantique manque : l'assistant répond
+        # toujours, mais moins bien, et durablement. C'est exactement le genre de panne
+        # qui se remarque à la qualité des réponses des semaines plus tard si personne
+        # ne l'a signalée au moment où elle s'est produite.
+        contexte = {
+            "mode": "hybride" if self.semantic_available else "bm25_seul",
+            "chunks": len(self.chunks),
+            "duree_ms": round((time.perf_counter() - debut) * 1000),
+        }
+        if self.semantic_available:
+            logger.info("chatbot: pipeline RAG prêt", contexte)
+        else:
+            logger.warn("chatbot: pipeline RAG prêt en mode dégradé (BM25 seul)", contexte)
 
     def _try_build_semantic(self):
         """Construit l'index sémantique avec un délai maximal.
@@ -111,18 +124,18 @@ class RagPipeline:
         worker.join(_SEMANTIC_TIMEOUT_S)
 
         if worker.is_alive():
-            print(
-                f"[RAG] Index sémantique non prêt en {_SEMANTIC_TIMEOUT_S:.0f}s "
-                "(modèle d'embeddings indisponible ?) — bascule sur BM25 seul."
+            logger.warn(
+                "chatbot: index sémantique non prêt dans le délai, bascule sur BM25 seul",
+                {"delai_s": _SEMANTIC_TIMEOUT_S},
             )
             return
         if "value" in result:
             self.qdrant_client, self.embedding_model = result["value"]
             self.semantic_available = True
         else:
-            print(
-                f"[RAG] Index sémantique indisponible ({result.get('error')}) "
-                "— bascule sur BM25 seul."
+            logger.warn(
+                "chatbot: index sémantique indisponible, bascule sur BM25 seul",
+                {"error": str(result.get("error"))},
             )
 
     def retrieve(self, query, top_k=3, category="demarche"):
@@ -141,27 +154,45 @@ class RagPipeline:
                 query, self.qdrant_client, self.embedding_model, top_k=10, category=category
             )
         except Exception:  # noqa: BLE001 — la recherche doit toujours renvoyer quelque chose
+            # Dégradation SILENCIEUSE au tour près : l'index est annoncé disponible mais
+            # la recherche échoue. Rien ne le distinguait d'une réponse normale de moindre
+            # qualité - c'est le pire cas à diagnostiquer sans trace.
+            logger.exception("chatbot: recherche sémantique en échec, repli BM25 pour ce tour")
             return bm25_results[:top_k]
         return reciprocal_rank_fusion(bm25_results, semantic_results, top_k=top_k)
 
-    def generate_answer(self, query, retrieved_chunks, conversation_history=None, model="mistral-small-latest", provider="mistral"):
+    def generate_answer(self, query, retrieved_chunks, conversation_history=None, model="mistral-small-latest", provider="mistral", consigne_finale=None):
         """Retourne un dict {"type": "answer"|"clarification", "text": str, "options": list|None}.
-        En cas de JSON malformé (jamais de crash), repli sur {"type": "answer", "text": <texte brut>}."""
+        Lève `LlmContractError` si le modèle ne rend pas le JSON demandé (voir llm_client).
+
+        `consigne_finale` : instruction ajoutée pour ce tour seulement, par exemple pour
+        exiger une réponse quand le plafond de clarifications est atteint. Placée après
+        la question, à l'endroit le plus proche de la génération."""
         context = "\n\n".join(
             f"[Extrait {i+1}] (source: {chunk['source_url']})\n{chunk['text']}"
             for i, (chunk, _score) in enumerate(retrieved_chunks)
         )
         user_prompt = f"Extraits disponibles :\n\n{context}\n\nQuestion du citoyen : {query}"
+        if consigne_finale:
+            user_prompt = f"{user_prompt}\n\n{consigne_finale}"
 
         messages = [{"role": "system", "content": GENERATION_SYSTEM_PROMPT}]
-        messages.extend(conversation_history or [])
+        messages.extend(historique_de_confiance(conversation_history))
         messages.append({"role": "user", "content": user_prompt})
 
         return call_llm_structured(messages=messages, model=model, provider=provider, temperature=0.2)
 
-    def answer(self, query, top_k=3, category="demarche", conversation_history=None, model="mistral-small-latest", provider="mistral"):
-        retrieved = self.retrieve(query, top_k=top_k, category=category)
-        generated = self.generate_answer(query, retrieved, conversation_history=conversation_history, model=model, provider=provider)
+    def answer(self, query, top_k=3, category="demarche", conversation_history=None, model="mistral-small-latest", provider="mistral", requete_recherche=None, consigne_finale=None):
+        """`requete_recherche` permet de CHERCHER avec autre chose que ce qu'on montre au
+        modèle. Un dialogue de clarification en a besoin : les réponses données sont
+        indispensables au retrieval, mais « Je ne comprends pas, expliquez-moi » n'apporte
+        aucun mot utile à une recherche lexicale et en dégraderait le résultat. Par défaut,
+        les deux sont la même chose."""
+        retrieved = self.retrieve(requete_recherche or query, top_k=top_k, category=category)
+        generated = self.generate_answer(
+            query, retrieved, conversation_history=conversation_history,
+            model=model, provider=provider, consigne_finale=consigne_finale,
+        )
         sources = list({chunk["source_url"] for chunk, _ in retrieved})
         return {**generated, "sources": sources, "retrieved_chunks": retrieved}
 

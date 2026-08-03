@@ -1,9 +1,8 @@
+import { AlertTriangle } from 'lucide-react';
 import { useEffect } from 'react';
 
-import { NotificationList } from '@/components/notifications/NotificationList';
-import { PageHeader } from '@/components/shared';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { CitizenNotificationList } from '@/components/citizen/CitizenNotificationList';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useNotificationStore } from '@/store/notificationStore';
 
@@ -30,24 +29,31 @@ export default function NotificationsPage() {
   }, [load]);
 
   return (
-    <div className="mx-auto max-w-container">
-      <PageHeader
+    <div className="mx-auto max-w-4xl">
+      <CitizenPageHeader
+        eyebrow="Suivi en temps réel"
         title="Centre de notifications"
-        description="Le suivi de vos démarches, en temps réel."
+        description="Le suivi de vos démarches, dès qu’il y a du nouveau."
         actions={
-          <Button variant="outline" onClick={() => void markAllRead()} disabled={unreadCount === 0}>
+          <button
+            type="button"
+            onClick={() => void markAllRead()}
+            disabled={unreadCount === 0}
+            className="inline-flex items-center gap-2 rounded-md border border-brand/40 bg-background px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          >
             Tout marquer comme lu
-          </Button>
+          </button>
         }
       />
 
       {error && (
-        <Alert tone="error" className="mb-gutter">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-8 flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {error}
+        </div>
       )}
 
-      <NotificationList items={items} onMarkRead={(id) => void markRead(id)} isLoading={isLoading} />
+      <CitizenNotificationList items={items} onMarkRead={(id) => void markRead(id)} isLoading={isLoading} />
     </div>
   );
 }

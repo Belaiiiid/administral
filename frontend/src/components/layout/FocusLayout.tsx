@@ -1,12 +1,17 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 
+import { ROUTES } from '@/app/router/paths';
+import administralLogo from '@/assets/administral-logo.png';
 import { Footer } from '@/components/layout/Footer';
-import { Logo } from '@/components/layout/Logo';
 import { SkipLink } from '@/components/layout/SkipLink';
 
 /**
  * Distraction-free layout for step-by-step onboarding flows (service selection,
  * accessibility preferences): slim header, centred 800px column, no sidebar.
+ *
+ * Citizen-only (see `app/router/index.tsx`) — the Administral mark is shown
+ * unconditionally, unlike `Sidebar`'s `Logo`, which the agent back-office
+ * still renders too.
  */
 export function FocusLayout() {
   return (
@@ -14,7 +19,10 @@ export function FocusLayout() {
       <SkipLink />
 
       <header className="sticky top-0 z-30 flex h-header items-center border-b border-border bg-surface-lowest px-margin-mobile md:px-gutter">
-        <Logo />
+        <Link to={ROUTES.portal} className="flex items-center gap-2.5">
+          <img src={administralLogo} alt="Administral" className="size-9 shrink-0 object-contain" />
+          <span className="text-headline-md text-primary">ADMINISTRAL</span>
+        </Link>
       </header>
 
       <main

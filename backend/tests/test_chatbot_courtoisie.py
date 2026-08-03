@@ -107,3 +107,62 @@ def test_is_greeting_reste_aligne() -> None:
     assert is_greeting("bonjour") is True
     assert is_greeting("merci") is False
     assert is_greeting("Bonjour quels documents ?") is False
+
+
+# --- Fautes de frappe ---------------------------------------------------------
+#
+# « marci », « banjour » : une lettre de travers et le citoyen recevait « Je ne peux pas
+# répondre à cette question », pendant que sa faute de frappe allait grossir le journal
+# des questions sans réponse — le seul signal qui doit dire ce qui manque au corpus.
+
+FAUTES_DE_FRAPPE = [
+    ("marci", "remerciement"),      # substitution
+    ("mercii", "remerciement"),     # insertion (déjà dans le vocabulaire)
+    ("merci beaucoup", "remerciement"),
+    ("banjour", "salutation"),      # substitution
+    ("bonjou", "salutation"),       # lettre manquante
+    ("bonjourr", "salutation"),     # lettre en trop
+    ("bonsior", "salutation"),      # deux lettres inversées, la faute de frappe type
+    ("mecri", "remerciement"),      # idem
+    ("bnojour", "salutation"),      # idem
+    ("bnjr", None),                 # trop mutilé : deux fautes, on ne devine plus
+]
+
+
+@pytest.mark.parametrize(("message", "attendu"), FAUTES_DE_FRAPPE)
+def test_une_faute_de_frappe_ne_fait_pas_perdre_la_politesse(message, attendu) -> None:
+    assert courtoisie(message) == attendu
+
+
+def test_la_faute_est_toleree_aussi_dans_une_formule_en_deux_mots() -> None:
+    assert courtoisie("bonne journe") == "au_revoir"
+    assert courtoisie("bonen journee") == "au_revoir"
+
+
+def test_la_tolerance_ne_sapplique_pas_aux_mots_courts() -> None:
+    """Sur trois lettres, une lettre d'écart ne veut plus dire la même chose : « tôt »
+    n'est pas « top », et « bus » n'est pas « bye »."""
+    assert courtoisie("tot") is None
+    assert courtoisie("bus") is None
+    assert courtoisie("hi") == "salutation"  # exact : le mot lui-même reste reconnu
+
+
+#: Le risque de la tolérance : des mots courants à une lettre d'une formule. Ils ne
+#: doivent PAS devenir des politesses — c'est la règle « le message entier doit être de la
+#: politesse » qui tient, et il faut qu'elle continue de tenir.
+MOTS_PROCHES_MAIS_ORDINAIRES = [
+    "mardi",                      # 2 lettres de « merci »
+    "il parlait de mon dossier",  # « parlait » est à 1 lettre de « parfait »
+    "je salue votre travail",     # « salue » est à 1 lettre de « salut »
+    "bonjou mon dossier",         # faute de frappe SUIVIE d'une vraie question
+    "marci pour quels documents", # idem
+]
+
+
+@pytest.mark.parametrize("message", MOTS_PROCHES_MAIS_ORDINAIRES)
+def test_un_mot_proche_ne_suffit_pas_a_faire_une_politesse(message) -> None:
+    assert courtoisie(message) is None
+
+
+def test_les_chiffres_restent_du_sens_malgre_la_tolerance() -> None:
+    assert courtoisie("banjour 3230") is None

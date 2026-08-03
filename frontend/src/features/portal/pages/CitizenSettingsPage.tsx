@@ -1,9 +1,7 @@
-import { Mail, Share2, Sparkles } from 'lucide-react';
+import { AlertTriangle, Mail, Share2, Sparkles } from 'lucide-react';
 
-import { SettingRow } from '@/components/settings/SettingRow';
-import { PageHeader } from '@/components/shared';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
+import { CitizenSettingRow } from '@/components/citizen/CitizenSettingRow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -20,22 +18,23 @@ export default function CitizenSettingsPage() {
   const { settings, isLoading, error, savingKey, setToggle } = useUserSettings();
 
   return (
-    <div className="mx-auto max-w-container">
-      <PageHeader title="Paramètres" description="Gérez vos préférences et vos consentements." />
+    <div className="mx-auto max-w-3xl">
+      <CitizenPageHeader title="Paramètres" description="Gérez vos préférences et vos consentements." />
 
       {error && (
-        <Alert tone="error" className="mb-gutter">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-8 flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {error}
+        </div>
       )}
 
-      <Card className="overflow-hidden">
-        <CardContent className="divide-y divide-border p-0">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+        <div className="divide-y divide-border/60">
           {isLoading || !settings ? (
             <SettingsSkeleton />
           ) : (
             <>
-              <SettingRow
+              <CitizenSettingRow
                 icon={Mail}
                 label="Notifications par e-mail"
                 description="Recevez une copie par e-mail des évènements concernant vos dossiers."
@@ -43,7 +42,7 @@ export default function CitizenSettingsPage() {
                 onCheckedChange={(v) => setToggle('emailNotifications', v)}
                 disabled={savingKey === 'emailNotifications'}
               />
-              <SettingRow
+              <CitizenSettingRow
                 icon={Sparkles}
                 label="Assistant IA"
                 description="Affichez l’assistant qui vous guide dans votre profil et vos démarches."
@@ -51,7 +50,7 @@ export default function CitizenSettingsPage() {
                 onCheckedChange={(v) => setToggle('aiAssistance', v)}
                 disabled={savingKey === 'aiAssistance'}
               />
-              <SettingRow
+              <CitizenSettingRow
                 icon={Share2}
                 label="Partage entre administrations"
                 description="Autorisez le partage des informations que vous déclarez avec les administrations concernées, pour éviter de les ressaisir."
@@ -61,8 +60,8 @@ export default function CitizenSettingsPage() {
               />
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -71,9 +70,9 @@ function SettingsSkeleton() {
   return (
     <>
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="flex items-start justify-between gap-4 px-5 py-4">
+        <div key={i} className="flex items-start justify-between gap-4 px-6 py-5">
           <div className="flex flex-1 gap-3">
-            <Skeleton className="size-5 rounded" />
+            <Skeleton className="size-9 rounded-lg" />
             <div className="flex-1">
               <Skeleton className="h-4 w-40" />
               <Skeleton className="mt-2 h-3 w-64" />

@@ -34,7 +34,7 @@ def verify_turnstile(token: str) -> None:
     """
     secret = settings.turnstile_secret_key
     if not secret:
-        logger.debug("turnstile verification skipped (TURNSTILE_SECRET_KEY not set)")
+        logger.info("turnstile verification skipped (TURNSTILE_SECRET_KEY not set)")
         return
 
     if not token or not token.strip():

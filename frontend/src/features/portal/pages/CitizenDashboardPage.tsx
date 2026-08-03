@@ -4,12 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { CAF_SERVICES, type CafServiceId } from '@/app/config/cafServices';
 import { ROUTES } from '@/app/router/paths';
-import { PageHeader, SectionHeader } from '@/components/shared';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 import type { VoicePageAction } from '@/features/voice/types';
+import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 interface DashboardStat {
@@ -20,8 +19,8 @@ interface DashboardStat {
 
 /**
  * Indicative figures, presented the same way as the public landing page's
- * stats band (`LandingStats`) — no citizen-facing analytics endpoint exists
- * yet, so these are illustrative placeholders, not live-computed counts.
+ * stats band — no citizen-facing analytics endpoint exists yet, so these are
+ * illustrative placeholders, not live-computed counts.
  */
 const DASHBOARD_STATS: DashboardStat[] = [
   { icon: Users, value: '12 400+', label: 'Citoyens accompagnés' },
@@ -36,6 +35,14 @@ const CAF_SERVICE_ICONS: Record<CafServiceId, LucideIcon> = {
   af: Users,
   alf: Building2,
   'prime-activite': Banknote,
+};
+
+/** Icon-chip and CTA colour per service — mirrors the Administral reference's CAF services section. */
+const CAF_SERVICE_TONE: Record<CafServiceId, { chip: string; cta: string; featured: boolean }> = {
+  apl: { chip: 'bg-brand text-marianne-foreground', cta: 'bg-brand text-marianne-foreground hover:opacity-90', featured: true },
+  af: { chip: 'bg-pink-600 text-white', cta: 'border border-border hover:bg-brand-soft', featured: false },
+  alf: { chip: 'bg-purple-600 text-white', cta: 'border border-border hover:bg-brand-soft', featured: false },
+  'prime-activite': { chip: 'bg-emerald-600 text-white', cta: 'border border-border hover:bg-brand-soft', featured: false },
 };
 
 /**
@@ -73,8 +80,9 @@ export default function CitizenDashboardPage() {
   });
 
   return (
-    <div className="mx-auto max-w-container">
-      <PageHeader
+    <div className="mx-auto max-w-7xl">
+      <CitizenPageHeader
+        eyebrow="Espace citoyen"
         title="Mes services"
         description={
           displayName
@@ -83,74 +91,77 @@ export default function CitizenDashboardPage() {
         }
       />
 
-      <ul className="mb-gutter grid gap-gutter sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {DASHBOARD_STATS.map((stat) => (
           <li key={stat.label}>
-            <Card className="h-full">
-              <CardContent className="flex items-center gap-4 p-6">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                  <stat.icon className="size-6" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-label-sm uppercase tracking-wider text-on-surface-variant">
-                    {stat.label}
-                  </p>
-                  <p className="text-headline-md text-on-surface">{stat.value}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex h-full items-center gap-4 rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all duration-300 hover:border-brand/30 hover:shadow-lg">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+                <stat.icon className="size-6" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  {stat.label}
+                </p>
+                <p className="font-display text-xl font-extrabold text-ink">{stat.value}</p>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
 
-      <SectionHeader title="Services CAF" as="h2" className="mb-4" />
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <p className="eyebrow mb-3 mt-14">Administration CAF</p>
+      <h2 className="mb-8 font-display text-2xl font-extrabold leading-tight text-ink">
+        Les services CAF
+      </h2>
+
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {CAF_SERVICES.map((service) => {
           const isAvailable = service.status === 'available';
           const target = service.id === 'apl' && !isAuthenticated ? ROUTES.home : service.basePath;
           const Icon = CAF_SERVICE_ICONS[service.id];
+          const tone = CAF_SERVICE_TONE[service.id];
+
           const content = (
-            <Card
-              className={
-                isAvailable
-                  ? 'h-full transition-colors hover:border-primary'
-                  : 'h-full opacity-60'
-              }
+            <article
+              className={cn(
+                'relative flex h-full flex-col justify-between rounded-2xl p-6 shadow-sm transition-all duration-300',
+                tone.featured
+                  ? 'border-2 border-brand bg-surface'
+                  : 'border border-border/60 bg-surface hover:border-brand/30 hover:shadow-lg',
+                !isAvailable && 'opacity-60',
+              )}
             >
-              <CardContent className="flex h-full flex-col gap-4 p-6">
+              {tone.featured && (
+                <span className="absolute right-0 top-0 rounded-bl-xl rounded-tr-2xl bg-brand px-3 py-1 text-[9px] font-extrabold uppercase text-marianne-foreground">
+                  {service.id}
+                </span>
+              )}
+              <div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
-                    <Icon className="size-6" aria-hidden="true" />
+                  <span className={cn('flex size-11 shrink-0 items-center justify-center rounded-xl', tone.chip)}>
+                    <Icon className="size-5" aria-hidden="true" />
                   </span>
                   {!isAvailable && (
-                    <Badge tone="neutral">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[11px] font-semibold text-brand">
                       <Lock className="size-3" aria-hidden="true" />
-                      Bientôt disponible
-                    </Badge>
+                      Bientôt
+                    </span>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-headline-md text-primary">{service.name}</h3>
-                  <p className="mt-1 text-body-sm text-on-surface-variant">
-                    {service.description}
-                  </p>
-                </div>
-                {/* Always reserved, just hidden when unavailable — every card keeps
-                    the same height instead of the grid's rows sizing unevenly
-                    depending on which services happen to share one. */}
-                <span
-                  className={
-                    isAvailable
-                      ? 'flex items-center gap-1 text-label-md text-primary'
-                      : 'invisible flex items-center gap-1 text-label-md'
-                  }
-                  aria-hidden={!isAvailable}
-                >
-                  Ouvrir
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </span>
-              </CardContent>
-            </Card>
+                <p className="mt-4 font-display text-lg font-extrabold text-ink">{service.name}</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{service.description}</p>
+              </div>
+              <span
+                className={cn(
+                  'mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-bold transition-all',
+                  isAvailable ? tone.cta : 'invisible',
+                )}
+                aria-hidden={!isAvailable}
+              >
+                Ouvrir
+                <ArrowRight className="size-3.5" aria-hidden="true" />
+              </span>
+            </article>
           );
 
           return (

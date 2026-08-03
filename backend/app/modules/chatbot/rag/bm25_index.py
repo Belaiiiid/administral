@@ -4,7 +4,10 @@ import pickle
 import glob
 import os
 import hashlib
+import time
 from rank_bm25 import BM25Okapi
+
+from app.core.logger import logger
 
 # Paths resolved relative to this module (the data now ships inside the package),
 # so retrieval works regardless of the process working directory (uvicorn runs
@@ -21,13 +24,23 @@ def tokenize(text):
 def load_all_chunks():
     """Charge et fusionne les chunks de TOUTES les sources présentes dans data/chunks/.
     Ajouter une nouvelle source = juste déposer un nouveau fichier chunks_*.json ici,
-    aucun changement de code requis."""
+    aucun changement de code requis.
+
+    Le détail par source part dans UNE ligne structurée, pas une ligne par fichier :
+    c'est un même événement (« voici le corpus chargé »), et le compte par source est
+    précisément ce qu'on veut pouvoir comparer d'un démarrage à l'autre pour repérer
+    une source qui a disparu."""
     chunks = []
+    par_source = {}
     for path in sorted(glob.glob(f"{CHUNKS_DIR}/chunks_*.json")):
         with open(path, encoding="utf-8") as f:
             source_chunks = json.load(f)
         chunks.extend(source_chunks)
-        print(f"  {path}: {len(source_chunks)} chunks")
+        par_source[os.path.basename(path)] = len(source_chunks)
+    logger.info(
+        "chatbot: corpus chargé",
+        {"total": len(chunks), "sources": len(par_source), "par_source": par_source},
+    )
     return chunks
 
 def compute_fingerprint():
@@ -38,16 +51,19 @@ def compute_fingerprint():
     return hashlib.md5("|".join(parts).encode()).hexdigest()
 
 def build_index():
+    debut = time.perf_counter()
     fingerprint = compute_fingerprint()
 
     if os.path.exists(INDEX_FILE):
         with open(INDEX_FILE, "rb") as f:
             cached = pickle.load(f)
         if cached.get("fingerprint") == fingerprint:
-            print(f"Index BM25 déjà à jour ({len(cached['chunks'])} chunks), chargement depuis le cache -> {INDEX_FILE}")
+            logger.info(
+                "chatbot: index BM25 chargé depuis le cache",
+                {"chunks": len(cached["chunks"]), "duree_ms": round((time.perf_counter() - debut) * 1000)},
+            )
             return cached["bm25"], cached["chunks"]
 
-    print("Chargement des chunks par source:")
     chunks = load_all_chunks()
 
     tokenized_corpus = [tokenize(c["text"]) for c in chunks]
@@ -56,7 +72,10 @@ def build_index():
     with open(INDEX_FILE, "wb") as f:
         pickle.dump({"bm25": bm25, "chunks": chunks, "fingerprint": fingerprint}, f)
 
-    print(f"\nIndex BM25 (re)construit sur {len(chunks)} chunks (toutes sources confondues) -> {INDEX_FILE}")
+    logger.info(
+        "chatbot: index BM25 reconstruit",
+        {"chunks": len(chunks), "duree_ms": round((time.perf_counter() - debut) * 1000)},
+    )
     return bm25, chunks
 
 def search(query, bm25, chunks, top_k=3, category=None):

@@ -3,13 +3,11 @@ import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
-import { PageHeader, SectionHeader } from '@/components/shared';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 import type { VoicePageAction } from '@/features/voice/types';
-import { useSessionStore } from '@/store/sessionStore';
+import { cn } from '@/lib/utils';
 import type { AdministrationId } from '@/types';
 
 /** One recognisable icon per administration, rather than a single generic mark repeated on every card. */
@@ -29,7 +27,6 @@ const ADMINISTRATION_ICONS: Record<AdministrationId, LucideIcon> = {
 export default function AdministrationsPage() {
   useDocumentTitle('Administrations');
   const navigate = useNavigate();
-  const { displayName } = useSessionStore();
 
   const availableServices = SERVICES.filter((service) => service.status === 'available');
   const availableActions: VoicePageAction[] = availableServices.map((service) => ({
@@ -48,72 +45,58 @@ export default function AdministrationsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-container">
-      <PageHeader
-        title={displayName ? `Bonjour, ${displayName}` : 'Administrations'}
-        description="Choisissez l’administration avec laquelle vous souhaitez interagir."
+    <div className="mx-auto max-w-7xl">
+      <CitizenPageHeader
+        eyebrow="Bienvenue sur Administral"
+        title="Choisissez une administration"
+        description="Sélectionnez l’administration avec laquelle vous souhaitez interagir. D’autres seront progressivement disponibles."
       />
 
-      <SectionHeader title="Administrations disponibles" as="h2" className="mb-4" />
-      <ul className="grid gap-4 sm:grid-cols-2">
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {SERVICES.map((service) => {
           const isAvailable = service.status === 'available';
           const Icon = ADMINISTRATION_ICONS[service.id];
+
           const content = (
-            <Card
-              className={
-                isAvailable
-                  ? 'h-full rounded-3xl transition-all hover:-translate-y-0.5 hover:border-ai hover:shadow-soft-hover'
-                  : 'h-full rounded-3xl opacity-60'
-              }
+            <article
+              className={cn(
+                'flex h-full flex-col justify-between rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all duration-300',
+                isAvailable && 'hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg',
+                !isAvailable && 'opacity-60',
+              )}
             >
-              <CardContent className="flex h-full flex-col gap-4 p-6">
+              <div>
                 <div className="flex items-start justify-between gap-3">
                   {service.logoUrl ? (
-                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1.5">
-                      <img
-                        src={service.logoUrl}
-                        alt=""
-                        aria-hidden="true"
-                        className="size-full object-contain"
-                      />
+                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-white p-1.5">
+                      <img src={service.logoUrl} alt="" aria-hidden="true" className="size-full object-contain" />
                     </span>
                   ) : (
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
                       <Icon className="size-6" aria-hidden="true" />
                     </span>
                   )}
-                  {isAvailable ? (
-                    <Badge tone="success">Connecté</Badge>
-                  ) : (
-                    <Badge tone="neutral">
+                  {!isAvailable && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-[11px] font-semibold text-brand">
                       <Lock className="size-3" aria-hidden="true" />
-                      Bientôt disponible
-                    </Badge>
+                      Bientôt
+                    </span>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-headline-md text-primary">{service.name}</h3>
-                  <p className="mt-1 text-body-sm text-on-surface-variant">
-                    {service.description}
-                  </p>
-                </div>
-                {/* Always reserved, just hidden when unavailable — see
-                    `CitizenDashboardPage` for why every card keeps the same
-                    height regardless of which row it falls in. */}
-                <span
-                  className={
-                    isAvailable
-                      ? 'flex items-center gap-1 text-label-md text-primary'
-                      : 'invisible flex items-center gap-1 text-label-md'
-                  }
-                  aria-hidden={!isAvailable}
-                >
-                  Ouvrir
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </span>
-              </CardContent>
-            </Card>
+                <p className="mt-4 font-display text-lg font-extrabold text-ink">{service.name}</p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{service.description}</p>
+              </div>
+              <span
+                className={cn(
+                  'mt-5 inline-flex items-center gap-2 text-sm font-semibold text-brand',
+                  !isAvailable && 'invisible',
+                )}
+                aria-hidden={!isAvailable}
+              >
+                Ouvrir
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </span>
+            </article>
           );
 
           return (

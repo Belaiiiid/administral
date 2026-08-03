@@ -67,7 +67,7 @@ export const httpChatbotService: ChatbotService = {
             // Renvoyés tels quels : le backend n'a pas de session, l'état de la
             // clarification en cours vit ici le temps d'un aller-retour.
             pendingClarification: context.pendingClarification,
-            isClarificationReply: context.isClarificationReply ?? false,
+            clarificationReply: context.clarificationReply ?? null,
             dateReference: context.dateReference ?? null,
             dateAsked: context.dateAsked ?? false,
           }

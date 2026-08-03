@@ -25,7 +25,7 @@ export const VoiceOnboardingPage: React.FC = () => {
     stt.current?.stop();
     enableVoiceMode();
     setHasSeenVoiceOnboarding(true);
-    navigate(ROUTES.administrations);
+    navigate(ROUTES.home);
   };
 
   const handleDisable = () => {
@@ -33,7 +33,7 @@ export const VoiceOnboardingPage: React.FC = () => {
     stt.current?.stop();
     disableVoiceMode();
     setHasSeenVoiceOnboarding(true);
-    navigate(ROUTES.administrations);
+    navigate(ROUTES.home);
   };
 
   useEffect(() => {

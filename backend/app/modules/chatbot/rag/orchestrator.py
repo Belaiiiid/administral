@@ -14,6 +14,7 @@ signalées par un commentaire `MonParcours` dans le code :
 
 import json
 import re
+import threading
 from datetime import date
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
@@ -23,11 +24,14 @@ from .llm_client import (
     LlmContractError,
     _enforce_standard_options,
     call_llm,
-    call_llm_structured,
+    historique_de_confiance,
     with_standard_options,
 )
+from app.core.logger import logger
 from . import rag_pipeline
 from . import legal_pipeline
+from . import etat_dialogue
+from . import profilage_documents
 # Politesse : fonction de texte pure, isolée dans son module - elle n'a besoin ni d'un
 # LLM ni d'un index, et se teste donc sans rien charger de tout ça (voir `politesse`).
 from .politesse import courtoisie, is_greeting  # noqa: F401 — `is_greeting` reste public
@@ -37,6 +41,7 @@ from .unanswered_log import (
     RAISON_HORS_SUJET,
     RAISON_REFERENCE_INCONNUE,
     RAISON_REPONSE_ILLISIBLE,
+    RAISON_TROP_DE_CLARIFICATIONS,
     REDIRECTION_OFFICIELLE,
     log_unanswered,
 )
@@ -44,9 +49,6 @@ from .unanswered_log import (
 # charge pas le graphe. Le graphe lui-meme n'est ouvert qu'a la premiere question juridique.
 from .kg_apl.query import extract_references
 
-# MonParcours : vocabulaire de profil dérivé de `ProfilPartiel`, pour que le
-# profiling remplisse exactement les champs dont les règles de checklist se servent.
-from ..checklist_answer import PROFILE_FIELDS_DOC
 from app.modules.citizen import estimation
 
 # Pas d'authentification (canal WhatsApp notamment) : le chat est un espace ouvert, aucun
@@ -160,8 +162,11 @@ class D4State(TypedDict):
     pending_clarification: Optional[dict]  # {"original_question": str, "intent": str} si le tour
                                             # précédent attend une réponse de clarification, sinon None
                                             # ("intent" indique vers quel nœud renvoyer la réponse)
-    is_clarification_reply: bool         # True si CE message est une réponse structurée au popup de
-                                          # clarification (injecté par l'appelant/UI, pas déduit du texte)
+    clarification_reply: Optional[str]   # "option" | "text" | None — COMMENT le message a été produit
+                                          # pendant qu'une clarification était posée (injecté par
+                                          # l'appelant/UI, jamais déduit du texte). Un clic est une
+                                          # réponse certaine ; une saisie n'est confiée qu'aux nœuds
+                                          # qui savent la reconnaître (NOEUDS_QUI_VALIDENT_LE_TEXTE).
     user_role: Optional[str]             # "citizen" (défaut) ou "agent" - injecté par l'appelant/UI,
                                           # jamais déduit du contenu du message. Détermine les catégories
                                           # de chunks accessibles, voir CATEGORIES_BY_ROLE.
@@ -178,13 +183,27 @@ class D4State(TypedDict):
     date_asked: bool
 
 
-# Catégories de chunks accessibles selon le rôle. "legislation" (Legifrance) est réservé aux agents -
-# contenu trop complexe/juridique pour le prompt citoyen (vulgarisé, voir décision 8 du CLAUDE.md).
-# Pas encore de chunks "legislation" dans le corpus (corpus enrichi progressivement) : le filtre est
-# déjà en place, prêt à s'appliquer dès qu'ils seront ajoutés.
+# Catégories de chunks interrogeables par CETTE branche (`rag_general`), selon le rôle.
+#
+# LE CORPUS JURIDIQUE N'Y FIGURE PLUS, POUR PERSONNE. Il était ouvert aux agents, ce qui
+# contournait sans le vouloir toute la garantie de la branche `fondement_juridique` : les
+# 319 chunks `legislation` contiennent du texte d'article figé à UNE version indexée
+# (« version du 2019-09-01 »). Un agent dont la question tombait sur `rag_general` plutôt
+# que sur `fondement_juridique` — un simple aléa de classification — recevait donc du droit
+# daté d'une version arbitraire, sans consultation du graphe, sans date affichée, et généré
+# par un prompt qui ne sait rien de la datation des textes. C'est exactement l'erreur que la
+# branche juridique existe pour empêcher : faux, et d'apparence fiable.
+#
+# Le corpus juridique reste atteignable, mais UNIQUEMENT par le chemin qui sait le dater :
+# `legal_pipeline` demande `category=["legislation"]` explicitement, sans passer par cette
+# table, puis sert le texte depuis le graphe dans la version applicable.
+#
+# Les deux rôles reçoivent donc la même chose ici. La table est conservée plutôt que
+# supprimée : le jour où un agent aura besoin d'un corpus plus large, ce sera par une
+# branche qui passe elle aussi par le graphe, et c'est ici que ça se déclarera.
 CATEGORIES_BY_ROLE = {
     "citizen": ["demarche"],
-    "agent": ["demarche", "legislation"],
+    "agent": ["demarche"],
 }
 
 
@@ -194,7 +213,7 @@ def route_intent_llm(state: D4State) -> str:
     jamais de comportement indéfini)."""
     try:
         messages = [{"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT}]
-        messages.extend(state["conversation_history"])
+        messages.extend(historique_de_confiance(state["conversation_history"]))
         messages.append({"role": "user", "content": state["message"]})
 
         result = call_llm(
@@ -207,17 +226,51 @@ def route_intent_llm(state: D4State) -> str:
         if intent in VALID_INTENTS:
             return intent
         return "fallback"
-    except Exception as e:
-        print(f"[route_intent_llm] Erreur classification, repli sur fallback: {e}")
+    except Exception:  # noqa: BLE001 — le classifieur ne doit jamais planter un tour
+        # Repli silencieux pour le citoyen, jamais pour l'équipe : un classifieur qui
+        # échoue envoie TOUTES les questions en hors-sujet, ce qui ressemble de loin à
+        # « le corpus ne couvre pas grand-chose ».
+        logger.exception("chatbot: classification impossible, repli sur fallback")
         return "fallback"
 
 
 # --- Noeuds ---
+#: Nœuds capables de RECONNAÎTRE une réponse écrite : ils disposent du vocabulaire de
+#: leurs propres questions (mots-clés d'un choix, format d'une date) et savent donc dire
+#: « ceci répond » ou « ceci ne répond pas ». On peut leur confier une saisie libre : ce
+#: qu'ils ne reconnaissent pas, ils le reposent, sans jamais deviner.
+#:
+#: `rag_general` n'y est pas, et c'est délibéré : ses clarifications sont écrites par le
+#: modèle, il n'a aucun vocabulaire attendu et prendrait n'importe quel texte pour une
+#: réponse. Une saisie libre pendant une de ses questions reste donc un changement de
+#: sujet, comme avant.
+NOEUDS_QUI_VALIDENT_LE_TEXTE = {
+    "documents_necessaires",
+    "estimation",
+    "fondement_juridique",
+}
+
+
+def _repond_a_la_clarification(state: D4State, pending) -> bool:
+    """Ce message doit-il retourner au nœud qui attendait, sans repasser au classifieur ?
+
+    Un CLIC est un fait : le citoyen a choisi parmi ce qu'on lui proposait, il n'y a rien
+    à interpréter. Une SAISIE ne se tranche qu'avec le vocabulaire de la question — ce que
+    seuls certains nœuds possèdent. On la leur confie ; ailleurs, elle repart au
+    classifieur comme un message ordinaire."""
+    kind = state.get("clarification_reply")
+    if not kind or not pending:
+        return False
+    if kind == "option":
+        return True
+    return pending.get("intent") in NOEUDS_QUI_VALIDENT_LE_TEXTE
+
+
 def orchestrator_node(state: D4State) -> D4State:
     pending = state.get("pending_clarification")
-    # Reponse structuree au popup de clarification -> on ne reclassifie pas, on renvoie
-    # directement au noeud qui avait pose la question (rag_general OU documents_necessaires).
-    if state.get("is_clarification_reply") and pending:
+    # Reponse au popup de clarification -> on ne reclassifie pas, on renvoie directement
+    # au noeud qui avait pose la question.
+    if _repond_a_la_clarification(state, pending):
         return {**state, "intent": pending["intent"]}
     # Politesse ("Bonjour", "merci", "bonne journee") -> pas la peine d'appeler le
     # classifieur LLM, tres frequent en ouverture comme en cloture, et jamais ambigu.
@@ -231,97 +284,78 @@ def orchestrator_node(state: D4State) -> D4State:
     return {**state, "intent": intent}
 
 
-# MonParcours : la fin du prompt diffère du repo `apl_rag`. Là-bas, le nœud conclut par
-# un "[MOCK]" faute de générateur de checklist ; ici il conclut en renvoyant le profil
-# collecté, que la couche service passe aux règles de checklist MonParcours. Le LLM
-# collecte des faits déclarés, il ne choisit JAMAIS les documents.
-DOCUMENTS_SYSTEM_PROMPT = f"""Tu aides un citoyen à savoir quels documents sont nécessaires pour une
-demande d'aide au logement (APL) - pour lui-même OU pour une autre personne (ex: son fils étudiant),
-les deux cas se traitent pareil.
+#: Phrase d'introduction de la checklist. Écrite ici plutôt que demandée au modèle :
+#: c'est une phrase de liaison, pas une réponse - la faire générer coûterait un appel
+#: pour un résultat qui ne varie pas.
+INTRO_CHECKLIST = "Merci. D'après ce que vous m'avez indiqué, voici ce qu'il vous faut."
 
-Le chat n'a pas d'authentification : tu ne connais RIEN sur la situation de la personne concernée au
-départ. Avant de pouvoir lister les documents nécessaires, pose des questions de profiling courtes sur
-sa situation (statut logement, statut professionnel, situation familiale).
 
-RÈGLES :
-- Pose une question de profiling à la fois, jamais plusieurs en même temps.
-- Ne pose jamais plus de 4 questions de profiling au total sur une même conversation (regarde
-  l'historique fourni pour savoir combien tu en as déjà posées). Si le citoyen répond "Passer cette
-  question", ce n'est pas la peine d'insister sur CE point précis - tu peux poser une AUTRE question
-  de profiling si une autre info manque encore, dans la limite des 4.
-- Priorise les questions qui changent vraiment la liste des documents : le statut du logement, puis
-  le statut professionnel, puis la situation familiale.
-- Si le citoyen répond "Je ne comprends pas, expliquez-moi" à une question de profiling, explique-la
-  en langage très simple (un exemple concret aide), PUIS repose la même question (reformulée plus
-  simplement si possible) - ne l'ignore pas et ne devine pas sa situation à sa place.
-- Ne liste JAMAIS toi-même les documents : la liste est établie ensuite à partir du profil que tu as
-  collecté. Ta réponse finale se limite à une phrase d'introduction courte.
-
-FORMAT DE SORTIE :
-Réponds UNIQUEMENT avec un JSON de la forme :
-{{"type": "clarification", "text": "la question posée", "options": [...] ou null}}
-tant qu'il te manque des informations, ou, quand tu en as assez (ou après la limite) :
-{{"type": "answer", "text": "une phrase d'introduction courte", "profil": {{...}}}}
-- "options": liste de choix courts (2 à 4) si la question a un nombre limité de réponses plausibles.
-  Mets "options": null si la réponse attendue est une valeur libre.
-- Ne mets PAS toi-même d'option "passer cette question" ou "je ne comprends pas" dans ta liste -
-  elles sont ajoutées automatiquement, inutile de les dupliquer.
-- "profil": UNIQUEMENT les champs ci-dessous, et uniquement ceux que le citoyen a réellement indiqués
-  (n'invente rien, ne devine rien - un champ absent est traité comme "inconnu") :
-{PROFILE_FIELDS_DOC}
-"""
+def _demander_champ(state: D4State, champ: str, reponses: dict, *, prefixe: str = "") -> D4State:
+    question = profilage_documents.QUESTIONS[champ]
+    texte = f"{prefixe}{question.texte}" if prefixe else question.texte
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "sources": [],
+        "response_options": _enforce_standard_options(profilage_documents.options(champ)),
+        "pending_clarification": {
+            "original_question": profilage_documents.encoder_etat(reponses),
+            "intent": "documents_necessaires",
+        },
+        "collected_profile": None,
+    }
 
 
 def documents_necessaires_node(state: D4State) -> D4State:
+    """Entretien de profilage MENÉ PAR LE CODE, sur le modèle d'`estimation_node`.
+
+    Le modèle a reconnu l'intention ; il ne conduit pas l'échange. Les questions, leur
+    ordre et le moment de s'arrêter viennent de `profilage_documents`, où la liste des
+    champs est finie - le plafond de quatre questions est donc une propriété du parcours
+    et non une consigne que le modèle pourrait perdre de vue (il la perdait : voir le
+    module pour le détail de la fenêtre d'historique tronquée).
+
+    Aucun appel LLM ici. Une panne du modèle ne peut donc plus interrompre un entretien
+    en cours, et deux entretiens identiques donnent exactement la même chose."""
     pending = state.get("pending_clarification")
-    is_reply = state.get("is_clarification_reply") and pending is not None
-    original_question = pending["original_question"] if is_reply else state["message"]
+    en_cours = bool(pending) and pending.get("intent") == "documents_necessaires"
+    is_reply = bool(state.get("clarification_reply")) and en_cours
+    reponses = profilage_documents.decoder_etat(pending) if en_cours else {}
+    message = state["message"]
 
-    messages = [{"role": "system", "content": DOCUMENTS_SYSTEM_PROMPT}]
-    messages.extend(state["conversation_history"])
-    messages.append({"role": "user", "content": state["message"]})
+    if is_reply:
+        champ = profilage_documents.prochain_champ(reponses)
+        if champ is not None:
+            if message == EXPLAIN_OPTION:
+                explication = f"{profilage_documents.QUESTIONS[champ].explication}\n\n"
+                return _demander_champ(state, champ, reponses, prefixe=explication)
+            if message == SKIP_OPTION:
+                # Passée = posée : on enchaîne sur la suivante au lieu d'insister, et
+                # cette question-là ne reviendra pas.
+                reponses = profilage_documents.enregistrer(reponses, champ, None)
+            else:
+                choix = profilage_documents.reconnaitre(champ, message)
+                if choix is not None:
+                    reponses = profilage_documents.enregistrer(reponses, champ, choix)
+                # Réponse non reconnue : on repose la même question. Deviner ici
+                # fausserait la liste des pièces, ce qui coûte au citoyen un dossier
+                # incomplet - le prix d'une question reposée est sans commune mesure.
 
-    try:
-        result = call_llm_structured(messages=messages, temperature=0.2)
-    except LlmContractError:
-        # `collected_profile` reste None : c'est LUI qui autorise la couche service à
-        # produire la checklist. Un tour raté ne doit pas pouvoir présenter le socle
-        # commun comme une liste personnalisée - le citoyen a répondu à des questions,
-        # et ces réponses viennent d'être perdues.
-        log_unanswered(
-            state["message"], "documents_necessaires", RAISON_REPONSE_ILLISIBLE,
-            user_role=state.get("user_role") or "citizen",
-        )
-        return {
-            **state,
-            "response": REDIRECTION_OFFICIELLE,
-            "answer": REDIRECTION_OFFICIELLE,
-            "sources": [],
-            "response_options": None,
-            "pending_clarification": None,
-            "collected_profile": None,
-        }
+    champ_manquant = profilage_documents.prochain_champ(reponses)
+    if champ_manquant is not None:
+        return _demander_champ(state, champ_manquant, reponses)
 
-    if result["type"] == "clarification":
-        return {
-            **state,
-            "response": result["text"],
-            "answer": result["text"],
-            "response_options": result["options"],
-            "pending_clarification": {"original_question": original_question, "intent": "documents_necessaires"},
-            "collected_profile": None,
-        }
-
-    # MonParcours : le profil déclaré part vers la couche service, qui produit la vraie
-    # checklist. `response` reste la phrase d'introduction du LLM (ce que voit le CLI).
-    profile = result.get("profil")
+    # Entretien terminé : le profil déclaré part vers la couche service, qui produit la
+    # vraie checklist MonParcours. `collected_profile` non-None est ce qui l'y autorise.
     return {
         **state,
-        "response": result["text"],
-        "answer": result["text"],
+        "response": INTRO_CHECKLIST,
+        "answer": INTRO_CHECKLIST,
+        "sources": [],
         "response_options": None,
         "pending_clarification": None,
-        "collected_profile": profile if isinstance(profile, dict) else {},
+        "collected_profile": profilage_documents.profil_declare(reponses),
     }
 
 
@@ -380,19 +414,13 @@ def _encode_estimation_state(reponses: dict) -> str:
     dans une ref, renvoyé tel quel au tour suivant) - c'est un canal de
     bookkeeping interne entre deux appels de ce nœud, pas une donnée montrée au
     citoyen. Le contourner ainsi évite d'introduire une session côté backend
-    juste pour 4 questions à choix fixes."""
-    return json.dumps({"estimation_reponses": reponses}, ensure_ascii=False)
+    juste pour 4 questions à choix fixes. Mécanique commune : `etat_dialogue`."""
+    return etat_dialogue.encoder("estimation_reponses", reponses)
 
 
 def _decode_estimation_state(pending: Optional[dict]) -> dict:
-    if not pending:
-        return {}
-    try:
-        parsed = json.loads(pending.get("original_question") or "")
-        reponses = parsed.get("estimation_reponses")
-        return reponses if isinstance(reponses, dict) else {}
-    except (json.JSONDecodeError, TypeError, AttributeError):
-        return {}
+    reponses = etat_dialogue.decoder(pending, "estimation_reponses")
+    return reponses if isinstance(reponses, dict) else {}
 
 
 def _ask_estimation_field(state: D4State, champ: str, reponses: dict, *, prefix: str = "") -> D4State:
@@ -418,7 +446,7 @@ def estimation_node(state: D4State) -> D4State:
     (`response_options` / `pending_clarification`) sans rien y ajouter côté
     contrat API ou frontend."""
     pending = state.get("pending_clarification")
-    is_reply = bool(state.get("is_clarification_reply")) and pending is not None and pending.get("intent") == "estimation"
+    is_reply = bool(state.get("clarification_reply")) and pending is not None and pending.get("intent") == "estimation"
     reponses = _decode_estimation_state(pending) if pending else {}
     message = state["message"]
 
@@ -459,8 +487,14 @@ def estimation_node(state: D4State) -> D4State:
             f"{resultat.montant_min} € et {resultat.montant_max} € par mois "
             f"(estimation centrale : {resultat.montant_median} €).\n\n{resultat.avertissement}"
         )
-    except Exception as e:  # noqa: BLE001 — l'estimation ne doit jamais planter la conversation
-        print(f"[estimation_node] Erreur de calcul, repli sur message d'excuse: {e}")
+    except Exception:  # noqa: BLE001 — l'estimation ne doit jamais planter la conversation
+        # Le calcul est déterministe : s'il échoue, c'est un défaut du code ou du barème,
+        # pas une réponse du modèle. Sans trace, il est indétectable - le citoyen reçoit
+        # une excuse polie et l'incident disparaît.
+        logger.exception(
+            "chatbot: calcul d'estimation impossible",
+            {"champs": sorted(reponses)},
+        )
         texte = (
             "Je n'ai pas pu calculer d'estimation à partir de ces informations. "
             "Vous pouvez réessayer."
@@ -477,36 +511,146 @@ def estimation_node(state: D4State) -> D4State:
 
 
 _rag_pipeline_instance = None
+#: Le endpoint est un `def` synchrone : FastAPI l'exécute dans un pool pouvant aller
+#: jusqu'à 40 threads. Sans verrou, deux requêtes simultanées trouvaient le singleton
+#: vide et construisaient chacune leur pipeline - deux modèles d'embeddings en mémoire,
+#: et deux ouvertures du dossier Qdrant, qui n'en admet qu'une. Le préchauffage
+#: synchrone (voir `main`) rend le cas rare ; le verrou le rend impossible.
+_rag_pipeline_lock = threading.Lock()
 
 
 def get_rag_pipeline():
-    """Lazy singleton : le pipeline (index BM25+Qdrant, modèle d'embeddings)
-    n'est construit qu'à la première question qui en a réellement besoin."""
+    """Singleton paresseux et sûr en concurrence (double vérification).
+
+    La première lecture hors verrou évite de sérialiser tous les tours suivants sur
+    un mutex alors que l'objet est déjà construit ; la seconde, à l'intérieur, est
+    celle qui compte - c'est elle qui empêche deux threads de construire."""
     global _rag_pipeline_instance
     if _rag_pipeline_instance is None:
-        _rag_pipeline_instance = rag_pipeline.RagPipeline()
+        with _rag_pipeline_lock:
+            if _rag_pipeline_instance is None:
+                _rag_pipeline_instance = rag_pipeline.RagPipeline()
     return _rag_pipeline_instance
+
+
+def mode_recherche() -> str:
+    """« hybride », « bm25_seul », ou « non_initialise » — SANS construire le pipeline.
+
+    Le repli en BM25 seul est silencieux par conception (l'assistant doit répondre même
+    sans couche sémantique), et c'est précisément ce qui le rend dangereux : une fois
+    la ligne de démarrage passée, plus rien ne dit qu'on tourne en mode dégradé. En le
+    remontant à chaque tour, une dégradation durable devient visible dans les métriques
+    au lieu de se deviner à la qualité des réponses.
+
+    Ne force JAMAIS la construction : appelé sur un tour de politesse, cela déclencherait
+    le chargement complet des index pour écrire une ligne de log."""
+    if _rag_pipeline_instance is None:
+        return "non_initialise"
+    return "hybride" if _rag_pipeline_instance.semantic_available else "bm25_seul"
 
 
 SHOW_SOURCES = True  # bascule simple : afficher ou non les sources au citoyen
 
+#: Plafond de questions de clarification sur UNE question du citoyen. Tenu par le code :
+#: le prompt demandait au modèle de compter les siennes en relisant l'historique, que le
+#: client tronque aux 6 derniers messages - il ne voyait donc jamais son propre plafond.
+RAG_CLARIFICATIONS_MAX = 4
+
+#: Ajoutée au prompt au dernier tour. Le modèle est prévenu qu'il doit conclure ; s'il
+#: pose quand même une question, le code tranche à sa place (voir plus bas).
+CONSIGNE_REPONSE_OBLIGATOIRE = (
+    "Tu as déjà posé le nombre maximum de questions de clarification pour cette question. "
+    "Tu DOIS répondre maintenant à partir des extraits disponibles, en signalant "
+    "clairement ce que tu ne peux pas trancher faute d'information. Ne pose plus de question."
+)
+
+_CLE_RAG = "rag_clarification"
+#: Borne de sûreté sur l'état renvoyé par le client : au-delà, c'est du bruit ou une
+#: main malveillante, et ni l'un ni l'autre ne doit gonfler le prompt.
+_MAX_REPONSES_GARDEES = 10
+
+
+#: L'état voyage dans `pending_clarification.original_question`, que le schéma borne
+#: (voir `schemas`). Ces deux tailles sont ce qui garantit qu'on reste sous cette borne :
+#: une question de 2000 caractères suivie de dix réponses de 2000 la ferait exploser, et
+#: le dialogue deviendrait irrecevable au tour suivant. Elles sont larges pour ce dont
+#: elles ont l'usage - retrouver les bons extraits ne demande pas la question intégrale,
+#: et une réponse de clarification est un choix ou une valeur courte.
+_QUESTION_GARDEE_MAX = 500
+_REPONSE_GARDEE_MAX = 200
+
+
+def _encoder_etat_rag(question: str, reponses: list[str], posees: int) -> str:
+    return etat_dialogue.encoder(
+        _CLE_RAG,
+        {
+            "question": question[:_QUESTION_GARDEE_MAX],
+            "reponses": [r[:_REPONSE_GARDEE_MAX] for r in reponses[-_MAX_REPONSES_GARDEES:]],
+            "posees": posees,
+        },
+    )
+
+
+def _decoder_etat_rag(pending: Optional[dict]) -> Optional[dict]:
+    """L'état d'un dialogue de clarification en cours, ou None s'il n'y en a pas.
+
+    Revalide tout : l'état vient du client. Un compteur bidonné ne donnerait de toute
+    façon qu'une conversation plus longue à celui qui le bidonne."""
+    brut = etat_dialogue.decoder(pending, _CLE_RAG)
+    if not isinstance(brut, dict):
+        return None
+    question = brut.get("question")
+    reponses = brut.get("reponses")
+    posees = brut.get("posees")
+    if not isinstance(question, str) or not question:
+        return None
+    return {
+        "question": question,
+        "reponses": [r for r in reponses if isinstance(r, str)][-_MAX_REPONSES_GARDEES:]
+        if isinstance(reponses, list) else [],
+        "posees": posees if isinstance(posees, int) and posees >= 0 else 0,
+    }
+
 
 def rag_general_node(state: D4State) -> D4State:
+    """Question générale : retrieval hybride puis génération sourcée.
+
+    Les réponses aux clarifications sont ACCUMULÉES. Auparavant la requête valait
+    « question d'origine + dernier message » : la réponse à la clarification précédente
+    était perdue à chaque tour, donc deux « Oui » de suite produisaient exactement la même
+    requête, les mêmes extraits, et la même question reposée à l'identique. Le citoyen ne
+    s'en sortait qu'en tapant une phrase plus longue. Elles sont donc toutes conservées, et
+    leur nombre est plafonné ici plutôt que confié au modèle."""
     pending = state.get("pending_clarification")
-    is_reply = state.get("is_clarification_reply") and pending is not None
+    en_cours = bool(pending) and pending.get("intent") == "rag_general"
+    etat = _decoder_etat_rag(pending) if en_cours else None
+    is_reply = bool(state.get("clarification_reply")) and etat is not None
 
     if is_reply:
-        # on combine la question d'origine (pour un bon retrieval) avec la reponse au popup
-        original_question = pending["original_question"]
-        query = f"{original_question} {state['message']}"
+        question = etat["question"]
+        reponses = [*etat["reponses"], state["message"]]
+        posees = etat["posees"]
     else:
-        original_question = state["message"]
-        query = state["message"]
+        question, reponses, posees = state["message"], [], 0
+
+    # « Je ne comprends pas » et « Passer » sont des actions, pas des informations : le
+    # modèle doit les voir (il explique, puis repose), mais les mêler à la requête de
+    # recherche polluerait le retrieval avec des mots qui ne disent rien du sujet.
+    informatives = [r for r in reponses if r not in (EXPLAIN_OPTION, SKIP_OPTION)]
+    requete_recherche = " ".join([question, *informatives])
+    query = " ".join([question, *reponses])
 
     role = state.get("user_role") or "citizen"
     categories = CATEGORIES_BY_ROLE.get(role, CATEGORIES_BY_ROLE["citizen"])
+    dernier_tour = posees >= RAG_CLARIFICATIONS_MAX
     try:
-        result = get_rag_pipeline().answer(query, category=categories, conversation_history=state["conversation_history"])
+        result = get_rag_pipeline().answer(
+            query,
+            category=categories,
+            conversation_history=state["conversation_history"],
+            requete_recherche=requete_recherche,
+            consigne_finale=CONSIGNE_REPONSE_OBLIGATOIRE if dernier_tour else None,
+        )
     except LlmContractError:
         # Le pire cas de cette branche : afficher un texte illisible AVEC les sources
         # officielles retrouvées en dessous. La réponse paraîtrait fondée alors qu'elle
@@ -516,13 +660,26 @@ def rag_general_node(state: D4State) -> D4State:
                 "sources": [], "response_options": None, "pending_clarification": None}
 
     if result["type"] == "clarification":
+        if dernier_tour:
+            # Le modèle a été prévenu et interroge quand même : c'est le code qui
+            # tranche. Consigné, parce qu'une question qui tourne en rond dit quelque
+            # chose du corpus autant que du modèle.
+            log_unanswered(
+                requete_recherche, "rag_general", RAISON_TROP_DE_CLARIFICATIONS,
+                details={"questions_posees": posees}, user_role=role,
+            )
+            return {**state, "response": REDIRECTION_OFFICIELLE, "answer": REDIRECTION_OFFICIELLE,
+                    "sources": [], "response_options": None, "pending_clarification": None}
         return {
             **state,
             "response": result["text"],
             "answer": result["text"],
             "sources": [],  # une clarification n'est pas une réponse sourcée
             "response_options": result["options"],
-            "pending_clarification": {"original_question": original_question, "intent": "rag_general"},
+            "pending_clarification": {
+                "original_question": _encoder_etat_rag(question, reponses, posees + 1),
+                "intent": "rag_general",
+            },
         }
 
     # Le corpus ne permettait pas de répondre : le LLM le signale (repondu=false), le code
@@ -569,16 +726,16 @@ def rag_general_node(state: D4State) -> D4State:
     }
 
 
-_legal_pipeline_instance = None
-
-
 def get_legal_pipeline():
     """Le pipeline juridique partage les index du pipeline RAG (mêmes BM25 et Qdrant) :
-    seuls le filtre de catégorie, la consultation du graphe et le prompt diffèrent."""
-    global _legal_pipeline_instance
-    if _legal_pipeline_instance is None:
-        _legal_pipeline_instance = legal_pipeline.get_legal_pipeline(get_rag_pipeline())
-    return _legal_pipeline_instance
+    seuls le filtre de catégorie, la consultation du graphe et le prompt diffèrent.
+
+    Plus de singleton ICI : il y en avait deux pour un seul objet, un dans ce module et
+    un dans `legal_pipeline`. Ils tenaient la même référence, donc rien ne cassait — mais
+    deux caches pour une chose sont deux endroits à raisonner, et le jour où l'un des
+    deux se vide ou se protège sans l'autre, la panne est incompréhensible. Le cache
+    appartient au module qui construit l'objet."""
+    return legal_pipeline.get_legal_pipeline(get_rag_pipeline())
 
 
 # --- La question de date, posée par le CODE ---------------------------------------------
@@ -643,7 +800,7 @@ def fondement_juridique_node(state: D4State) -> D4State:
     prompt interdit la reformulation approximative, parce que sur du texte juridique la
     précision perdue est justement ce qui coûte cher au citoyen."""
     pending = state.get("pending_clarification") or {}
-    is_reply = bool(state.get("is_clarification_reply") and pending)
+    is_reply = bool(state.get("clarification_reply") and pending)
     step = pending.get("step") if is_reply else None
     original_question = pending.get("original_question") if is_reply else state["message"]
     message = (state["message"] or "").strip()
@@ -845,21 +1002,25 @@ if __name__ == "__main__":
     response_options = None
 
     while True:
-        is_clarification_reply = False
+        clarification_reply = None
 
         if response_options:
             print("\nOptions :")
             for i, opt in enumerate(response_options, 1):
                 print(f"  {i}. {opt}")
-            raw = input("\nVous (numero, ou texte libre pour changer de sujet): ").strip()
+            raw = input("\nVous (numero, ou reponse ecrite): ").strip()
             if raw.lower() in ("exit()", "exit", "quit", "quit()"):
                 print("Fin de la session.")
                 break
             if raw.isdigit() and 1 <= int(raw) <= len(response_options):
                 message = response_options[int(raw) - 1]
-                is_clarification_reply = True
+                clarification_reply = "option"
             else:
-                message = raw  # pas une option valide -> traite comme un message libre (nouvelle intention possible)
+                # Le simulateur reproduit la nouvelle règle : une saisie pendant qu'une
+                # question est posée n'est plus d'office un changement de sujet, c'est au
+                # nœud de dire s'il la reconnaît.
+                message = raw
+                clarification_reply = "text"
         elif pending_clarification:
             # clarification a reponse libre (pas d'options) - simulateur du champ texte du popup
             message = input("\nVous (reponds a la clarification, ou tape 'annuler' pour changer de sujet): ").strip()
@@ -867,7 +1028,7 @@ if __name__ == "__main__":
                 print("Fin de la session.")
                 break
             if message.lower() not in ("annuler",):
-                is_clarification_reply = True
+                clarification_reply = "text"
         else:
             message = input("\nVous: ").strip()
             if message.lower() in ("exit()", "exit", "quit", "quit()"):
@@ -885,7 +1046,7 @@ if __name__ == "__main__":
             "response": None,
             "response_options": None,
             "pending_clarification": pending_clarification,
-            "is_clarification_reply": is_clarification_reply,
+            "clarification_reply": clarification_reply,
             "user_role": user_role,
             "answer": None,
             "sources": None,
