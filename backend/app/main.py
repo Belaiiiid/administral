@@ -134,12 +134,12 @@ def health() -> dict[str, object]:
     « non_initialise » n'est pas une panne : c'est un processus dont le préchauffage
     est désactivé et à qui personne n'a encore posé de question.
     """
-    from app.modules.chatbot.rag import orchestrator
+    from app.modules.chatbot.rag import budget, orchestrator
 
     database = check_health()
 
     return {
-        "assistant": {"mode_recherche": orchestrator.mode_recherche()},
+        "assistant": {"mode_recherche": orchestrator.mode_recherche(), **budget.etat()},
         "status": "ok" if database["reachable"] else "degraded",
         "database": database,
     }

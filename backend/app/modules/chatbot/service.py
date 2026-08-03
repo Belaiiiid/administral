@@ -32,7 +32,7 @@ import time
 from app.core.logger import logger
 from app.modules.auth.models import Role, User
 from app.modules.chatbot.checklist_answer import render_checklist
-from app.modules.chatbot.rag import orchestrator
+from app.modules.chatbot.rag import budget, orchestrator
 from app.modules.chatbot.schemas import (
     ChatbotContextSchema,
     ChatbotCtaSchema,
@@ -158,6 +158,14 @@ def answer_question(
     # indisponible » côté citoyen et rien du tout côté équipe, c'est un incident
     # qu'on ne peut ni compter ni comprendre. Le message reste identique pour le
     # citoyen, la cause est écrite dans les logs.
+    # Disjoncteur de dépense : passé le budget du jour, on n'appelle plus le modèle du
+    # tout. Vérifié ICI et non dans `call_llm`, parce que le classifieur rattrape toute
+    # exception et retomberait sur « hors-sujet » — le citoyen recevrait un refus de
+    # sujet au lieu d'une indisponibilité, et la question irait grossir le journal des
+    # questions sans réponse comme si le corpus était en cause.
+    if budget.depasse():
+        return _unavailable()
+
     debut = time.perf_counter()
     try:
         state = _get_graph().invoke(
@@ -169,17 +177,21 @@ def answer_question(
                 "response": None,
                 "response_options": None,
                 "pending_clarification": pending,
-                # Le flag vient de l'UI telle quelle : c'est elle qui sait si le
-                # message est une réponse au popup, et lui seul fait contourner le
-                # classifieur (décision 7).
-                "is_clarification_reply": ctx.is_clarification_reply,
+                # Vient de l'UI telle quelle : elle seule sait si le citoyen a cliqué un
+                # choix ou écrit sa réponse. Elle rapporte ce fait ; c'est le moteur qui
+                # en tire une conclusion (voir `orchestrator._repond_a_la_clarification`).
+                "clarification_reply": ctx.clarification_reply,
                 "user_role": _user_role(user),
                 "answer": None,
                 "sources": None,
                 "collected_profile": None,
                 # Branche juridique : quel droit servir (celui de la décision contestée)
                 # et si la question a déjà été tranchée dans cette conversation.
-                "date_reference": ctx.date_reference,
+                # Le moteur transporte cette date en ISO, pas en `date` : son état fait
+                # l'aller-retour par le client en JSON et doit rester sérialisable tel
+                # quel, y compris pour un canal qui n'aurait pas de couche Pydantic.
+                # La validation, elle, appartient à la frontière HTTP (voir `schemas`).
+                "date_reference": ctx.date_reference.isoformat() if ctx.date_reference else None,
                 "date_asked": ctx.date_asked,
             }
         )

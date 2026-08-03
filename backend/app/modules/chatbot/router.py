@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.modules.chatbot import history, service
+from app.modules.chatbot import history, quotas, service
 from app.modules.chatbot.schemas import (
     ChatbotRequestSchema,
     ChatbotResponseSchema,
@@ -45,20 +45,33 @@ router = APIRouter(prefix="/citizen/chatbot", tags=["chatbot"])
         "nécessaires (questions de profilage puis checklist personnalisée), et "
         "hors-sujet. Une réponse peut être une question de clarification : elle "
         "porte alors `options` et `pendingClarification`, que l'UI renvoie avec "
-        "`isClarificationReply`."
+        "`clarificationReply` — « option » si le citoyen a cliqué un choix, "
+        "« text » s'il a écrit ou dicté sa réponse."
     ),
 )
 def send_message(
+    request: Request,
     body: ChatbotRequestSchema,
     current_user: Annotated[User | None, Depends(get_current_user_optional)],
-    db: Annotated[Session, Depends(get_db)],
 ) -> ChatbotResponseSchema:
+    """Pas de `Depends(get_db)` ici, volontairement.
+
+    Une session injectée est empruntée au pool pour TOUTE la durée de la requête,
+    donc pendant les secondes d'attente du modèle, alors que la base n'est touchée
+    qu'à la dernière ligne. `record_turn` ouvre donc la sienne, brève (voir
+    `history`). Le tour de conversation ne retient plus une connexion PostgreSQL
+    pendant qu'il attend Mistral."""
+    # Avant toute chose : un appel refusé ne doit rien coûter. Le quota est vérifié ici,
+    # donc avant le service, avant le moteur, avant le moindre appel facturé — et avant
+    # d'occuper un worker pendant plusieurs secondes.
+    quotas.verifier(request, current_user)
+
     response = service.answer_question(body.message, body.context, current_user)
 
     # Persistance pour l'affichage uniquement (voir `history.py`) : jamais pour
     # un visiteur anonyme, jamais relue par le moteur ci-dessus.
     if current_user is not None:
-        history.record_turn(db, current_user.id, body.message, response)
+        history.record_turn(current_user.id, body.message, response)
 
     return response
 

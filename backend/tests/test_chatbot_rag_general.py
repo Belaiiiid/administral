@@ -82,19 +82,21 @@ def journal(monkeypatch):
     return entrees
 
 
-def _etat(message, pending=None, reply=False):
+def _etat(message, pending=None, reply=None):
     return {
         "message": message, "conversation_history": [], "citizen_profile": None,
         "intent": None, "response": None, "response_options": None,
-        "pending_clarification": pending, "is_clarification_reply": reply,
+        "pending_clarification": pending, "clarification_reply": reply,
         "user_role": "citizen", "answer": None, "sources": None,
         "collected_profile": None, "date_reference": None, "date_asked": False,
     }
 
 
 def _repondre(message, precedent):
-    """Le tour suivant, tel que le client le renverrait."""
-    return o.rag_general_node(_etat(message, precedent["pending_clarification"], reply=True))
+    """Le tour suivant, tel que le client le renverrait (clic sur un des choix)."""
+    return o.rag_general_node(
+        _etat(message, precedent["pending_clarification"], reply="option")
+    )
 
 
 # --- 1. Les réponses s'accumulent --------------------------------------------
@@ -211,7 +213,7 @@ def test_letat_nest_jamais_la_question_brute(pipeline, journal):
 )
 def test_un_etat_illisible_repart_de_la_question_posee(pipeline, journal, pending):
     faux = pipeline(_reponse())
-    o.rag_general_node(_etat("quel est le délai ?", pending, reply=True))
+    o.rag_general_node(_etat("quel est le délai ?", pending, reply="option"))
     assert faux.appels[0]["requete_recherche"] == "quel est le délai ?"
 
 
@@ -223,7 +225,7 @@ def test_un_compteur_bidonne_ne_donne_pas_un_dialogue_infini(pipeline, journal):
         "original_question": '{"rag_clarification": {"question": "q", "reponses": [], "posees": -99}}',
         "intent": "rag_general",
     }
-    tour = o.rag_general_node(_etat("Oui", pending, reply=True))
+    tour = o.rag_general_node(_etat("Oui", pending, reply="option"))
     assert o._decoder_etat_rag(tour["pending_clarification"])["posees"] == 1
 
 
@@ -232,7 +234,7 @@ def test_letat_dun_autre_noeud_nest_pas_lu(pipeline, journal):
     faux = pipeline(_reponse())
     pending = {"original_question": '{"estimation_reponses": {"zone": "Zone 1"}}',
                "intent": "estimation"}
-    o.rag_general_node(_etat("quel est le délai ?", pending, reply=True))
+    o.rag_general_node(_etat("quel est le délai ?", pending, reply="option"))
     assert faux.appels[0]["requete_recherche"] == "quel est le délai ?"
 
 
