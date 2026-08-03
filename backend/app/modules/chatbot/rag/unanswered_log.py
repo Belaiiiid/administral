@@ -22,6 +22,8 @@ import json
 import os
 from datetime import datetime
 
+from app.core.logger import logger
+
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(_BASE_DIR, "data", "questions_sans_reponse.jsonl")
 
@@ -52,8 +54,14 @@ def log_unanswered(question, intent, raison, details=None, user_role="citizen"):
         }
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entree, ensure_ascii=False) + "\n")
-    except Exception as e:  # noqa: BLE001
-        print(f"[unanswered_log] écriture impossible ({e}) - question non consignée")
+    except Exception:  # noqa: BLE001 — un journal cassé ne prive personne de sa réponse
+        # Panne particulièrement sournoise : ce journal EST le signalement. S'il ne
+        # s'écrit plus, tout paraît normal - les questions sans réponse cessent
+        # simplement d'apparaître, ce qui se lit comme « il n'y en a plus ».
+        logger.exception(
+            "chatbot: écriture du journal impossible, question non consignée",
+            {"intent": intent, "raison": raison},
+        )
 
 
 # Raisons, pour pouvoir trier le journal ensuite.

@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.exceptions import DomainError, domain_error_handler
+from app.core.logger import logger
 from app.database.session import check_health, verify_connection
 from app.modules.chatbot.router import router as chatbot_router
 from app.modules.profiling.routers import router as profiling_router
@@ -46,7 +47,10 @@ def _warmup_chatbot() -> None:
         # les index, et parce qu'il partage le pipeline RAG qu'on vient de construire.
         orchestrator.get_legal_pipeline()
     except Exception:  # noqa: BLE001 — warmup must never affect startup
-        pass
+        # Ne pas affecter le démarrage ne veut pas dire ne rien dire : un préchauffage
+        # raté laisse la première question du citoyen payer le chargement complet, ou
+        # échouer. `pass` rendait les deux indistinguables d'un démarrage sain.
+        logger.exception("chatbot: préchauffage du moteur en échec")
 
 
 @asynccontextmanager
