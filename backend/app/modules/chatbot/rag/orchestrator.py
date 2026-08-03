@@ -180,13 +180,27 @@ class D4State(TypedDict):
     date_asked: bool
 
 
-# Catégories de chunks accessibles selon le rôle. "legislation" (Legifrance) est réservé aux agents -
-# contenu trop complexe/juridique pour le prompt citoyen (vulgarisé, voir décision 8 du CLAUDE.md).
-# Pas encore de chunks "legislation" dans le corpus (corpus enrichi progressivement) : le filtre est
-# déjà en place, prêt à s'appliquer dès qu'ils seront ajoutés.
+# Catégories de chunks interrogeables par CETTE branche (`rag_general`), selon le rôle.
+#
+# LE CORPUS JURIDIQUE N'Y FIGURE PLUS, POUR PERSONNE. Il était ouvert aux agents, ce qui
+# contournait sans le vouloir toute la garantie de la branche `fondement_juridique` : les
+# 319 chunks `legislation` contiennent du texte d'article figé à UNE version indexée
+# (« version du 2019-09-01 »). Un agent dont la question tombait sur `rag_general` plutôt
+# que sur `fondement_juridique` — un simple aléa de classification — recevait donc du droit
+# daté d'une version arbitraire, sans consultation du graphe, sans date affichée, et généré
+# par un prompt qui ne sait rien de la datation des textes. C'est exactement l'erreur que la
+# branche juridique existe pour empêcher : faux, et d'apparence fiable.
+#
+# Le corpus juridique reste atteignable, mais UNIQUEMENT par le chemin qui sait le dater :
+# `legal_pipeline` demande `category=["legislation"]` explicitement, sans passer par cette
+# table, puis sert le texte depuis le graphe dans la version applicable.
+#
+# Les deux rôles reçoivent donc la même chose ici. La table est conservée plutôt que
+# supprimée : le jour où un agent aura besoin d'un corpus plus large, ce sera par une
+# branche qui passe elle aussi par le graphe, et c'est ici que ça se déclarera.
 CATEGORIES_BY_ROLE = {
     "citizen": ["demarche"],
-    "agent": ["demarche", "legislation"],
+    "agent": ["demarche"],
 }
 
 

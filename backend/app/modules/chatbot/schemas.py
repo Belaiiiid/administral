@@ -39,10 +39,13 @@ class SourceCategory(str, enum.Enum):
     reglementation = "reglementation"
     document = "document"
     faq = "faq"
-    #: Corpus juridique (Legifrance), réservé au rôle agent — voir
-    #: `orchestrator.CATEGORIES_BY_ROLE`. Le filtre est en place, le corpus pas
-    #: encore alimenté : la catégorie est déclarée pour ne pas avoir à modifier
-    #: le contrat le jour où il l'est.
+    #: Corpus juridique (Légifrance), 319 chunks. Porté par les réponses de la branche
+    #: `fondement_juridique` UNIQUEMENT — c'est la seule qui sache de quelle VERSION du
+    #: texte elle parle, parce qu'elle sert l'article depuis le graphe et non depuis le
+    #: chunk indexé. Aucun rôle n'y accède par `rag_general` : voir
+    #: `orchestrator.CATEGORIES_BY_ROLE`, où cette restriction est justifiée.
+    #: (Ce commentaire a longtemps annoncé un corpus « pas encore alimenté » ; il l'était,
+    #: et l'écart entre les deux a masqué le contournement corrigé depuis.)
     legislation = "legislation"
 
 
