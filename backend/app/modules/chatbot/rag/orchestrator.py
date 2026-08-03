@@ -14,6 +14,7 @@ signalées par un commentaire `MonParcours` dans le code :
 
 import json
 import re
+import threading
 from datetime import date
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
@@ -462,14 +463,25 @@ def estimation_node(state: D4State) -> D4State:
 
 
 _rag_pipeline_instance = None
+#: Le endpoint est un `def` synchrone : FastAPI l'exécute dans un pool pouvant aller
+#: jusqu'à 40 threads. Sans verrou, deux requêtes simultanées trouvaient le singleton
+#: vide et construisaient chacune leur pipeline - deux modèles d'embeddings en mémoire,
+#: et deux ouvertures du dossier Qdrant, qui n'en admet qu'une. Le préchauffage
+#: synchrone (voir `main`) rend le cas rare ; le verrou le rend impossible.
+_rag_pipeline_lock = threading.Lock()
 
 
 def get_rag_pipeline():
-    """Lazy singleton : le pipeline (index BM25+Qdrant, modèle d'embeddings)
-    n'est construit qu'à la première question qui en a réellement besoin."""
+    """Singleton paresseux et sûr en concurrence (double vérification).
+
+    La première lecture hors verrou évite de sérialiser tous les tours suivants sur
+    un mutex alors que l'objet est déjà construit ; la seconde, à l'intérieur, est
+    celle qui compte - c'est elle qui empêche deux threads de construire."""
     global _rag_pipeline_instance
     if _rag_pipeline_instance is None:
-        _rag_pipeline_instance = rag_pipeline.RagPipeline()
+        with _rag_pipeline_lock:
+            if _rag_pipeline_instance is None:
+                _rag_pipeline_instance = rag_pipeline.RagPipeline()
     return _rag_pipeline_instance
 
 
@@ -666,16 +678,16 @@ def rag_general_node(state: D4State) -> D4State:
     }
 
 
-_legal_pipeline_instance = None
-
-
 def get_legal_pipeline():
     """Le pipeline juridique partage les index du pipeline RAG (mêmes BM25 et Qdrant) :
-    seuls le filtre de catégorie, la consultation du graphe et le prompt diffèrent."""
-    global _legal_pipeline_instance
-    if _legal_pipeline_instance is None:
-        _legal_pipeline_instance = legal_pipeline.get_legal_pipeline(get_rag_pipeline())
-    return _legal_pipeline_instance
+    seuls le filtre de catégorie, la consultation du graphe et le prompt diffèrent.
+
+    Plus de singleton ICI : il y en avait deux pour un seul objet, un dans ce module et
+    un dans `legal_pipeline`. Ils tenaient la même référence, donc rien ne cassait — mais
+    deux caches pour une chose sont deux endroits à raisonner, et le jour où l'un des
+    deux se vide ou se protège sans l'autre, la panne est incompréhensible. Le cache
+    appartient au module qui construit l'objet."""
+    return legal_pipeline.get_legal_pipeline(get_rag_pipeline())
 
 
 # --- La question de date, posée par le CODE ---------------------------------------------

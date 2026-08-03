@@ -32,6 +32,7 @@ RÈGLES DE SÛRETÉ appliquées ici :
   - Une référence inconnue du graphe reste inconnue : on le dit, sans appeler le LLM pour
     qu'il « comble ».
 """
+import threading
 from datetime import date
 
 from .legal_kg import get_kg
@@ -313,13 +314,22 @@ class LegalPipeline:
 
 
 _legal_pipeline_instance = None
+#: Voir `orchestrator.get_rag_pipeline` : endpoint synchrone, pool de threads, donc
+#: construction concurrente possible. Ici le coût d'une double construction serait
+#: surtout un second chargement du graphe juridique en mémoire.
+_legal_pipeline_lock = threading.Lock()
 
 
 def get_legal_pipeline(rag_pipeline):
-    """Singleton, construit à partir du pipeline RAG déjà chargé (index partagés)."""
+    """Singleton, construit à partir du pipeline RAG déjà chargé (index partagés).
+
+    Seul cache de cet objet dans le projet : l'orchestrateur en tenait un second, qui
+    ne servait qu'à mémoriser ce que celui-ci mémorisait déjà."""
     global _legal_pipeline_instance
     if _legal_pipeline_instance is None:
-        _legal_pipeline_instance = LegalPipeline(rag_pipeline)
+        with _legal_pipeline_lock:
+            if _legal_pipeline_instance is None:
+                _legal_pipeline_instance = LegalPipeline(rag_pipeline)
     return _legal_pipeline_instance
 
 
