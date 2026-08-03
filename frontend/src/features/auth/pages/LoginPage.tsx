@@ -53,9 +53,12 @@ export default function LoginPage() {
         navigate(ROUTES.agent, { replace: true });
       } else {
         // After login, take citizens to voice onboarding if they haven't seen it yet,
-        // otherwise to the intended page (or the citizen portal by default).
+        // otherwise to the page they were headed to, or the administrations list by
+        // default — same destination `HomeRoute` sends an already-authenticated
+        // visitor to, so "choose an administration, then see its services" is the
+        // one consistent entry point rather than a shortcut straight to CAF's hub.
         const hasSeenVoiceOnboarding = useVoiceStore.getState().hasSeenVoiceOnboarding;
-        const from = (location.state as LocationState | null)?.from?.pathname || ROUTES.portal;
+        const from = (location.state as LocationState | null)?.from?.pathname || ROUTES.administrations;
         navigate(hasSeenVoiceOnboarding ? from : ROUTES.voiceOnboarding, { replace: true });
       }
     } catch {

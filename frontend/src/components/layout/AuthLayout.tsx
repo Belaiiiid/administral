@@ -2,7 +2,7 @@ import { Link, Outlet } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
-import { Logo } from '@/components/layout/Logo';
+import administralLogo from '@/assets/administral-logo.png';
 import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
@@ -23,11 +23,17 @@ export function AuthLayout() {
 
           <div className="mx-auto flex w-full max-w-[520px] flex-1 flex-col justify-center">
             <div className="mb-8 flex flex-col items-center gap-3 text-center">
-              <Link to={ROUTES.home} className="rounded-lg">
-                <Logo />
+              <Link to={ROUTES.home} className="flex items-center gap-3 rounded-lg">
+                <img src={administralLogo} alt="Administral" className="h-14 w-14 shrink-0 object-contain" />
+                <span className="flex flex-col text-left leading-tight">
+                  <span className="text-headline-md text-primary">ADMINISTRAL</span>
+                  <span className="text-label-sm uppercase tracking-widest text-on-surface-variant">
+                    Service Public
+                  </span>
+                </span>
               </Link>
               <p className="text-body-md text-on-surface-variant">{APP_CONFIG.tagline}</p>
-              <PartnerLogos />
+              <PartnerLogos className="gap-6" logoClassName="h-14" />
             </div>
 
             <main id="main-content" tabIndex={-1} className="focus:outline-none">

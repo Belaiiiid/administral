@@ -40,6 +40,7 @@ export const SERVICES: ServiceDefinition[] = [
     description: 'Centralisation de vos remboursements et documents Ameli pour vos dossiers.',
     basePath: '/assurance-maladie',
     status: 'coming_soon',
+    logoUrl: '/assurance-maladie-logo.svg',
   },
   {
     id: 'impots',

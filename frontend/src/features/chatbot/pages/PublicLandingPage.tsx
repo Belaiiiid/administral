@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 
-import { ROUTES } from '@/app/router/paths';
-import { Logo } from '@/components/layout/Logo';
-import { PartnerLogos } from '@/components/layout/PartnerLogos';
-import { Button } from '@/components/ui/button';
+import { CitizenFooter } from '@/components/layout/CitizenFooter';
+import { SkipLink } from '@/components/layout/SkipLink';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
-import { LandingBenefits } from '@/features/chatbot/components/landing/LandingBenefits';
-import { LandingHero, type AssistMode } from '@/features/chatbot/components/landing/LandingHero';
-import { LandingStats } from '@/features/chatbot/components/landing/LandingStats';
-import { WhatsAppQrCard } from '@/features/chatbot/components/landing/WhatsAppQrCard';
+import { LandingAI } from '@/features/chatbot/components/landing/LandingAI';
+import { LandingCafServices } from '@/features/chatbot/components/landing/LandingCafServices';
+import { LandingFeatures } from '@/features/chatbot/components/landing/LandingFeatures';
+import { LandingHeader } from '@/features/chatbot/components/landing/LandingHeader';
+import { LandingHero } from '@/features/chatbot/components/landing/LandingHero';
+import { LandingServices } from '@/features/chatbot/components/landing/LandingServices';
+import { LandingTrust } from '@/features/chatbot/components/landing/LandingTrust';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
 import { VoiceStatusStrip } from '@/features/voice/components/VoiceStatusStrip';
 import { VoicePageProvider, useVoicePage } from '@/features/voice/context/VoicePageContext';
 import { useVoiceComposer } from '@/features/voice/hooks/useVoiceComposer';
 import { useVoiceStore } from '@/features/voice/store/voiceStore';
+
+type AssistMode = 'voice' | 'text';
 
 /**
  * Public entry point (`/`) for a visitor with no session.
@@ -33,8 +35,9 @@ import { useVoiceStore } from '@/features/voice/store/voiceStore';
  * to protect and nothing to fabricate for one that does not exist yet.
  *
  * Before the assistant opens, the page reads as a marketing/trust page —
- * hero, benefits, stats — rather than an administrative portal, and the
- * citizen picks voice-or-text before starting rather than mid-conversation.
+ * hero, services, features, benefits — rather than an administrative portal,
+ * and the citizen picks voice-or-text before starting rather than mid-
+ * conversation.
  *
  * Voice works here exactly as it does for a signed-in citizen: the backend
  * voice endpoints (`app/modules/voice`) never required a session, so the only
@@ -98,8 +101,9 @@ function LandingContent() {
     actions: [],
   });
 
-  const handleStart = () => {
-    if (assistMode === 'voice') {
+  const handleStart = (mode: AssistMode) => {
+    setAssistMode(mode);
+    if (mode === 'voice') {
       enableVoiceMode();
     } else {
       disableVoiceMode();
@@ -118,29 +122,18 @@ function LandingContent() {
   }, [pendingQuestion, consumePendingQuestion, controller]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-header items-center justify-between border-b border-border bg-surface-lowest px-margin-mobile md:px-gutter">
-        <div className="flex items-center gap-4">
-          <Logo />
-          <div className="hidden border-l border-border pl-4 sm:block">
-            <PartnerLogos />
-          </div>
-        </div>
-        <Button asChild>
-          <Link to={ROUTES.login}>Se connecter</Link>
-        </Button>
-      </header>
+    <div className="citizen-scope flex min-h-screen flex-col bg-background font-sans">
+      <SkipLink />
+      <LandingHeader />
 
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto flex w-full max-w-container flex-1 flex-col px-margin-mobile py-8 focus:outline-none md:px-gutter"
-      >
+      <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
         {started ? (
-          <>
+          <div className="mx-auto flex w-full max-w-container flex-col px-margin-mobile py-8 md:px-gutter">
             <div className="mb-6 text-center">
-              <h1 className="text-headline-lg text-primary">Comment pouvons-nous vous aider ?</h1>
-              <p className="mx-auto mt-2 max-w-form text-body-md text-on-surface-variant">
+              <h1 className="font-display text-2xl font-extrabold text-ink">
+                Comment pouvons-nous vous aider ?
+              </h1>
+              <p className="mx-auto mt-2 max-w-form text-muted-foreground">
                 Posez vos questions sur votre éligibilité, une démarche ou un document — sans
                 avoir besoin de créer de compte.
               </p>
@@ -152,31 +145,23 @@ function LandingContent() {
               onStopSpeaking={stopSpeaking}
             />
             <ChatWindow controller={controller} onVoiceInput={toggleRecording} isRecording={isRecording} />
-          </>
+          </div>
         ) : (
           <>
-            <LandingHero mode={assistMode} onModeChange={setAssistMode} onStart={handleStart} />
-            <LandingBenefits />
-            <LandingStats />
-            <section className="border-t border-border py-10">
-              <div className="mx-auto max-w-form">
-                <WhatsAppQrCard />
-              </div>
-            </section>
+            <LandingHero onStart={() => handleStart('text')} />
+            <LandingServices />
+            <LandingCafServices />
+            <LandingFeatures
+              onStartChat={() => handleStart('text')}
+              onStartVoice={() => handleStart('voice')}
+            />
+            <LandingAI />
+            <LandingTrust />
           </>
         )}
       </main>
 
-      <footer className="border-t border-border py-6 text-center">
-        <p className="mb-2 text-label-sm uppercase tracking-wide text-on-surface-variant">
-          Powered by
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <span className="text-label-sm font-semibold text-on-surface">MonParcours</span>
-          <span className="text-on-surface-variant">•</span>
-          <PartnerLogos />
-        </div>
-      </footer>
+      <CitizenFooter />
     </div>
   );
 }

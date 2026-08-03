@@ -94,10 +94,33 @@ const config: Config = {
           white: '#ffffff',
           red: '#e1000f',
         },
+
+        // Administral design system — citizen-facing interfaces only (scoped
+        // under `.citizen-scope`, see src/index.css). New tokens, so they are
+        // safe to declare globally: nothing outside that scope ever uses them.
+        brand: {
+          DEFAULT: 'var(--admtl-brand)',
+          soft: 'var(--admtl-brand-soft)',
+        },
+        marianne: {
+          DEFAULT: 'var(--admtl-marianne)',
+          foreground: 'var(--admtl-marianne-foreground)',
+        },
+        ink: 'var(--admtl-ink)',
+        foreground: 'var(--admtl-foreground)',
+        card: {
+          DEFAULT: 'var(--admtl-card)',
+          foreground: 'var(--admtl-card-foreground)',
+        },
+        'chart-2': 'var(--admtl-chart-2)',
       },
 
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        // Both driven by CSS variables so `.citizen-scope` (src/index.css) can
+        // swap in DM Sans / Plus Jakarta Sans for the Administral redesign
+        // without touching `font-sans` / `font-display` anywhere else.
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        display: ['var(--font-display)', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],
       },
 
       // Typographic scale from DESIGN.md — size / line-height / weight / tracking

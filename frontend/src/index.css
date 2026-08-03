@@ -61,6 +61,10 @@
 
     /* Root font size — driven by the "texte agrandi" preference (+20%) */
     --app-font-scale: 1;
+
+    /* Default typefaces — overridden inside `.citizen-scope` only. */
+    --font-sans: 'Inter';
+    --font-display: 'Manrope';
   }
 
   /*
@@ -130,6 +134,58 @@
   ::selection {
     @apply bg-primary-fixed text-primary;
   }
+
+  /*
+   * Administral design system — oklch tokens lifted from the reference
+   * design-to-code project, for the citizen-facing redesign
+   * (docs: see the "Administral" rebuild — everything except France Travail,
+   * the agent CAF back-office and the voice onboarding page).
+   *
+   * `--admtl-*` names are brand new (no existing class used them), so they
+   * are declared once here at :root — safe everywhere. `--background`,
+   * `--surface`, `--border-subtle` and `--text-muted` already have an
+   * app-wide meaning (used throughout the agent back-office), so their
+   * Administral values are only applied inside `.citizen-scope`, which wraps
+   * the new citizen shell — never at :root.
+   */
+  :root {
+    --admtl-brand: oklch(0.55 0.19 258);
+    --admtl-brand-soft: oklch(0.94 0.03 250);
+    --admtl-marianne: oklch(0.32 0.13 265);
+    --admtl-marianne-foreground: oklch(0.99 0.005 250);
+    --admtl-ink: oklch(0.19 0.06 264);
+    --admtl-foreground: oklch(0.22 0.05 262);
+    --admtl-card: oklch(1 0 0);
+    --admtl-card-foreground: oklch(0.129 0.042 264.695);
+    --admtl-chart-2: oklch(0.6 0.118 184.704);
+  }
+
+  /*
+   * Citizen-facing scope: overrides the shared surface tokens with the
+   * Administral values and swaps the typefaces to DM Sans / Plus Jakarta
+   * Sans. Wraps `CitizenAppShell` only — the agent back-office (`AppShell`,
+   * `AdminLayout`) and France Travail / voice pages never carry this class,
+   * so they keep their current colours and fonts untouched.
+   */
+  .citizen-scope {
+    --background: oklch(1 0 0);
+    --surface: oklch(0.985 0.008 250);
+    --border-subtle: oklch(0.929 0.013 255.508);
+    --text-muted: oklch(0.554 0.046 257.417);
+    --font-sans: 'DM Sans';
+    --font-display: 'Plus Jakarta Sans';
+  }
+
+  /* Uppercase eyebrow label — section kickers across the Administral redesign. */
+  .eyebrow {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--admtl-brand);
+  }
+
 }
 
 @layer components {
