@@ -105,6 +105,40 @@ EXPLAIN_OPTION = "Je ne comprends pas, expliquez-moi"
 SKIP_OPTION = "Passer cette question"
 
 
+#: Les seuls rôles qu'un tour PASSÉ peut porter. `system` en est volontairement absent :
+#: c'est la couche d'instructions du modèle, elle n'appartient qu'au code.
+ROLES_DE_CONVERSATION = ("user", "assistant")
+#: Bornes appliquées au moment d'écrire le prompt, indépendamment de qui a fourni
+#: l'historique (voir `historique_de_confiance`).
+HISTORIQUE_TOURS_MAX = 20
+HISTORIQUE_CONTENU_MAX = 4000
+
+
+def historique_de_confiance(conversation_history):
+    """Filtre un historique fourni par l'appelant avant de l'écrire dans un prompt.
+
+    L'historique ne vient JAMAIS du serveur : le moteur ne garde aucune session, c'est
+    le client qui le renvoie à chaque tour. Il est donc, par construction, une entrée
+    non fiable recopiée dans le prompt — et un `{"role": "system"}` glissé dedans
+    ajoute des consignes au modèle sur toutes les branches.
+
+    Le schéma HTTP borne déjà tout cela. Ce filtre-ci existe parce que le schéma ne
+    protège QUE la route HTTP, alors que ce moteur est explicitement prévu pour servir
+    un second canal sans compte (WhatsApp, cf. les docstrings du module) qui ne passera
+    pas par lui. La garantie doit tenir là où le prompt s'écrit, pas seulement à la
+    porte d'entrée : un tour au rôle inconnu est écarté, jamais réinterprété."""
+    propres = []
+    for tour in conversation_history or []:
+        if not isinstance(tour, dict):
+            continue
+        role = tour.get("role")
+        contenu = tour.get("content")
+        if role not in ROLES_DE_CONVERSATION or not isinstance(contenu, str) or not contenu:
+            continue
+        propres.append({"role": role, "content": contenu[:HISTORIQUE_CONTENU_MAX]})
+    return propres[-HISTORIQUE_TOURS_MAX:]
+
+
 def _enforce_standard_options(options):
     """Insère EXPLAIN_OPTION et SKIP_OPTION à la fin de la liste d'options, quoi que le LLM
     ait produit (il peut les oublier ou les mal placer - on ne compte pas sur lui pour ça)."""

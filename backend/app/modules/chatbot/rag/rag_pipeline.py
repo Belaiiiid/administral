@@ -21,7 +21,7 @@ from app.core.logger import logger
 from . import bm25_index
 from . import qdrant_index
 from .hybrid_search import reciprocal_rank_fusion
-from .llm_client import call_llm_structured
+from .llm_client import call_llm_structured, historique_de_confiance
 
 # La recherche sémantique est activée par défaut mais bornée : si l'index n'est
 # pas prêt dans ce délai (typiquement le téléchargement du modèle d'embeddings au
@@ -177,7 +177,7 @@ class RagPipeline:
             user_prompt = f"{user_prompt}\n\n{consigne_finale}"
 
         messages = [{"role": "system", "content": GENERATION_SYSTEM_PROMPT}]
-        messages.extend(conversation_history or [])
+        messages.extend(historique_de_confiance(conversation_history))
         messages.append({"role": "user", "content": user_prompt})
 
         return call_llm_structured(messages=messages, model=model, provider=provider, temperature=0.2)

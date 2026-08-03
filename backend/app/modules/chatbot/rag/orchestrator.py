@@ -23,6 +23,7 @@ from .llm_client import (
     LlmContractError,
     _enforce_standard_options,
     call_llm,
+    historique_de_confiance,
     with_standard_options,
 )
 from app.core.logger import logger
@@ -194,7 +195,7 @@ def route_intent_llm(state: D4State) -> str:
     jamais de comportement indéfini)."""
     try:
         messages = [{"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT}]
-        messages.extend(state["conversation_history"])
+        messages.extend(historique_de_confiance(state["conversation_history"]))
         messages.append({"role": "user", "content": state["message"]})
 
         result = call_llm(
@@ -509,10 +510,24 @@ _CLE_RAG = "rag_clarification"
 _MAX_REPONSES_GARDEES = 10
 
 
+#: L'état voyage dans `pending_clarification.original_question`, que le schéma borne
+#: (voir `schemas`). Ces deux tailles sont ce qui garantit qu'on reste sous cette borne :
+#: une question de 2000 caractères suivie de dix réponses de 2000 la ferait exploser, et
+#: le dialogue deviendrait irrecevable au tour suivant. Elles sont larges pour ce dont
+#: elles ont l'usage - retrouver les bons extraits ne demande pas la question intégrale,
+#: et une réponse de clarification est un choix ou une valeur courte.
+_QUESTION_GARDEE_MAX = 500
+_REPONSE_GARDEE_MAX = 200
+
+
 def _encoder_etat_rag(question: str, reponses: list[str], posees: int) -> str:
     return etat_dialogue.encoder(
         _CLE_RAG,
-        {"question": question, "reponses": reponses[-_MAX_REPONSES_GARDEES:], "posees": posees},
+        {
+            "question": question[:_QUESTION_GARDEE_MAX],
+            "reponses": [r[:_REPONSE_GARDEE_MAX] for r in reponses[-_MAX_REPONSES_GARDEES:]],
+            "posees": posees,
+        },
     )
 
 

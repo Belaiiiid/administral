@@ -22,7 +22,7 @@ import enum
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -72,11 +72,39 @@ class ChatbotCtaSchema(CamelModel):
     hint: str | None = None
 
 
-class ChatMessageSchema(CamelModel):
-    """One prior turn, sent as context."""
+#: Longueur au-delà de laquelle un tour passé est TRONQUÉ (pas rejeté). Une réponse
+#: juridique longue ne doit pas rendre invalide le message suivant du citoyen : refuser
+#: bloquerait la conversation pour une faute qui n'est pas la sienne.
+CONTENT_MAX = 4000
+#: Bord extérieur, celui-là rejeté : au-delà, ce n'est plus une conversation, c'est une
+#: charge utile. Sert à ne pas ingérer des mégaoctets avant de les tronquer.
+CONTENT_ABSURDE = 20_000
+#: Le client envoie déjà les 6 derniers tours (`chatbotService.ts`). La borne est haute
+#: exprès : elle n'existe pas pour ajuster le contexte mais pour empêcher l'abus.
+HISTORIQUE_MAX = 20
 
-    role: str
-    content: str
+
+class ChatMessageSchema(CamelModel):
+    """One prior turn, sent as context.
+
+    CE QUE LE CLIENT ENVOIE ICI EST RECOPIÉ DANS LE PROMPT. C'est ce qui rend `role`
+    critique : `system` n'est pas un rôle de conversation, c'est la couche d'instructions
+    du modèle. Laissé libre, il permettait à n'importe quel appelant — l'endpoint est
+    ouvert, sans compte — d'ajouter ses propres consignes à toutes les branches, y compris
+    la branche juridique qui affiche des sources Légifrance sous sa réponse.
+
+    Le rôle est donc REFUSÉ s'il sort du vocabulaire ; le contenu, lui, est TRONQUÉ.
+    Les deux fautes n'ont pas le même auteur : un rôle inconnu ne peut venir que d'un
+    client qui invente, tandis qu'un contenu trop long peut n'être qu'une réponse
+    précédente un peu bavarde."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=CONTENT_ABSURDE)
+
+    @field_validator("content")
+    @classmethod
+    def _tronquer(cls, valeur: str) -> str:
+        return valeur[:CONTENT_MAX]
 
 
 class PendingClarificationSchema(CamelModel):
@@ -88,7 +116,12 @@ class PendingClarificationSchema(CamelModel):
     le classifieur, il ne doit donc pas pouvoir désigner autre chose.
     """
 
-    original_question: str
+    #: Renvoyé tel quel par le client, puis concaténé dans la requête de recherche et
+    #: servi comme question à la branche juridique — donc borné, comme `message`. Il
+    #: porte aussi, selon la branche, l'état encodé du dialogue (`etat_dialogue`), d'où
+    #: une borne plus large que les 2000 caractères d'un message : elle doit couvrir la
+    #: question ET les réponses déjà données, elles-mêmes tronquées à l'encodage.
+    original_question: str = Field(max_length=4000)
     intent: Literal[
         "rag_general", "documents_necessaires", "estimation", "fondement_juridique"
     ]
@@ -102,7 +135,9 @@ class PendingClarificationSchema(CamelModel):
 class ChatbotContextSchema(CamelModel):
     case_id: str | None = None
     case_status: str | None = None
-    conversation_history: list[ChatMessageSchema] = Field(default_factory=list)
+    conversation_history: list[ChatMessageSchema] = Field(
+        default_factory=list, max_length=HISTORIQUE_MAX
+    )
     pending_clarification: PendingClarificationSchema | None = None
     #: True uniquement quand le message vient du popup de clarification (clic sur
     #: une option ou saisie dans le champ dédié). Jamais déduit du contenu du
