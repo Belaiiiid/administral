@@ -21,7 +21,7 @@ export function LandingStats() {
         {STATS.map(({ icon: Icon, value, label }) => (
           <div
             key={label}
-            className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface-lowest p-6 text-center shadow-soft"
+            className="flex flex-col items-center gap-2 rounded-3xl border border-border bg-surface-lowest p-6 text-center shadow-soft transition-shadow hover:shadow-soft-hover"
           >
             <span className="flex size-10 items-center justify-center rounded-full bg-ai-surface text-ai">
               <Icon className="size-5" aria-hidden="true" />

@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 import type { VoicePageAction } from '@/features/voice/types';
+import { useSessionStore } from '@/store/sessionStore';
 import type { AdministrationId } from '@/types';
 
 /** One recognisable icon per administration, rather than a single generic mark repeated on every card. */
@@ -28,6 +29,7 @@ const ADMINISTRATION_ICONS: Record<AdministrationId, LucideIcon> = {
 export default function AdministrationsPage() {
   useDocumentTitle('Administrations');
   const navigate = useNavigate();
+  const { displayName } = useSessionStore();
 
   const availableServices = SERVICES.filter((service) => service.status === 'available');
   const availableActions: VoicePageAction[] = availableServices.map((service) => ({
@@ -48,7 +50,7 @@ export default function AdministrationsPage() {
   return (
     <div className="mx-auto max-w-container">
       <PageHeader
-        title="Administrations"
+        title={displayName ? `Bonjour, ${displayName}` : 'Administrations'}
         description="Choisissez l’administration avec laquelle vous souhaitez interagir."
       />
 
@@ -61,14 +63,14 @@ export default function AdministrationsPage() {
             <Card
               className={
                 isAvailable
-                  ? 'h-full transition-colors hover:border-primary'
-                  : 'h-full opacity-60'
+                  ? 'h-full rounded-3xl transition-all hover:-translate-y-0.5 hover:border-ai hover:shadow-soft-hover'
+                  : 'h-full rounded-3xl opacity-60'
               }
             >
               <CardContent className="flex h-full flex-col gap-4 p-6">
                 <div className="flex items-start justify-between gap-3">
                   {service.logoUrl ? (
-                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-1.5">
+                    <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-white p-1.5">
                       <img
                         src={service.logoUrl}
                         alt=""
@@ -77,11 +79,13 @@ export default function AdministrationsPage() {
                       />
                     </span>
                   ) : (
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary-fixed text-primary">
+                    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
                       <Icon className="size-6" aria-hidden="true" />
                     </span>
                   )}
-                  {!isAvailable && (
+                  {isAvailable ? (
+                    <Badge tone="success">Connecté</Badge>
+                  ) : (
                     <Badge tone="neutral">
                       <Lock className="size-3" aria-hidden="true" />
                       Bientôt disponible

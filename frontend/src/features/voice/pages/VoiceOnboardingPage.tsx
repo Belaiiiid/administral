@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Volume2, VolumeX } from 'lucide-react';
+import { FileText, Mic, PenLine, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVoiceStore } from '../store/voiceStore';
 import { MistralTtsProvider } from '../providers/MistralTtsProvider';
@@ -87,12 +87,37 @@ export const VoiceOnboardingPage: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 py-12">
       <div className="w-full max-w-xl text-center">
+        <div className="mx-auto mb-8 flex size-24 items-center justify-center rounded-3xl bg-ai text-white shadow-soft">
+          <Mic className="size-10" aria-hidden="true" />
+        </div>
+
         <h1 className="mb-6 text-headline-lg-mobile text-primary md:text-display font-bold leading-tight">
           Assistant Vocal d'Accessibilité
         </h1>
         <p className="mb-10 text-body-lg text-on-surface-variant max-w-md mx-auto">
           Pour t'offrir l'expérience la plus fluide, l'assistant peut te guider oralement à chaque étape.
         </p>
+
+        <div className="mb-10 grid gap-4 text-left sm:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-surface-lowest p-5 shadow-soft">
+            <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-ai-surface text-ai">
+              <FileText className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="mb-1 text-headline-md text-on-surface">Lecture de documents</h2>
+            <p className="text-body-sm text-on-surface-variant">
+              Je peux vous lire les informations de chaque page et expliquer les termes complexes.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface-lowest p-5 shadow-soft">
+            <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-ai-surface text-ai">
+              <PenLine className="size-5" aria-hidden="true" />
+            </span>
+            <h2 className="mb-1 text-headline-md text-on-surface">Remplissage assisté</h2>
+            <p className="text-body-sm text-on-surface-variant">
+              Dictez vos informations et je m'occupe de remplir les formulaires pour vous.
+            </p>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center mb-8">
           <Button

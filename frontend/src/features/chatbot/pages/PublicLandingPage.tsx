@@ -119,7 +119,11 @@ function LandingContent() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-header items-center justify-between border-b border-border bg-surface-lowest px-margin-mobile md:px-gutter">
+      <div
+        aria-hidden="true"
+        className="sticky top-0 z-30 h-1 w-full bg-[linear-gradient(to_right,#000091_33.3%,#ffffff_33.3%,#ffffff_66.6%,#e1000f_66.6%)]"
+      />
+      <header className="sticky top-1 z-30 flex h-header items-center justify-between border-b border-border bg-surface-lowest px-margin-mobile md:px-gutter">
         <div className="flex items-center gap-4">
           <Logo />
           <div className="hidden border-l border-border pl-4 sm:block">

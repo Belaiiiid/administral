@@ -3,21 +3,23 @@
 @tailwind utilities;
 
 /*
- * Design tokens — see docs/design-analysis.md §3.
+ * Design tokens — see docs/design-analysis.md §3 and the "Ad'Ministral Core"
+ * Stitch reference (Institutional Modernism: deep navy + AI blue + soft-pink
+ * accent + pale-blue AI surface).
  * Exposed as CSS variables so runtime accessibility preferences can override
  * them (high contrast, enlarged text) without touching component code.
  */
 @layer base {
   :root {
     /* Brand */
-    --primary: #000929;
+    --primary: #091f4e;
     --on-primary: #ffffff;
-    --primary-container: #001d59;
-    --primary-fixed: #dbe1ff;
+    --primary-container: #000927;
+    --primary-fixed: #dce3f5;
     --primary-fixed-dim: #b4c5ff;
     --on-primary-fixed: #00174b;
 
-    --secondary: #a1385f;
+    --secondary: #d46087;
     --on-secondary: #ffffff;
     --secondary-fixed: #ffd9e1;
     --secondary-fixed-dim: #ffb1c6;
@@ -25,7 +27,7 @@
 
     /* AI accent */
     --accent-ai: #003593;
-    --accent-ai-surface: #f0f4ff;
+    --accent-ai-surface: #dce3f5;
 
     /* Surfaces */
     --background: #f9f9f9;

@@ -1,4 +1,4 @@
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { RadioCard, RadioGroup } from '@/components/ui/radio-group';
@@ -14,6 +14,11 @@ interface LandingHeroProps {
 export function LandingHero({ mode, onModeChange, onStart }: LandingHeroProps) {
   return (
     <section className="flex flex-col items-center gap-8 py-10 text-center">
+      <span className="inline-flex items-center gap-2 rounded-full bg-secondary-fixed px-4 py-1.5 text-label-sm text-secondary-on-fixed">
+        <ShieldCheck className="size-4" aria-hidden="true" />
+        Plateforme officielle de l&rsquo;État français
+      </span>
+
       <div className="flex size-20 items-center justify-center rounded-2xl bg-ai-surface text-ai">
         <MessageCircle className="size-10" aria-hidden="true" />
       </div>
