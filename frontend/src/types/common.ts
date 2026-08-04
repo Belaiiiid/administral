@@ -8,8 +8,28 @@ export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'error' | 
 
 export type ProcessStatus = 'draft' | 'pending' | 'in_progress' | 'validated' | 'rejected';
 
-/** A French public administration exposed as a service module in the portal. */
-export type AdministrationId = 'caf' | 'france-travail' | 'assurance-maladie' | 'impots';
+/**
+ * A French public administration exposed as a service module in the portal.
+ *
+ * Only `caf` and `france-travail` are wired to a real backend today; the rest
+ * are listed on `/administrations` as `coming_soon` so a citizen can see the
+ * intended scope. Adding an id here means adding an icon to
+ * `ADMINISTRATION_ICONS` (components/citizen/ServiceCard) — the record is
+ * exhaustive, so TypeScript will point at it.
+ */
+export type AdministrationId =
+  | 'caf'
+  | 'france-travail'
+  | 'assurance-maladie'
+  | 'impots'
+  | 'retraite'
+  | 'ants'
+  | 'urssaf'
+  | 'msa'
+  | 'crous'
+  | 'anah'
+  | 'mdph'
+  | 'service-public';
 
 export interface ServiceDefinition {
   id: AdministrationId;

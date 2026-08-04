@@ -154,6 +154,21 @@ const config: Config = {
         prose: '720px',
       },
 
+      screens: {
+        /*
+         * Height-based, not width-based: `short:` compacts a layout that must
+         * fit the viewport without scrolling (the sign-in card) on a laptop or
+         * a browser with a lot of chrome. Everything it touches only loses
+         * whitespace, never content — a citizen who zooms in still gets a
+         * scrollbar rather than a clipped form.
+         */
+        short: { raw: '(max-height: 820px)' },
+        /* Second tier for a 1366×768 laptop, where browser chrome and the
+         * taskbar leave roughly 600px. Declared after `short` so its rules are
+         * emitted later and win where both apply. */
+        shorter: { raw: '(max-height: 680px)' },
+      },
+
       borderRadius: {
         // Named explicitly to resolve the DESIGN.md / tailwind-config ambiguity.
         sm: '4px', // checkboxes, tags

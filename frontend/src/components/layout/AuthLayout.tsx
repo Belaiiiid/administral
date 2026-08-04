@@ -32,7 +32,14 @@ export function AuthLayout() {
         <div
           className={cn(
             'relative flex min-h-screen flex-col px-margin-mobile py-12',
-            isLogin ? 'bg-[#f3f4f9]' : 'bg-background',
+            // Sign-in has to fit the screen with no scrollbar in either axis:
+            // it is one short form, and a scrollbar on it reads as breakage.
+            // `min-h-screen` is kept rather than `h-screen` + `overflow-hidden`
+            // so a zoomed-in or very short viewport degrades to scrolling
+            // instead of clipping the submit button out of reach.
+            isLogin
+              ? 'overflow-x-hidden bg-[#f3f4f9] short:py-6 shorter:py-3'
+              : 'bg-background',
           )}
         >
           <SkipLink />

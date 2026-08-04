@@ -20,6 +20,8 @@ export interface CafServiceDefinition {
   /** Route this service owns. Empty for a not-yet-available one — nothing to link to. */
   basePath: string;
   status: 'available' | 'coming_soon';
+  /** Artwork filling the card's panel on `/portal` (`public/caf-services/`). */
+  photoUrl?: string;
 }
 
 export const CAF_SERVICES: CafServiceDefinition[] = [
@@ -31,6 +33,7 @@ export const CAF_SERVICES: CafServiceDefinition[] = [
       'Aide au paiement du loyer, versée sous conditions de ressources pour un logement conventionné. Ici : simulez vos droits et déposez votre dossier.',
     basePath: ROUTES.dossier,
     status: 'available',
+    photoUrl: '/caf-services/apl.svg',
   },
   {
     id: 'af',
@@ -40,6 +43,7 @@ export const CAF_SERVICES: CafServiceDefinition[] = [
       'Versement mensuel aux familles ayant au moins deux enfants à charge, sans condition d’activité.',
     basePath: '',
     status: 'coming_soon',
+    photoUrl: '/caf-services/af.svg',
   },
   {
     id: 'alf',
@@ -49,6 +53,7 @@ export const CAF_SERVICES: CafServiceDefinition[] = [
       'Aide au logement pour les foyers avec personnes à charge qui ne peuvent pas prétendre à l’APL.',
     basePath: '',
     status: 'coming_soon',
+    photoUrl: '/caf-services/alf.svg',
   },
   {
     id: 'prime-activite',
@@ -58,6 +63,7 @@ export const CAF_SERVICES: CafServiceDefinition[] = [
       'Complète les revenus des personnes qui travaillent tout en gagnant peu. Ici : estimez et suivez votre montant.',
     basePath: '',
     status: 'coming_soon',
+    photoUrl: '/caf-services/prime-activite.svg',
   },
 ];
 

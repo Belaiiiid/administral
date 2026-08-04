@@ -8,6 +8,10 @@ import type { ServiceDefinition } from '@/types';
  * Adding a new administration means: append an entry here, create the matching
  * `features/<id>/` module, and register its routes. Nothing else in the shell
  * needs to change.
+ *
+ * Order is the display order. CAF and France Travail lead because they are the
+ * two that actually work; everything after them is `coming_soon` and renders as
+ * a locked tile rather than pretending to be usable.
  */
 export const SERVICES: ServiceDefinition[] = [
   {
@@ -60,6 +64,96 @@ export const SERVICES: ServiceDefinition[] = [
     status: 'coming_soon',
     logoUrl: '/impots.jpg',
     photoUrl: '/impots.jpg',
+  },
+  {
+    id: 'retraite',
+    name: 'Assurance retraite',
+    fullName: 'Cnav et Carsat — régime général de la retraite',
+    administration: 'Assurance retraite',
+    description:
+      'L’organisme qui calcule et verse la retraite du régime général. Relevé de carrière, âge de départ et demande de retraite personnelle.',
+    basePath: '/retraite',
+    status: 'coming_soon',
+    photoUrl: '/administrations/illus-retraite.svg',
+  },
+  {
+    id: 'ants',
+    // Renamed from ANTS in 2024; the acronym survives in the service's own
+    // domain (ants.gouv.fr), so it stays in `fullName` for recognition.
+    name: 'France Titres',
+    fullName: 'ANTS — Agence Nationale des Titres Sécurisés',
+    administration: 'France Titres',
+    description:
+      'L’agence qui délivre vos titres officiels, en ligne sur ants.gouv.fr : passeport, carte nationale d’identité, permis de conduire et carte grise.',
+    basePath: '/ants',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-ants.svg',
+  },
+  {
+    id: 'urssaf',
+    name: 'Urssaf',
+    fullName: 'Recouvrement des cotisations sociales',
+    administration: 'Urssaf',
+    description:
+      'L’organisme qui collecte les cotisations sociales. Auto-entrepreneurs, Cesu et Pajemploi : déclarations et attestations.',
+    basePath: '/urssaf',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-urssaf.svg',
+  },
+  {
+    id: 'mdph',
+    name: 'MDPH',
+    fullName: 'Maison Départementale des Personnes Handicapées',
+    administration: 'MDPH',
+    description:
+      'Le guichet départemental du handicap. AAH, prestation de compensation, carte mobilité inclusion et reconnaissance RQTH.',
+    basePath: '/mdph',
+    status: 'coming_soon',
+    photoUrl: '/administrations/illus-mdph.svg',
+  },
+  {
+    id: 'crous',
+    name: 'Crous',
+    fullName: 'Centre régional des œuvres universitaires et scolaires',
+    administration: 'Crous',
+    description:
+      'L’organisme de la vie étudiante. Dossier social étudiant, bourse sur critères sociaux et logement universitaire.',
+    basePath: '/crous',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-crous.svg',
+  },
+  {
+    id: 'anah',
+    name: 'Anah',
+    fullName: 'Agence nationale de l’habitat — MaPrimeRénov’',
+    administration: 'Anah',
+    description:
+      'L’agence qui finance les travaux dans le logement. Rénovation énergétique, adaptation au vieillissement et habitat dégradé.',
+    basePath: '/anah',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-anah.svg',
+  },
+  {
+    id: 'msa',
+    name: 'MSA',
+    fullName: 'Mutualité Sociale Agricole',
+    administration: 'MSA',
+    description:
+      'Le régime de protection sociale du monde agricole : santé, famille et retraite pour les exploitants et les salariés agricoles.',
+    basePath: '/msa',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-msa.svg',
+  },
+  {
+    id: 'service-public',
+    name: 'Service-Public.fr',
+    fullName: 'Le site officiel de l’administration française',
+    administration: 'DILA',
+    description:
+      'Le portail de référence de vos démarches : fiches pratiques, formulaires officiels et annuaire des services publics.',
+    basePath: '/service-public',
+    status: 'coming_soon',
+    logoUrl: '/administrations/logo-service-public.svg',
   },
 ];
 
