@@ -220,7 +220,6 @@ export function FloatingActionBubbles({
 
   return (
     <div
-      style={{ transform: `translateY(-${lift}px)` }}
       className={cn(
         'fixed bottom-5 left-5 z-40 flex flex-col gap-3 transition-transform duration-150 ease-out',
         offsetForSidebar && 'lg:left-[calc(theme(spacing.sidebar)+1.25rem)]',
