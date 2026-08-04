@@ -62,7 +62,7 @@ export function CitizenFooter({ className }: { className?: string }) {
             */}
             <span className="inline-flex items-center gap-1.5">
               <Sparkles className="size-3 shrink-0" aria-hidden="true" />
-              Contenus générés par intelligence artificielle.
+              interfaces générées par intelligence artificielle.
             </span>
           </p>
           <nav aria-label="Liens de pied de page" className="flex flex-wrap items-center justify-center gap-6">

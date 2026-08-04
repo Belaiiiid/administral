@@ -3,12 +3,15 @@ import {
   CheckCircle2,
   CircleDashed,
   Clock,
+  FileCheck2,
   FileText,
   IdCard,
   Info,
   Loader2,
   Route,
+  ScanSearch,
   Send,
+  ShieldAlert,
   UserRound,
   X,
 } from 'lucide-react';
@@ -33,8 +36,13 @@ import {
   citizenProfileService,
   type CitizenProfilePersisted,
 } from '@/features/citizen/profiling/services/citizenProfileService';
+import {
+  coherenceService,
+  type CoherenceResult,
+  type CoherenceStatus,
+} from '@/services/coherenceService';
 import { dossierService } from '@/services/dossierService';
-import type { DossierReview } from '@/services/documentService';
+import { documentService, type DossierReview } from '@/services/documentService';
 import {
   DOSSIER_CATEGORY_LABEL,
   DOSSIER_STATUS_META,
@@ -563,6 +571,231 @@ function EstimationCard() {
 }
 
 /**
+ * Action 1 — completeness check.
+ *
+ * Re-reads the server's own count rather than trusting what the page loaded
+ * earlier: uploads are classified asynchronously, so the figure shown before a
+ * document finished analysing is already stale by the time a citizen asks.
+ */
+function CompletudeCard({
+  applicationId,
+  status,
+  requiredReceivedCount,
+  requiredDocumentCount,
+  onRefreshed,
+}: {
+  applicationId: string;
+  status: PersonalizedDossier['status'];
+  requiredReceivedCount: number;
+  requiredDocumentCount: number;
+  onRefreshed: () => void;
+}) {
+  const [isChecking, setIsChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+
+  const verifier = () => {
+    setIsChecking(true);
+    setError(null);
+    documentService
+      .getApplicationStatus(applicationId)
+      .then(() => {
+        onRefreshed();
+        setCheckedAt(new Date());
+      })
+      .catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : 'Vérification impossible.'),
+      )
+      .finally(() => setIsChecking(false));
+  };
+
+  const missing = Math.max(0, requiredDocumentCount - requiredReceivedCount);
+  const complete = status === 'complete';
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-label-md text-on-surface">
+            {requiredReceivedCount}/{requiredDocumentCount} pièces obligatoires
+          </span>
+          <Badge tone={complete ? 'success' : 'info'}>{complete ? 'Complet' : 'Incomplet'}</Badge>
+        </div>
+
+        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+          {complete ? (
+            <>
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+              Toutes les pièces obligatoires ont été reçues et lues.
+            </>
+          ) : (
+            <>
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Il manque {missing} pièce{missing > 1 ? 's' : ''} obligatoire
+              {missing > 1 ? 's' : ''} — voir la liste ci-dessus.
+            </>
+          )}
+        </p>
+
+        {error && (
+          <p role="alert" className="text-body-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        {checkedAt && !error && (
+          <p className="text-label-sm text-on-surface-variant">
+            Vérifié à {checkedAt.toLocaleTimeString('fr-FR')}
+          </p>
+        )}
+
+        <Button variant="outline-primary" onClick={verifier} disabled={isChecking}>
+          {isChecking ? (
+            <Loader2 className="animate-spin" aria-hidden="true" />
+          ) : (
+            <FileCheck2 aria-hidden="true" />
+          )}
+          Vérifier la complétude
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+const COHERENCE_META: Record<
+  CoherenceStatus,
+  { label: string; tone: 'success' | 'warning' | 'error' }
+> = {
+  coherent: { label: 'Cohérent', tone: 'success' },
+  a_revoir: { label: 'À vérifier', tone: 'warning' },
+  incoherent: { label: 'Incohérence détectée', tone: 'error' },
+};
+
+/**
+ * Cross-document coherence check, run on demand before submitting.
+ *
+ * Compares what the citizen declared against what the uploaded documents
+ * actually say. Same analysis the pipeline runs at submission — offered here so
+ * an inconsistency is found by the citizen rather than by an agent.
+ *
+ * `documentsExtraits` carries what the client genuinely holds: the file name and
+ * the OCR text preview. No field is invented to pad the payload.
+ */
+function CoherenceCard({
+  profileSnapshot,
+  documents,
+}: {
+  profileSnapshot: Record<string, unknown>;
+  documents: CitizenDocument[];
+}) {
+  const [result, setResult] = useState<CoherenceResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
+
+  const analysable = documents.filter((doc) => doc.status !== 'rejected');
+
+  const lancer = () => {
+    setAttempted(true);
+    setIsLoading(true);
+    setError(null);
+    coherenceService
+      .analyser({
+        profilDeclare: profileSnapshot,
+        documentsExtraits: analysable.map((doc) => ({
+          fichier: doc.fileName,
+          type: doc.classification?.matched_checklist_document_id ?? null,
+          texte: doc.extractedTextPreview ?? '',
+        })),
+      })
+      .then(setResult)
+      .catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : 'Analyse impossible.'),
+      )
+      .finally(() => setIsLoading(false));
+  };
+
+  const meta = result ? COHERENCE_META[result.statutGlobal] : null;
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        {!attempted && (
+          <div className="space-y-3">
+            <p className="text-body-sm text-on-surface-variant">
+              Compare ce que vous avez déclaré à ce que disent vos pièces déposées, et signale les
+              écarts avant qu’un agent ne les découvre.
+            </p>
+            <Button onClick={lancer} disabled={analysable.length === 0}>
+              <ScanSearch aria-hidden="true" />
+              Tester les incohérences
+            </Button>
+            {analysable.length === 0 && (
+              <p className="text-body-sm text-on-surface-variant">
+                Déposez au moins une pièce pour lancer l’analyse.
+              </p>
+            )}
+          </div>
+        )}
+
+        {attempted && isLoading && <Skeleton className="h-20 w-full" />}
+
+        {attempted && !isLoading && error && (
+          <p role="alert" className="text-body-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        {attempted && !isLoading && !error && result && meta && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-label-md text-on-surface">Résultat de l’analyse</p>
+              <Badge tone={meta.tone}>{meta.label}</Badge>
+            </div>
+
+            {result.incoherences.length === 0 ? (
+              <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                Aucun écart relevé entre vos informations et vos pièces.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {result.incoherences.map((item, index) => (
+                  <li key={`${item.champ}-${index}`} className="rounded-lg border border-border p-3">
+                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-label-md text-on-surface">{item.champ}</p>
+                      <Badge tone={COHERENCE_META[item.statut].tone}>
+                        {COHERENCE_META[item.statut].label}
+                      </Badge>
+                    </div>
+                    <p className="text-body-sm text-on-surface-variant">{item.raison}</p>
+                    {item.fichiersConcernes.length > 0 && (
+                      <p className="mt-2 text-label-sm text-on-surface-variant">
+                        Pièces concernées : {item.fichiersConcernes.join(', ')}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
+              <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Cette analyse vous aide à corriger votre dossier ; elle ne remplace pas la décision de
+              l’agent CAF.
+            </p>
+
+            <Button variant="outline" size="sm" onClick={lancer}>
+              Relancer l’analyse
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Transmission to the CAF. Documents no longer wait for this moment to reach
  * the server — each is uploaded (storage, OCR, classification) as soon as it
  * is dropped in Function 1, and the checklist above already reflects what
@@ -681,9 +914,6 @@ export default function PersonalizedDossierPage() {
   // loading state.
   const [removingItemKeys, setRemovingItemKeys] = useState<ReadonlySet<string>>(new Set());
   const [checklistError, setChecklistError] = useState<string | null>(null);
-  // Complétude (progress + checklist) never appears automatically — the
-  // citizen must click "Consulter la complétude" to reveal it.
-  const [showCompletude, setShowCompletude] = useState(false);
 
   // Ref to the submit button so the voice assistant can click it
   const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -919,146 +1149,152 @@ export default function PersonalizedDossierPage() {
       )}
 
       {!isLoading && !error && dossier && profile && (
-        <div className="space-y-8">
-          {/* Function 1 — Vérification complétude et lisibilité */}
-          <section className="space-y-gutter">
-            <h2 className="text-headline-md text-on-surface">
-              Vérification complétude et lisibilité
-            </h2>
+        <div className="space-y-10">
+          <CivilStatusCard ref={civilStatusRef} profile={profile} onSaved={setProfile} />
 
-            <CivilStatusCard ref={civilStatusRef} profile={profile} onSaved={setProfile} />
+          {/* 1 — The checklist. Always on screen: it is the reference a citizen
+              reads while gathering papers, so hiding it behind a button made the
+              page unusable for its main job. */}
+          <section className="space-y-gutter" aria-labelledby="etape-pieces">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="etape-pieces" className="text-headline-md text-on-surface">
+                Les pièces attendues
+              </h2>
+              <Badge tone={dossier.status === 'complete' ? 'success' : 'info'}>
+                {dossier.requiredReceivedCount}/{dossier.requiredDocumentCount} pièces obligatoires
+              </Badge>
+            </div>
 
-            {!showCompletude ? (
-              <Card>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-                  <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                    Vérifiez l’avancement de votre dossier et la liste des pièces encore attendues.
-                  </p>
-                  <Button variant="outline-primary" size="sm" onClick={() => setShowCompletude(true)}>
-                    Consulter la complétude
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <SectionHeader
-                    title="Avancement de mon dossier"
-                    as="h3"
-                    action={
-                      <Badge tone={dossier.status === 'complete' ? 'success' : 'info'}>
-                        {dossier.status === 'complete' ? 'Complet' : 'Incomplet'}
-                      </Badge>
-                    }
-                  />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-body-sm text-on-surface-variant">
-                      Pièces obligatoires fournies
-                    </span>
-                    <span className="text-label-md text-on-surface">
-                      {dossier.requiredReceivedCount}/{dossier.requiredDocumentCount}
-                    </span>
-                  </div>
-                  <Progress
-                    value={
-                      dossier.requiredDocumentCount
-                        ? (dossier.requiredReceivedCount / dossier.requiredDocumentCount) * 100
-                        : 0
-                    }
-                    aria-label={`${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount}`}
-                  />
-                  {!dossier.profileComplete && (
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
-                      <p className="flex items-center gap-2 text-on-surface-variant">
-                        <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                        Complétez votre profil pour personnaliser davantage la liste des pièces.
-                      </p>
-                      <Button variant="outline-primary" size="sm" asChild>
-                        <Link to={ROUTES.profile}>Compléter mon profil</Link>
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <Progress
+              value={
+                dossier.requiredDocumentCount
+                  ? (dossier.requiredReceivedCount / dossier.requiredDocumentCount) * 100
+                  : 0
+              }
+              aria-label={`${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount}`}
+            />
+
+            {!dossier.profileComplete && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
+                <p className="flex items-center gap-2 text-on-surface-variant">
+                  <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  Complétez votre profil pour personnaliser davantage la liste des pièces.
+                </p>
+                <Button variant="outline-primary" size="sm" asChild>
+                  <Link to={ROUTES.profile}>Compléter mon profil</Link>
+                </Button>
+              </div>
             )}
 
+            {checklistError && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {checklistError}
+              </p>
+            )}
+
+            {dossier.items.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="Aucune pièce requise pour le moment"
+                description="Complétez votre profil pour générer la liste de vos justificatifs."
+              />
+            ) : (
+              <div className="grid gap-gutter md:grid-cols-2">
+                {groups.map((group) => (
+                  <Card key={group.categorie}>
+                    <CardHeader>
+                      <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h3" />
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {group.items.map((item) => (
+                          <ChecklistRow
+                            key={item.documentType}
+                            item={item}
+                            disabled={Boolean(review?.submitted)}
+                            isRemoving={removingItemKeys.has(item.documentType)}
+                            onUncheck={() => handleUncheckItem(item)}
+                          />
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 2 — Deposit. */}
+          <section className="space-y-gutter" aria-labelledby="etape-depot">
+            <h2 id="etape-depot" className="text-headline-md text-on-surface">
+              Déposer vos pièces
+            </h2>
+            <PendingFilesColumn
+              uploads={uploads}
+              disabled={Boolean(review?.submitted)}
+              onFilesAdded={handleFilesAdded}
+              onRetry={handleRetry}
+              onRemove={handleRemoveUpload}
+            />
+          </section>
+
+          {/* 3 — Three actions, each optional and independent: none is a
+              prerequisite of the others, so they sit side by side rather than
+              in a wizard. */}
+          <section className="space-y-gutter" aria-labelledby="etape-actions">
+            <div>
+              <h2 id="etape-actions" className="text-headline-md text-on-surface">
+                Vérifier et transmettre
+              </h2>
+              <p className="mt-1 text-body-sm text-on-surface-variant">
+                Trois actions indépendantes, à lancer dans l’ordre que vous voulez.
+              </p>
+            </div>
+
             <div className="grid gap-gutter lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <PendingFilesColumn
-                  uploads={uploads}
-                  disabled={Boolean(review?.submitted)}
-                  onFilesAdded={handleFilesAdded}
-                  onRetry={handleRetry}
-                  onRemove={handleRemoveUpload}
+              <div className="flex flex-col gap-3">
+                <SectionHeader title="1 · Complétude du dossier" as="h3" />
+                <CompletudeCard
+                  applicationId={dossier.applicationId}
+                  status={dossier.status}
+                  requiredReceivedCount={dossier.requiredReceivedCount}
+                  requiredDocumentCount={dossier.requiredDocumentCount}
+                  onRefreshed={refreshDossier}
                 />
               </div>
 
-              <aside className="flex flex-col gap-gutter">
-                {!showCompletude ? null : dossier.items.length === 0 ? (
-                  <EmptyState
-                    icon={FileText}
-                    title="Aucune pièce requise pour le moment"
-                    description="Complétez votre profil pour générer la liste de vos justificatifs."
-                  />
-                ) : (
-                  <>
-                    {checklistError && (
-                      <p role="alert" className="text-body-sm text-destructive">
-                        {checklistError}
-                      </p>
-                    )}
-                    {groups.map((group) => (
-                      <Card key={group.categorie}>
-                        <CardHeader>
-                          <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h3" />
-                        </CardHeader>
-                        <CardContent>
-                          <ul className="space-y-3">
-                            {group.items.map((item) => (
-                              <ChecklistRow
-                                key={item.documentType}
-                                item={item}
-                                disabled={Boolean(review?.submitted)}
-                                isRemoving={removingItemKeys.has(item.documentType)}
-                                onUncheck={() => handleUncheckItem(item)}
-                              />
-                            ))}
-                          </ul>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </>
-                )}
-              </aside>
+              <div className="flex flex-col gap-3">
+                <SectionHeader title="2 · Test des incohérences" as="h3" />
+                <CoherenceCard profileSnapshot={profileSnapshot} documents={documents} />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <SectionHeader title="3 · Envoyer à l’agent CAF" as="h3" />
+                <SubmissionCard
+                  submitRef={submitButtonRef}
+                  applicationId={dossier.applicationId}
+                  requiredReceivedCount={dossier.requiredReceivedCount}
+                  requiredDocumentCount={dossier.requiredDocumentCount}
+                  review={review}
+                  canSubmit={canSubmit}
+                  blockingReason={blockingReason}
+                  profileSnapshot={profileSnapshot}
+                  onSubmitted={() => {
+                    refreshDossier();
+                    refreshReview();
+                  }}
+                />
+              </div>
             </div>
           </section>
 
-          {/* Function 2 — Estimation de l'aide */}
-          <section className="space-y-gutter">
-            <h2 className="text-headline-md text-on-surface">Estimation de l’aide</h2>
+          {/* Kept from the previous layout — not one of the three actions above,
+              but the only place the citizen can get an indicative amount. */}
+          <section className="space-y-gutter" aria-labelledby="etape-estimation">
+            <h2 id="etape-estimation" className="text-headline-md text-on-surface">
+              Estimation indicative de l’aide
+            </h2>
             <EstimationCard />
-          </section>
-
-          {/* Function 3 — Envoyer le dossier à la CAF */}
-          <section className="space-y-gutter">
-            <h2 className="text-headline-md text-on-surface">Envoyer le dossier à la CAF</h2>
-            <SubmissionCard
-              submitRef={submitButtonRef}
-              applicationId={dossier.applicationId}
-              requiredReceivedCount={dossier.requiredReceivedCount}
-              requiredDocumentCount={dossier.requiredDocumentCount}
-              review={review}
-              canSubmit={canSubmit}
-              blockingReason={blockingReason}
-              profileSnapshot={profileSnapshot}
-              onSubmitted={() => {
-                refreshDossier();
-                refreshReview();
-              }}
-            />
           </section>
         </div>
       )}
