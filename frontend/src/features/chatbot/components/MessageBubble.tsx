@@ -1,4 +1,6 @@
-import { ArrowRight, BookOpen, Bot, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { ArrowRight, BookOpen, FileUp, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+
+import { AssistantMascot } from '@/features/chatbot/components/AssistantMascot';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -42,17 +44,16 @@ export function MessageBubble({
 
   return (
     <li id={`chat-message-${message.id}`} className={cn('flex gap-3', isUser && 'flex-row-reverse')}>
-      <span
-        aria-hidden="true"
-        className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-lg',
-          isUser
-            ? 'bg-surface-container text-on-surface-variant'
-            : 'bg-primary text-primary-foreground',
-        )}
-      >
-        {isUser ? <User className="size-5" /> : <Bot className="size-5" />}
-      </span>
+      {isUser ? (
+        <span
+          aria-hidden="true"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-container text-on-surface-variant"
+        >
+          <User className="size-5" />
+        </span>
+      ) : (
+        <AssistantMascot />
+      )}
 
       <div className={cn('flex max-w-[80%] flex-col gap-3', isUser && 'items-end')}>
         <div

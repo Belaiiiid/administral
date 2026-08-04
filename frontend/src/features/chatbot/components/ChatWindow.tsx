@@ -1,10 +1,11 @@
-import { Bot, Mic, Send } from 'lucide-react';
+import { Mic, Send } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { EmptyState } from '@/components/shared';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import { AssistantMascot, AssistantMascotGlyph } from '@/features/chatbot/components/AssistantMascot';
 import { MessageBubble } from '@/features/chatbot/components/MessageBubble';
 import type { ChatbotController } from '@/features/chatbot/hooks/useChatbot';
 
@@ -45,6 +46,15 @@ export interface ChatWindowProps {
    */
   onVoiceInput?: () => void;
   isRecording?: boolean;
+  /**
+   * Fenêtre de chat plein écran : la fenêtre prend toute la hauteur qu'on lui
+   * donne, seul le fil des messages défile, et le composeur reste ancré en bas.
+   *
+   * Opt-in, parce que les trois autres hôtes (panneau flottant, landing
+   * publique, coach CV) posent cette fenêtre dans une page qui défile
+   * normalement : leur imposer une hauteur pleine la couperait.
+   */
+  fill?: boolean;
 }
 
 export function ChatWindow({
@@ -52,15 +62,24 @@ export function ChatWindow({
   starterQuestions = DEFAULT_STARTER_QUESTIONS,
   onVoiceInput,
   isRecording = false,
+  fill = false,
 }: ChatWindowProps) {
   const { messages, isSending, error, send, selectOption } = controller;
   const [draft, setDraft] = useState('');
   const threadEndRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
 
-  // Keep the latest turn in view as the conversation grows.
+  // Keep the latest turn in view as the conversation grows. En mode plein
+  // écran on pousse directement le conteneur en bas de sa hauteur de défilement
+  // — c'est lui le seul élément qui défile, viser le repère de fin reviendrait
+  // au même en moins direct.
   useEffect(() => {
+    if (fill && threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+      return;
+    }
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [messages.length, isSending]);
+  }, [messages.length, isSending, fill]);
 
   const submit = (question: string) => {
     send(question);
@@ -68,9 +87,21 @@ export function ChatWindow({
   };
 
   return (
-    <section className="flex flex-col lg:col-span-2" aria-label="Conversation avec l’assistant">
+    <section
+      className={cn(
+        'flex flex-col lg:col-span-2',
+        // `min-h-0` : sans lui, un enfant en `flex-1` refuse de rétrécir sous
+        // la hauteur de son contenu et le fil déborderait au lieu de défiler.
+        fill && 'h-full min-h-0',
+      )}
+      aria-label="Conversation avec l’assistant"
+    >
       <h1 className="sr-only">Assistant</h1>
 
+      <div
+        ref={threadRef}
+        className={cn('flex flex-col', fill && 'min-h-0 flex-1 overflow-y-auto pr-1')}
+      >
       {messages.length > 0 ? (
         <ul className="flex flex-1 flex-col gap-6" aria-live="polite" aria-busy={isSending}>
           {messages.map((message, index) => (
@@ -88,12 +119,7 @@ export function ChatWindow({
 
           {isSending && (
             <li className="flex gap-3">
-              <span
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-              >
-                <Bot className="size-5" />
-              </span>
+              <AssistantMascot />
               <p className="self-center text-body-sm italic text-on-surface-variant">
                 L’assistant rédige une réponse…
               </p>
@@ -102,11 +128,16 @@ export function ChatWindow({
         </ul>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-6">
-          <EmptyState
-            icon={Bot}
-            title="Aucune conversation"
-            description="Posez une question pour démarrer un échange avec l’assistant."
-          />
+          {/* État vide écrit ici plutôt qu'avec `EmptyState` : la mascotte y
+              est le sujet, pas un pictogramme dans une pastille de 64 px —
+              ce composant partagé contraint la taille de son icône. */}
+          <div className="flex flex-col items-center px-6 text-center">
+            <AssistantMascotGlyph className="-mb-2 w-72 max-w-full" />
+            <h3 className="text-headline-md text-on-surface">Aucune conversation</h3>
+            <p className="mt-2 max-w-md text-body-md text-on-surface-variant">
+              Posez une question pour démarrer un échange avec l’assistant.
+            </p>
+          </div>
 
           <ul className="flex flex-wrap justify-center gap-2">
             {starterQuestions.map((question) => (
@@ -126,6 +157,7 @@ export function ChatWindow({
       )}
 
       <div ref={threadEndRef} />
+      </div>
 
       {error && (
         <Alert tone="error" className="mt-6">
@@ -135,8 +167,15 @@ export function ChatWindow({
         </Alert>
       )}
 
-      {/* Composer */}
-      <div className="sticky bottom-0 mt-8 bg-background pt-4">
+      {/* Composer — ancré en bas : hauteur propre, jamais dans la zone qui
+          défile. Hors mode plein écran il reste `sticky`, la page hôte étant
+          elle-même le conteneur de défilement. */}
+      <div
+        className={cn(
+          'mt-8 bg-background pt-4',
+          fill ? 'shrink-0' : 'sticky bottom-0',
+        )}
+      >
         <form
           className="flex items-end gap-2 rounded-xl border border-border bg-surface-lowest p-2"
           onSubmit={(event) => {

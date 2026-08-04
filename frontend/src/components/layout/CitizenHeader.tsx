@@ -131,7 +131,6 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
                     ) : (
                       <Skeleton className="mb-1 h-3 w-24" />
                     )}
-                    <span className="block text-xs text-muted-foreground">Mon compte</span>
                   </span>
                   <Avatar className="border-brand/20">
                     <AvatarFallback className="bg-brand-soft text-brand">

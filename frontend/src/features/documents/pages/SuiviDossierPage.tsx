@@ -292,7 +292,18 @@ export default function SuiviDossierPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <CitizenPageHeader
-        backTo={ROUTES.portal}
+        // Aligné sur « Déposer un dossier » (`PageHeader`), qui rend son <h1>
+        // en `text-headline-lg-mobile md:text-display` avec la police sans.
+        // `CitizenPageHeader` part sur `font-display` + `sm:text-3xl` (30px,
+        // poids 600) : sans ces trois surcharges les deux titres du même
+        // parcours n'ont ni la même police, ni la même taille, ni la même
+        // graisse. `sm:text-display` remplace bien `sm:text-3xl` — tailwind-merge
+        // arbitre par groupe *et* par variante.
+        //
+        // Valeur littérale plutôt que le jeton `text-action` : la classe
+        // arbitraire est produite au scan des sources, donc elle apparaît sans
+        // redémarrer Vite, contrairement à une couleur ajoutée à la config.
+        titleClassName="font-sans text-[#102a74] sm:text-display"
         eyebrow="Où en êtes-vous"
         title="Suivre un dossier déposé"
         description="L’état d’avancement de votre dossier transmis à la CAF."
@@ -334,9 +345,12 @@ export default function SuiviDossierPage() {
           title="Aucun dossier envoyé pour le moment"
           description="Vous n’avez pas encore transmis de dossier à la CAF. Une fois envoyé, son suivi s’affichera ici."
           actions={
-            <Link to={ROUTES.dossier} className={citizenButton()}>
+            // Mêmes classes que l'appel à l'action de la barre latérale, pour
+            // que la seule sortie de cet écran vide se reconnaisse au premier
+            // coup d'œil comme le chemin vers le dépôt.
+            <Link to={ROUTES.dossier} className={citizenButton({ variant: 'marianne' })}>
               <Send aria-hidden="true" />
-              Envoyer un dossier
+              Déposer un dossier
             </Link>
           }
         />

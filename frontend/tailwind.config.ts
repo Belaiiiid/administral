@@ -102,6 +102,12 @@ const config: Config = {
           DEFAULT: 'var(--admtl-brand)',
           soft: 'var(--admtl-brand-soft)',
         },
+        // Bleu d'action du portail citoyen (titres de page, boutons d'appel à
+        // l'action). Un jeton plutôt qu'un `bg-[#102a74]` répété : la teinte
+        // apparaît déjà à la connexion et sur le dépôt de dossier.
+        action: {
+          DEFAULT: 'var(--admtl-action)',
+        },
         marianne: {
           DEFAULT: 'var(--admtl-marianne)',
           foreground: 'var(--admtl-marianne-foreground)',

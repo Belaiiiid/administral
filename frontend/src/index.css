@@ -152,13 +152,19 @@
    */
   :root {
     /*
-     * `brand` and `text-muted` sit one notch darker than the reference's
-     * 0.55 / 0.554: at the reference values, brand-on-brand-soft (4.18) and
+     * `brand` and `text-muted` sit darker than the reference's 0.55 / 0.554:
+     * at the reference values, brand-on-brand-soft (4.18) and
      * muted-on-brand-soft (4.01) both fall short of WCAG AA for body text,
      * and both pairings occur (assistant panels, documentation callouts).
-     * 0.52 clears 4.5 on every surface used while staying visually the same blue.
+     *
+     * `--admtl-brand` is a hex rather than an oklch triplet because it was
+     * picked as an exact colour. Measured, it keeps the constraint above:
+     * 6.66:1 on white and 5.59:1 on `brand-soft` — both clear of 4.5. Any
+     * lighter blue put back here has to be re-checked against `brand-soft`,
+     * which is the tight pairing, not white.
      */
-    --admtl-brand: oklch(0.52 0.19 258);
+    --admtl-action: #102a74;
+    --admtl-brand: #3158b0;
     --admtl-brand-soft: oklch(0.94 0.03 250);
     --admtl-marianne: oklch(0.32 0.13 265);
     --admtl-marianne-foreground: oklch(0.99 0.005 250);
@@ -243,7 +249,7 @@
    * portail agent garde son navy.
    */
   .dossier-scope {
-    --primary: #102a74;
+    --primary: var(--admtl-action);
   }
 
   /* Uppercase eyebrow label — section kickers across the Administral redesign. */

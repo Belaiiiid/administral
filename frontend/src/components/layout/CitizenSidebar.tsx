@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom';
 import { isNavItemActive, resolveNavSections, SIGN_OUT_ITEM, type NavItem } from '@/app/config/navigation';
 import { ROUTES } from '@/app/router/paths';
 import logo from '@/assets/administral-logo.png';
-import { PartnerLogos } from '@/components/layout/PartnerLogos';
+import { PartnerLogo } from '@/components/layout/PartnerLogo';
 import { cn } from '@/lib/utils';
 
 function CitizenSidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
@@ -60,11 +60,6 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
         </span>
       </Link>
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-xs text-muted-foreground">
-        <span>Propulsé par</span>
-        <PartnerLogos className="flex-wrap gap-3 opacity-80" />
-      </div>
-
       <nav aria-label="Navigation principale" className="flex-1">
         <ul className="flex flex-col gap-1">
           {primary.map((item) => (
@@ -77,14 +72,14 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <NavLink
           to={cta.to}
           onClick={onNavigate}
-          className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-marianne px-4 py-3 text-label-md text-marianne-foreground transition-opacity hover:opacity-90"
+          className="mt-4 inline-flex items-center justify-center gap-2 rounded-md bg-marianne px-4 py-3 text-label-md text-marianne-foreground transition-opacity hover:opacity-90"
         >
           <cta.icon className="size-4" aria-hidden="true" />
           {cta.label}
         </NavLink>
       )}
 
-      <div className="mt-6 border-t border-border/60 pt-4">
+      <div className="mt-4 border-t border-border/60 pt-3">
         <ul className="flex flex-col gap-1">
           {secondary.map((item) => (
             <CitizenSidebarLink key={item.id} item={item} onNavigate={onNavigate} />
@@ -101,6 +96,17 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </li>
         </ul>
       </div>
+
+      {/* Mention partenaire, en pied de rail : le bloc « Propulsé par » occupait
+          la hauteur d'une entrée de menu en haut de la barre. Réduit à la seule
+          marque Talan, en petit format, il tient sous les liens de compte sans
+          leur disputer de place. */}
+      <PartnerLogo
+        src="/logos/talan.png"
+        alt="Talan"
+        fallbackLabel="Talan"
+        className="ml-14 mt-3 h-7 self-start opacity-70"
+      />
     </div>
   );
 }
