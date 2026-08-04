@@ -19,7 +19,7 @@ export default function AgentSettingsPage() {
   const { settings, isLoading, error, savingKey, setToggle } = useUserSettings();
 
   return (
-    <AgentPage title="Paramètres" description="Préférences de l’espace agent." provisional={false}>
+    <AgentPage title="Paramètres" description="Préférences de l’espace agent.">
       {error && (
         <Alert tone="error" className="mb-gutter">
           <AlertDescription>{error}</AlertDescription>

@@ -31,7 +31,6 @@ export default function AgentProfilePage() {
     <AgentPage
       title="Mon profil"
       description="Les informations de votre compte agent."
-      provisional={false}
     >
       <Card>
         <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">

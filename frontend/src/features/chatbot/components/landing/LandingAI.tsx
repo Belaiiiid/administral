@@ -3,9 +3,9 @@ import { ArrowRight, CheckCircle2, Edit3, FileCheck2, FileText, MessageSquare, S
 import { Reveal } from '@/features/chatbot/components/landing/Reveal';
 
 const PROMPT_CHIPS = [
-  { icon: CheckCircle2, text: 'Expliquer mes droits APL', tone: 'text-emerald-500' },
-  { icon: FileText, text: 'Résumer ma situation CAF', tone: 'text-sky-500' },
-  { icon: Edit3, text: 'Rédiger un courrier administratif', tone: 'text-purple-500' },
+  { icon: CheckCircle2, text: 'Expliquer mes droits APL', tone: 'text-success' },
+  { icon: FileText, text: 'Résumer ma situation CAF', tone: 'text-brand' },
+  { icon: Edit3, text: 'Rédiger un courrier administratif', tone: 'text-chart-3' },
 ];
 
 const IA_FEATURES = [
@@ -13,25 +13,25 @@ const IA_FEATURES = [
     icon: MessageSquare,
     title: 'Langage naturel',
     text: 'Comprend vos questions orales ou écrites en langage de tous les jours.',
-    tone: 'bg-blue-50 text-brand',
+    tone: 'bg-brand-soft text-brand',
   },
   {
     icon: Wand2,
     title: 'Réponses adaptées',
     text: 'Génère des réponses personnalisées selon votre situation.',
-    tone: 'bg-purple-50 text-purple-600',
+    tone: 'bg-chart-3/10 text-chart-3',
   },
   {
     icon: FileCheck2,
     title: 'Simplification',
     text: 'Rédige et simplifie vos pièces justificatives complexes.',
-    tone: 'bg-emerald-50 text-emerald-600',
+    tone: 'bg-success-surface text-success',
   },
   {
     icon: ShieldCheck,
     title: 'Guidage fiable',
     text: 'Vous oriente vers la bonne administration en toute confiance.',
-    tone: 'bg-indigo-50 text-indigo-600',
+    tone: 'bg-brand-soft text-brand',
   },
 ];
 
@@ -58,13 +58,13 @@ export function LandingAI() {
 
       <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-6 py-24 lg:grid-cols-2">
         <Reveal from="left">
-          <div className="group relative overflow-hidden rounded-sm border border-border/60 bg-card p-8 shadow-lg transition-shadow duration-500 hover:shadow-2xl">
+          <div className="group relative overflow-hidden rounded-sm border border-border/60 bg-card p-8 shadow-soft transition-shadow duration-500 hover:shadow-soft-hover">
             <div className="flex items-center justify-between border-b border-border/60 pb-4">
               <div className="flex items-center gap-3">
                 <img src="/mistral-logo.svg" alt="Mistral AI" className="h-7 w-auto object-contain" />
                 <span className="text-base font-bold text-ink">Moteur IA Mistral</span>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-chart-2/30 bg-chart-2/10 px-3 py-1 text-sm font-semibold text-chart-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-chart-2/30 bg-chart-2/10 px-3 py-1 text-label-md text-chart-2">
                 <span className="relative flex size-2">
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-chart-2 opacity-75" />
                   <span className="relative inline-flex size-2 rounded-full bg-chart-2" />
@@ -78,7 +78,7 @@ export function LandingAI() {
                 <div
                   key={p.text}
                   style={{ transitionDelay: `${i * 60}ms` }}
-                  className="group/chip flex w-full items-center justify-between gap-2 rounded-sm border border-border/60 bg-surface p-3.5 text-left text-sm font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft/40 hover:shadow-md"
+                  className="group/chip flex w-full items-center justify-between gap-2 rounded-sm border border-border/60 bg-surface p-3.5 text-left text-label-md text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/40 hover:bg-brand-soft/40 hover:shadow-soft-hover"
                 >
                   <span className="flex items-center gap-2.5">
                     <p.icon className={`size-4.5 ${p.tone}`} aria-hidden="true" />
@@ -125,7 +125,7 @@ export function LandingAI() {
             {IA_FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="group flex items-start gap-4 rounded-sm border border-transparent p-3 transition-all duration-300 hover:border-border/60 hover:bg-surface hover:shadow-sm"
+                className="group flex items-start gap-4 rounded-sm border border-transparent p-3 transition-all duration-300 hover:border-border/60 hover:bg-surface hover:shadow-soft-hover"
               >
                 <span
                   className={`flex size-11 shrink-0 items-center justify-center rounded-sm transition-transform duration-300 group-hover:scale-110 ${f.tone}`}

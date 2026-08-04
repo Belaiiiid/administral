@@ -30,7 +30,6 @@ export default function AgentNotificationsPage() {
     <AgentPage
       title="Notifications"
       description="Les évènements de la file d’instruction."
-      provisional={false}
       actions={
         <Button variant="outline" onClick={() => void markAllRead()} disabled={unreadCount === 0}>
           Tout marquer comme lu

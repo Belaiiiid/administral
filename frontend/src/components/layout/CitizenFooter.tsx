@@ -20,14 +20,14 @@ export function CitizenFooter({ className }: { className?: string }) {
   return (
     <footer className={cn('bg-ink text-marianne-foreground', className)}>
       <div
-        className="h-1 w-full bg-gradient-to-r from-brand via-chart-2 to-violet-600"
+        className="h-1 w-full bg-gradient-to-r from-brand via-chart-2 to-chart-3"
         aria-hidden="true"
       />
       {/* No bottom reserve for the floating bubbles: they lift themselves over
           the footer instead (see `useFooterLift` in FloatingActionBubbles). */}
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="space-y-3 border-b border-marianne-foreground/10 pb-6">
-          <h5 className="text-xs font-bold uppercase tracking-widest text-marianne-foreground/60">
+          <h5 className="text-label-sm uppercase tracking-widest text-marianne-foreground/60">
             Références administratives
           </h5>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -40,7 +40,7 @@ export function CitizenFooter({ className }: { className?: string }) {
                 className="flex items-center justify-between gap-2 rounded-xl border border-marianne-foreground/10 bg-marianne-foreground/5 px-4 py-3 transition-colors hover:bg-marianne-foreground/10"
               >
                 <span className="flex flex-col">
-                  <span className="text-sm font-semibold text-marianne-foreground">
+                  <span className="text-label-md text-marianne-foreground">
                     {r.title}
                   </span>
                   <span className="text-[11px] text-marianne-foreground/50">{r.domain}</span>

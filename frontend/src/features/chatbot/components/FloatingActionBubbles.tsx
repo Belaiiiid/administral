@@ -51,7 +51,7 @@ function BubbleButton({
         onClick={onClick}
         aria-label={label}
         className={cn(
-          'flex size-14 items-center justify-center rounded-full shadow-lg ring-1 ring-black/5 transition-transform duration-200 ease-out hover:scale-125 focus-visible:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+          'flex size-14 items-center justify-center rounded-full shadow-soft ring-1 ring-black/5 transition-transform duration-200 ease-out hover:scale-125 focus-visible:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
           className,
         )}
       >
@@ -63,7 +63,7 @@ function BubbleButton({
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute whitespace-nowrap rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100',
+          'pointer-events-none absolute whitespace-nowrap rounded-md bg-ink px-3 py-1.5 text-label-sm text-white opacity-0 shadow-soft transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100',
           // Above and left-aligned in orbit: centred-below would run off the
           // left edge at the ellipse's far point and under the viewport at
           // its lowest, since the whole system sits in the bottom-left corner.
@@ -205,14 +205,14 @@ export function FloatingActionBubbles({
       label: 'Discuter sur WhatsApp',
       iconSrc: '/whatsapp-logo.svg',
       onClick: () => window.open(APP_CONFIG.whatsappBotUrl, '_blank', 'noopener,noreferrer'),
-      className: 'bg-[#25D366]',
+      className: 'bg-whatsapp',
     },
     {
       id: 'assistant-launcher-bubble',
       label: 'Parler à l’assistant',
       iconSrc: '/mistral-logo.svg',
       onClick: onAssistantClick ?? toggle,
-      className: 'border border-border/60 bg-white',
+      className: 'border border-border/60 bg-surface-lowest',
     },
   ];
 

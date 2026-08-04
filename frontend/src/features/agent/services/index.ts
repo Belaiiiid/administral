@@ -3,7 +3,9 @@ import type { AgentAuditService } from './agentAuditService';
 import type { AgentCaseService } from './agentCaseService';
 import type { AgentContestationService } from './agentContestationService';
 import type { AgentDecisionService } from './agentDecisionService';
+import type { AgentStatisticsService } from './agentStatisticsService';
 import { httpAgentAssessmentService } from './agentAssessmentService';
+import { httpAgentStatisticsService } from './agentStatisticsService';
 import { httpAgentAuditService } from './agentAuditService';
 import { httpAgentCaseService } from './agentCaseService';
 import { httpAgentContestationService } from './agentContestationService';
@@ -23,6 +25,14 @@ export type {
   CategoryAssessment,
 } from './agentAssessmentService';
 export { httpAgentAssessmentService } from './agentAssessmentService';
+export type {
+  AgentStatisticsService,
+  AgentStatistics,
+  CaseStatusBreakdown,
+  MonthlyVolume,
+  ServiceBreakdown,
+} from './agentStatisticsService';
+export { httpAgentStatisticsService, STATISTICS_SERVICES } from './agentStatisticsService';
 
 /**
  * The bindings every hook imports.
@@ -49,6 +59,8 @@ export const agentAuditService: AgentAuditService = httpAgentAuditService;
 export const agentContestationService: AgentContestationService = httpAgentContestationService;
 
 export const agentAssessmentService: AgentAssessmentService = httpAgentAssessmentService;
+
+export const agentStatisticsService: AgentStatisticsService = httpAgentStatisticsService;
 
 /*
  * `explanationService` is intentionally NOT re-exported here — and now has no

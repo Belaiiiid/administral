@@ -17,7 +17,7 @@ function CitizenSidebarLink({ item, onNavigate }: { item: NavItem; onNavigate?: 
         onClick={onNavigate}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors',
+          'flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-label-md transition-colors',
           isActive
             ? 'bg-brand-soft text-brand'
             : 'text-foreground/70 hover:bg-brand-soft/60 hover:text-brand',
@@ -77,7 +77,7 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <NavLink
           to={cta.to}
           onClick={onNavigate}
-          className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-marianne px-4 py-3 text-sm font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
+          className="mt-6 inline-flex items-center justify-center gap-2 rounded-md bg-marianne px-4 py-3 text-label-md text-marianne-foreground transition-opacity hover:opacity-90"
         >
           <cta.icon className="size-4" aria-hidden="true" />
           {cta.label}
@@ -93,7 +93,7 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
             <NavLink
               to={SIGN_OUT_ITEM.to}
               onClick={onNavigate}
-              className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
+              className="flex min-h-11 items-center gap-3 rounded-xl px-4 py-3 text-label-md text-destructive transition-colors hover:bg-destructive/10"
             >
               <SIGN_OUT_ITEM.icon className="size-5 shrink-0" aria-hidden="true" />
               {SIGN_OUT_ITEM.label}

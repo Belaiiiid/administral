@@ -123,7 +123,7 @@ export const VoiceOnboardingPage: React.FC = () => {
           <Button
             type="button"
             size="lg"
-            className="flex items-center justify-center gap-3 h-16 text-body-lg px-8 rounded-2xl shadow-md hover:shadow-lg transition-all"
+            className="flex items-center justify-center gap-3 h-16 text-body-lg px-8 rounded-2xl shadow-soft hover:shadow-soft-hover transition-all"
             onClick={handleEnable}
           >
             <Volume2 className="size-6 animate-pulse" />

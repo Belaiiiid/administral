@@ -35,8 +35,8 @@ import {
 const STATUS_PILL: Record<string, string> = {
   neutral: 'bg-surface text-muted-foreground',
   info: 'bg-brand-soft text-brand',
-  success: 'bg-emerald-50 text-emerald-700',
-  warning: 'bg-amber-50 text-amber-700',
+  success: 'bg-success-surface text-success',
+  warning: 'bg-warning-surface text-warning',
   error: 'bg-destructive/10 text-destructive',
   accent: 'bg-brand-soft text-brand',
 };
@@ -106,15 +106,15 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
     const meta = CONTESTATION_STATUS_META[existing.status];
     const resolved = existing.status === 'ACCEPTED' || existing.status === 'REJECTED';
     return (
-      <div className="rounded-2xl border border-border/60 bg-card p-6 text-sm shadow-sm">
+      <div className="rounded-2xl border border-border/60 bg-card p-6 text-sm shadow-soft">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 font-display text-sm font-bold text-ink">
+          <span className="flex items-center gap-2 font-display text-label-md text-ink">
             <ScrollText className="size-4 shrink-0" aria-hidden="true" />
             Contestation déposée
           </span>
           <span
             className={cn(
-              'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
+              'inline-flex rounded-full px-3 py-1 text-label-sm',
               STATUS_PILL[meta.tone] ?? 'bg-surface text-muted-foreground',
             )}
           >
@@ -125,7 +125,7 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
           <span className="font-semibold text-ink">Motif :</span> {existing.reasonLabel}
         </p>
         <p className="mt-1 leading-relaxed text-muted-foreground">{existing.description}</p>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="mt-3 text-label-sm uppercase tracking-wide text-muted-foreground">
           Déposée le {formatDate(existing.createdAt)}
         </p>
         {resolved && existing.resolutionComment && (
@@ -133,11 +133,11 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
             className={cn(
               'mt-4 rounded-xl border-l-4 p-4',
               existing.status === 'ACCEPTED'
-                ? 'border-l-emerald-500 bg-emerald-50'
+                ? 'border-l-success bg-success-surface'
                 : 'border-l-destructive bg-destructive/5',
             )}
           >
-            <p className="font-display text-sm font-bold text-ink">
+            <p className="font-display text-label-md text-ink">
               Réponse de l’agent{existing.reviewedBy ? ` — ${existing.reviewedBy}` : ''}
             </p>
             <p className="mt-1 leading-relaxed text-muted-foreground">{existing.resolutionComment}</p>
@@ -150,8 +150,8 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
   // 2. The form to file a challenge.
   if (formOpen) {
     return (
-      <form onSubmit={submit} className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-        <p className="mb-4 flex items-center gap-2 font-display text-sm font-bold text-ink">
+      <form onSubmit={submit} className="rounded-2xl border border-border/60 bg-card p-6 shadow-soft">
+        <p className="mb-4 flex items-center gap-2 font-display text-label-md text-ink">
           <Gavel className="size-4 shrink-0" aria-hidden="true" />
           Contester la décision
         </p>

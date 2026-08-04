@@ -101,7 +101,7 @@ export function VoiceOnboardingDialog() {
     <Dialog open={open} onOpenChange={(next) => { if (!next) handleDisable(); }}>
       <DialogContent
         overlayClassName="backdrop-blur-md bg-ink/30"
-        className="max-w-lg overflow-hidden rounded-sm border-brand/20 bg-white/95 p-8 text-center shadow-lg backdrop-blur-sm duration-300 data-[state=open]:slide-in-from-bottom-2"
+        className="max-w-lg overflow-hidden rounded-sm border-brand/20 bg-white/95 p-8 text-center shadow-soft backdrop-blur-sm duration-300 data-[state=open]:slide-in-from-bottom-2"
       >
         <div className="pointer-events-none absolute -right-14 -top-14 size-48 rounded-full bg-brand/10 blur-3xl animate-pulse [animation-duration:4s]" />
         <div className="pointer-events-none absolute -bottom-16 -left-12 size-40 rounded-full bg-chart-2/10 blur-3xl animate-pulse [animation-duration:5s]" />
@@ -111,7 +111,7 @@ export function VoiceOnboardingDialog() {
             <Mic className="size-9" aria-hidden="true" />
           </div>
 
-          <DialogTitle className="mb-3 font-display text-2xl font-extrabold text-ink">
+          <DialogTitle className="mb-3 font-display text-headline-lg-mobile text-ink">
             Assistant Vocal d'Accessibilité
           </DialogTitle>
           <DialogDescription className="mb-8 text-sm leading-relaxed text-muted-foreground">
@@ -138,7 +138,7 @@ export function VoiceOnboardingDialog() {
             <Button
               type="button"
               size="lg"
-              className="flex h-14 items-center justify-center gap-2 rounded-sm px-6 text-body-md shadow-md transition-all hover:shadow-lg"
+              className="flex h-14 items-center justify-center gap-2 rounded-sm px-6 text-body-md shadow-soft transition-all hover:shadow-soft-hover"
               onClick={handleEnable}
             >
               <Volume2 className="size-5 animate-pulse" />
@@ -159,7 +159,7 @@ export function VoiceOnboardingDialog() {
 
           <div className="flex min-h-10 flex-col items-center justify-center">
             {isListening ? (
-              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <div className="flex items-center gap-2 text-label-md text-primary">
                 <span className="relative flex size-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                   <span className="relative inline-flex size-2.5 rounded-full bg-primary" />

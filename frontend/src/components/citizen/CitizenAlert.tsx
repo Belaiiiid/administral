@@ -9,11 +9,12 @@ const TONE_STYLE: Record<CitizenAlertTone, { icon: typeof Info; className: strin
   info: { icon: Info, className: 'border-brand/20 bg-brand-soft text-ink [&_svg]:text-brand' },
   success: {
     icon: CheckCircle2,
-    className: 'border-emerald-200 bg-emerald-50 text-ink [&_svg]:text-emerald-600',
+    className: 'border-success/20 bg-success-surface text-ink [&_svg]:text-success',
   },
   error: {
     icon: AlertTriangle,
-    className: 'border-destructive/20 bg-destructive/5 text-destructive [&_svg]:text-destructive',
+    className:
+      'border-destructive/20 bg-destructive-surface text-destructive [&_svg]:text-destructive',
   },
 };
 
@@ -35,7 +36,7 @@ export function CitizenAlert({ tone = 'info', title, children, className }: Citi
   return (
     <div
       role="status"
-      className={cn('flex gap-3 rounded-2xl border p-4 text-sm', toneClass, className)}
+      className={cn('flex gap-3 rounded-2xl border p-4 text-body-sm', toneClass, className)}
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1">

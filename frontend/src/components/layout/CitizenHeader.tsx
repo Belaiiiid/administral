@@ -125,7 +125,7 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
                 >
                   <span className="hidden text-right sm:block">
                     {displayName ? (
-                      <span className="block text-sm font-semibold leading-none text-ink">
+                      <span className="block text-label-md leading-none text-ink">
                         {displayName}
                       </span>
                     ) : (
@@ -144,7 +144,7 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="rounded-2xl border-border/60 bg-card p-1.5 shadow-lg">
+              <DropdownMenuContent align="end" className="rounded-2xl border-border/60 bg-card p-1.5 shadow-soft">
                 <DropdownMenuLabel className="text-muted-foreground">Mon espace</DropdownMenuLabel>
                 <DropdownMenuItem asChild className="rounded-xl focus:bg-brand-soft focus:text-brand">
                   <Link to={ROUTES.profile}>Mon profil</Link>
@@ -165,7 +165,7 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
         ) : (
           <Link
             to={ROUTES.login}
-            className="inline-flex items-center gap-2 rounded-md bg-marianne px-5 py-2.5 text-sm font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-md bg-marianne px-5 py-2.5 text-label-md text-marianne-foreground transition-opacity hover:opacity-90"
           >
             <UserRound className="size-4" aria-hidden="true" />
             Se connecter

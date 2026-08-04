@@ -38,7 +38,7 @@ export function AuthLayout() {
             // so a zoomed-in or very short viewport degrades to scrolling
             // instead of clipping the submit button out of reach.
             isLogin
-              ? 'overflow-x-hidden bg-[#f3f4f9] short:py-6 shorter:py-3'
+              ? 'overflow-x-hidden bg-surface-low short:py-6 shorter:py-3'
               : 'bg-background',
           )}
         >

@@ -12,8 +12,8 @@ export interface CitizenNotificationListProps {
 
 const TYPE_STYLE: Record<NotificationType, { icon: typeof Bell; className: string }> = {
   dossier_submitted: { icon: Inbox, className: 'bg-brand-soft text-brand' },
-  dossier_validated: { icon: CheckCircle2, className: 'bg-emerald-50 text-emerald-600' },
-  dossier_rejected: { icon: XCircle, className: 'bg-destructive/10 text-destructive' },
+  dossier_validated: { icon: CheckCircle2, className: 'bg-success-surface text-success' },
+  dossier_rejected: { icon: XCircle, className: 'bg-destructive-surface text-destructive' },
 };
 
 function formatWhen(iso: string): string {
@@ -43,7 +43,7 @@ export function CitizenNotificationList({
     return (
       <ul className="flex flex-col gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <li key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+          <li key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
             <div className="flex gap-4">
               <Skeleton className="size-11 shrink-0 rounded-full" />
               <div className="flex-1">
@@ -83,7 +83,7 @@ export function CitizenNotificationList({
           <li key={notification.id}>
             <article
               className={cn(
-                'flex gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-all duration-300 hover:border-brand/30 hover:shadow-lg',
+                'flex gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-soft transition-all duration-200 ease-standard hover:border-brand/30 hover:shadow-soft-hover',
                 !notification.read && 'border-l-4 border-l-brand',
               )}
             >
@@ -93,7 +93,7 @@ export function CitizenNotificationList({
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="font-display text-sm font-bold text-ink">
+                  <h3 className="font-display text-label-md text-ink">
                     {!notification.read && <span className="sr-only">Non lue : </span>}
                     {notification.title}
                   </h3>
@@ -105,7 +105,7 @@ export function CitizenNotificationList({
                   <button
                     type="button"
                     onClick={() => onMarkRead(notification.id)}
-                    className="mt-3 text-xs font-bold text-brand hover:underline"
+                    className="mt-3 text-label-sm text-brand hover:underline"
                   >
                     Marquer comme lue
                   </button>

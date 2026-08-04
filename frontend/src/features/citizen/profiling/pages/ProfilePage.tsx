@@ -460,7 +460,7 @@ function ChampAffiche({ label, valeur, nouveau = false }: Omit<ChampProgressif, 
         nouveau && 'animate-in fade-in slide-in-from-bottom-2 -m-2 rounded-lg bg-brand-soft p-2',
       )}
     >
-      <dt className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <dt className="mb-1 text-label-sm uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
       <dd className="text-sm text-ink">

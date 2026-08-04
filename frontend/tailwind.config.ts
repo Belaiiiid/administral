@@ -115,6 +115,10 @@ const config: Config = {
           veil: 'var(--admtl-card-veil)',
         },
         'chart-2': 'var(--admtl-chart-2)',
+        'chart-3': 'var(--admtl-chart-3)',
+
+        // Third-party brand identity — see `--brand-whatsapp` in index.css.
+        whatsapp: 'var(--brand-whatsapp)',
       },
 
       fontFamily: {
@@ -173,12 +177,17 @@ const config: Config = {
 
       borderRadius: {
         // Named explicitly to resolve the DESIGN.md / tailwind-config ambiguity.
-        sm: '4px', // checkboxes, tags
-        DEFAULT: '8px', // buttons, inputs
-        md: '8px',
-        lg: '8px',
-        xl: '12px', // cards
-        '2xl': '16px', // large outer containers
+        //
+        // Variable-driven so a scope can retune the whole scale at once — the
+        // agent back-office squares everything off (`.agent-scope`, index.css).
+        // Fallbacks are the charter values (§6.1), so every other area is
+        // unaffected. `rounded-full` is Tailwind's own and stays round.
+        sm: 'var(--radius-sm, 4px)', // checkboxes, tags
+        DEFAULT: 'var(--radius-md, 8px)', // buttons, inputs
+        md: 'var(--radius-md, 8px)',
+        lg: 'var(--radius-lg, 8px)',
+        xl: 'var(--radius-xl, 12px)', // cards
+        '2xl': 'var(--radius-2xl, 16px)', // large outer containers
       },
 
       boxShadow: {

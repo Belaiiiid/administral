@@ -3,7 +3,7 @@ import { ArrowRight, Flag, Headphones, Shield } from 'lucide-react';
 import { Reveal } from '@/features/chatbot/components/landing/Reveal';
 
 const CARD =
-  'group flex h-full gap-4 rounded-sm border border-border/60 bg-surface p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-xl';
+  'group flex h-full gap-4 rounded-sm border border-border/60 bg-surface p-7 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-soft-hover';
 const CHIP =
   'flex size-12 shrink-0 items-center justify-center rounded-sm transition-transform duration-300 group-hover:scale-110';
 
@@ -30,7 +30,7 @@ export function LandingTrust() {
       <div className="mx-auto grid max-w-7xl gap-6 px-6 lg:grid-cols-3">
         <Reveal delayMs={0}>
           <div className={CARD}>
-            <span className={`${CHIP} bg-blue-50 text-brand`}>
+            <span className={`${CHIP} bg-brand-soft text-brand`}>
               <Shield className="size-5" aria-hidden="true" />
             </span>
             <div>
@@ -59,7 +59,7 @@ export function LandingTrust() {
 
         <Reveal delayMs={180}>
           <div className={CARD}>
-            <span className={`${CHIP} bg-indigo-50 text-indigo-600`}>
+            <span className={`${CHIP} bg-brand-soft text-brand`}>
               <Headphones className="size-5" aria-hidden="true" />
             </span>
             <div>
@@ -69,7 +69,7 @@ export function LandingTrust() {
               </p>
               <a
                 href="#fonctionnalites"
-                className="group/cta mt-5 inline-flex items-center gap-2 rounded-sm bg-marianne px-5 py-2.5 text-sm font-semibold text-marianne-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+                className="group/cta mt-5 inline-flex items-center gap-2 rounded-sm bg-marianne px-5 py-2.5 text-label-md text-marianne-foreground shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft-hover"
               >
                 Centre d’aide
                 <ArrowRight

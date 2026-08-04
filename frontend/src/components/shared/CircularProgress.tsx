@@ -8,7 +8,7 @@ export interface CircularProgressProps {
   strokeWidth?: number;
   className?: string;
   /** Tailwind `stroke-*` AND `text-*` classes together (e.g.
-   *  `"stroke-[#1D1D4B] text-[#1D1D4B]"`) for the filled arc and value text —
+   *  `"stroke-primary text-primary"`) for the filled arc and value text —
    *  each element picks the class family that applies to it, so pass both.
    *  Override when a feature needs its own accent (e.g. a partner brand
    *  color) instead of the app's default `primary`. */

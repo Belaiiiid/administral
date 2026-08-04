@@ -106,13 +106,13 @@ export default function DocumentsPage() {
         <TabsList className="border-border/60">
           <TabsTrigger
             value="files"
-            className="text-sm font-semibold text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
+            className="text-label-md text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
           >
             Mes pièces
           </TabsTrigger>
           <TabsTrigger
             value="docs"
-            className="text-sm font-semibold text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
+            className="text-label-md text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
           >
             Documentation
           </TabsTrigger>
@@ -156,7 +156,7 @@ export default function DocumentsPage() {
                                 'noopener,noreferrer',
                               )
                             }
-                            className="flex items-center gap-3 text-left text-sm font-semibold text-brand hover:underline"
+                            className="flex items-center gap-3 text-left text-label-md text-brand hover:underline"
                           >
                             <FileText className="size-4 shrink-0" aria-hidden="true" />
                             {doc.fileName}
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
         <TabsContent value="docs">
           <div className="flex flex-col gap-6">
             <div className="rounded-2xl bg-marianne p-8 text-marianne-foreground">
-              <h2 className="font-display text-2xl font-extrabold leading-tight">
+              <h2 className="font-display text-headline-lg-mobile leading-tight">
                 Centre de documentation
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-marianne-foreground/80">
@@ -267,7 +267,7 @@ function Th({ children }: { children: React.ReactNode }) {
   return (
     <th
       scope="col"
-      className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground sm:px-6"
+      className="px-4 py-3 text-left text-label-sm uppercase tracking-wider text-muted-foreground sm:px-6"
     >
       {children}
     </th>

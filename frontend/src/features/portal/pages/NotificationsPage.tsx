@@ -41,7 +41,7 @@ export default function NotificationsPage() {
             type="button"
             onClick={() => void markAllRead()}
             disabled={unreadCount === 0}
-            className="inline-flex items-center gap-2 rounded-md border border-brand/40 bg-background px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+            className="inline-flex items-center gap-2 rounded-md border border-brand/40 bg-background px-5 py-2.5 text-label-md text-ink transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
           >
             Tout marquer comme lu
           </button>

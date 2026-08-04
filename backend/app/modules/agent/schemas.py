@@ -118,6 +118,61 @@ class CaseQueueStatsSchema(CamelModel):
     citizens_tracked: int
 
 
+class ServiceBreakdownSchema(CamelModel):
+    """Case volume for one administration."""
+
+    service_id: str
+    label: str
+    count: int
+
+
+class MonthlyVolumeSchema(CamelModel):
+    """Submissions in one calendar month, keyed ``YYYY-MM``."""
+
+    month: str
+    count: int
+
+
+class CaseStatusBreakdownSchema(CamelModel):
+    """Case counts per lifecycle status.
+
+    Every status is present, zero included: the UI renders a fixed set of rows,
+    and an absent key would silently drop one rather than show it empty.
+    """
+
+    submitted: int
+    awaiting_documents: int
+    under_review: int
+    ready_for_decision: int
+    validated: int
+    rejected: int
+
+
+class AgentStatisticsSchema(CamelModel):
+    """Service-level indicators — ``GET /agent/stats/overview``.
+
+    Aggregated server-side and returned whole, for the same reason as
+    ``CaseQueueStatsSchema``: the queue endpoint is filtered and paginated, so
+    tallying rows in the browser would describe the current page rather than
+    the service.
+
+    The three averages are nullable on purpose. ``None`` means "nothing to
+    average yet" — no decision recorded, no completeness check run, no score
+    computed — which is not the same statement as ``0`` and must not be
+    rendered as one.
+    """
+
+    citizens_total: int
+    citizens_with_cases: int
+    cases_total: int
+    by_status: CaseStatusBreakdownSchema
+    by_service: list[ServiceBreakdownSchema]
+    monthly_submissions: list[MonthlyVolumeSchema]
+    average_processing_days: float | None = None
+    average_completion_rate: float | None = None
+    average_score: float | None = None
+
+
 # ---------------------------------------------------------------------------
 # Full case detail — GET /agent/cases/{case_id}
 # ---------------------------------------------------------------------------

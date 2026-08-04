@@ -151,7 +151,7 @@ function LandingContent() {
               <button
                 type="button"
                 onClick={handleClose}
-                className="inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-muted-foreground transition-colors hover:text-brand sm:absolute sm:left-0 sm:top-1"
+                className="inline-flex items-center gap-1.5 rounded-sm text-label-md text-muted-foreground transition-colors hover:text-brand sm:absolute sm:left-0 sm:top-1"
               >
                 <ArrowLeft className="size-4" aria-hidden="true" />
                 Retour à l’accueil
@@ -165,7 +165,7 @@ function LandingContent() {
                 <X className="size-5" aria-hidden="true" />
               </button>
 
-              <h1 className="mt-4 font-display text-2xl font-extrabold text-ink sm:mt-0">
+              <h1 className="mt-4 font-display text-headline-lg-mobile text-ink sm:mt-0">
                 Comment pouvons-nous vous aider ?
               </h1>
               <p className="mx-auto mt-2 max-w-form text-muted-foreground">

@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { isAgentPath } from '@/features/agent/paths';
 import { FloatingActionBubbles } from '@/features/chatbot/components/FloatingActionBubbles';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
@@ -52,7 +53,17 @@ export function AppShell({
   return (
     <VoicePageProvider>
       <VoiceAssistantProvider>
-        <div className="min-h-screen bg-background">
+        {/*
+          No scope class: the agent back-office and France Travail both wear
+          the institutional theme — navy, Inter / Manrope, the standard radius
+          scale. See docs/design-system.md §1, which names this shell as the
+          institutional side of the platform.
+        */}
+        {/* Squared corners for the back-office only; France Travail shares
+            this shell and keeps the charter's rounded scale. */}
+        <div
+          className={cn('min-h-screen bg-background', isAgentPath(location.pathname) && 'agent-scope')}
+        >
           <SkipLink />
 
       {/* Desktop rail */}
@@ -81,6 +92,9 @@ export function AppShell({
         >
           <Outlet />
         </main>
+        {/* The institutional footer. `CitizenFooter` is drawn against the
+            Administral tokens and would need `.citizen-scope` to render here —
+            which docs/design-system.md §9 confines to the citizen area. */}
         <Footer />
       </div>
 

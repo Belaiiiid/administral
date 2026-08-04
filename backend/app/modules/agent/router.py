@@ -20,6 +20,7 @@ from app.modules.agent import service
 from app.modules.agent.assessment import MonParcoursResult
 from app.modules.agent.models import CaseStatus
 from app.modules.agent.schemas import (
+    AgentStatisticsSchema,
     CaseDecisionSchema,
     CaseDetailSchema,
     CaseQueueStatsSchema,
@@ -47,6 +48,21 @@ router = APIRouter(prefix="/agent", tags=["agent"], dependencies=[Depends(requir
 )
 def get_queue_stats(db: Session = Depends(get_db)) -> CaseQueueStatsSchema:
     return service.get_queue_stats(db)
+
+
+@router.get(
+    "/stats/overview",
+    response_model=AgentStatisticsSchema,
+    summary="Indicateurs de pilotage",
+    description=(
+        "Indicateurs de pilotage du service : volumétrie citoyens et dossiers, "
+        "répartition par administration et par statut, évolution mensuelle des "
+        "dépôts, délai moyen de traitement, taux de complétude et score IA moyen. "
+        "Lecture seule : chaque valeur est un agrégat sur les dossiers existants."
+    ),
+)
+def get_statistics_overview(db: Session = Depends(get_db)) -> AgentStatisticsSchema:
+    return service.get_statistics_overview(db)
 
 
 @router.get(

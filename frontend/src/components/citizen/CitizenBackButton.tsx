@@ -33,7 +33,7 @@ export function CitizenBackButton({
       type="button"
       onClick={() => (hasHistory() ? navigate(-1) : navigate(fallbackTo))}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-muted-foreground transition-colors hover:text-brand',
+        'inline-flex items-center gap-1.5 rounded-sm text-label-md text-muted-foreground transition-colors hover:text-brand',
         className,
       )}
     >

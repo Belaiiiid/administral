@@ -23,7 +23,7 @@ interface ChannelCardProps {
 }
 
 const CARD_CLASS =
-  'group flex h-full w-full flex-col items-start rounded-sm border border-border/60 bg-card p-8 text-left shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:shadow-2xl hover:shadow-brand/10';
+  'group flex h-full w-full flex-col items-start rounded-sm border border-border/60 bg-card p-8 text-left shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:border-brand/40 hover:shadow-soft-hover hover:shadow-brand/10';
 
 function CardBody({ icon: Icon, imageSrc, chipClass, title, text, meta, cta }: ChannelCardProps) {
   return (
@@ -41,10 +41,10 @@ function CardBody({ icon: Icon, imageSrc, chipClass, title, text, meta, cta }: C
         )}
       </span>
 
-      <p className="mt-6 font-display text-2xl font-bold text-ink">{title}</p>
+      <p className="mt-6 font-display text-headline-lg-mobile text-ink">{title}</p>
       <p className="mt-3 text-base leading-relaxed text-muted-foreground">{text}</p>
 
-      <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-sm font-semibold text-muted-foreground">
+      <span className="mt-5 inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-label-md text-muted-foreground">
         {meta}
       </span>
 
@@ -68,7 +68,7 @@ function CardBody({ icon: Icon, imageSrc, chipClass, title, text, meta, cta }: C
  */
 export function LandingFeatures({ onStartChat, onStartVoice }: LandingFeaturesProps) {
   return (
-    <section id="fonctionnalites" className="relative overflow-hidden bg-white py-24">
+    <section id="fonctionnalites" className="relative overflow-hidden bg-surface-lowest py-24">
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-2/3 -translate-x-1/2 bg-gradient-to-r from-transparent via-border to-transparent"
         aria-hidden="true"
@@ -93,7 +93,7 @@ export function LandingFeatures({ onStartChat, onStartVoice }: LandingFeaturesPr
             <button type="button" onClick={onStartChat} className={CARD_CLASS}>
               <CardBody
                 icon={MessagesSquare}
-                chipClass="bg-blue-50 text-brand"
+                chipClass="bg-brand-soft text-brand"
                 title="Chatbot IA"
                 text="Discutez avec notre assistant intelligent 24h/24 et 7j/7. Obtenez des réponses immédiates sur vos démarches CAF, France Travail et Assurance Maladie."
                 meta="Réponse immédiate"
@@ -106,7 +106,7 @@ export function LandingFeatures({ onStartChat, onStartVoice }: LandingFeaturesPr
             <button type="button" onClick={onStartVoice} className={CARD_CLASS}>
               <CardBody
                 icon={Mic}
-                chipClass="bg-purple-50 text-purple-600"
+                chipClass="bg-chart-3/10 text-chart-3"
                 title="Assistant vocal"
                 text="Parlez naturellement avec notre assistant vocal pour effectuer vos démarches les mains libres."
                 meta="Sans lecture ni saisie"
@@ -124,7 +124,7 @@ export function LandingFeatures({ onStartChat, onStartVoice }: LandingFeaturesPr
             >
               <CardBody
                 imageSrc="/whatsapp-logo.svg"
-                chipClass="border border-border/60 bg-white"
+                chipClass="border border-border/60 bg-surface-lowest"
                 title="WhatsApp"
                 text="Accédez à vos services depuis WhatsApp. Simple, rapide et pratique au quotidien."
                 meta="Depuis votre téléphone"

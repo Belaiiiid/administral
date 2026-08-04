@@ -62,14 +62,14 @@ export function LandingHero({ onStart }: LandingHeroProps) {
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex items-center gap-2 rounded-sm bg-marianne px-6 py-3.5 text-sm font-semibold text-marianne-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-marianne/25"
+              className="inline-flex items-center gap-2 rounded-sm bg-marianne px-6 py-3.5 text-label-md text-marianne-foreground shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft-hover hover:shadow-marianne/25"
             >
               <MessageCircle className="size-4" aria-hidden="true" />
               Commencer ma démarche
             </button>
             <Link
               to={ROUTES.register}
-              className="inline-flex items-center gap-2 rounded-sm border border-brand/40 bg-background px-6 py-3.5 text-sm font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-brand-soft hover:shadow-lg"
+              className="inline-flex items-center gap-2 rounded-sm border border-brand/40 bg-background px-6 py-3.5 text-label-md text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-brand-soft hover:shadow-soft-hover"
             >
               <UserPlus className="size-4" aria-hidden="true" />
               Créer un compte

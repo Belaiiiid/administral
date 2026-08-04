@@ -57,7 +57,10 @@
       "PowerShell(Stop-Process -Id 42664 -Force -ErrorAction SilentlyContinue)",
       "Bash(git config *)",
       "Bash(where.exe git-credential-manager *)",
-      "PowerShell(winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements 2>&1)"
+      "PowerShell(winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements 2>&1)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"TYPECHECK_EXIT:$?\")",
+      "Bash(npx vite *)"
     ]
   }
 }

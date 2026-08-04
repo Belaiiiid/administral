@@ -128,15 +128,15 @@ export function ServiceCard({
   return (
     <article
       className={cn(
-        'group/card relative flex h-full flex-col overflow-hidden rounded-sm border-2 border-border/60 bg-card shadow-sm',
+        'group/card relative flex h-full flex-col overflow-hidden rounded-sm border-2 border-border/60 bg-card shadow-soft',
         'transition-all duration-300 ease-out',
         // Siblings recede while any card in the group is hovered…
         'group-hover/cards:scale-[0.97] group-hover/cards:opacity-50',
         // …and the hovered one wins both back, plus a brand border.
-        'hover:!scale-[1.03] hover:!opacity-100 hover:border-brand hover:shadow-2xl hover:shadow-brand/10',
+        'hover:!scale-[1.03] hover:!opacity-100 hover:border-brand hover:shadow-soft-hover hover:shadow-brand/10',
         // Keyboard parity: the CTA is the focus target, so the card reacts to
         // focus *within* it rather than only to a mouse.
-        'focus-within:border-brand focus-within:shadow-lg',
+        'focus-within:border-brand focus-within:shadow-soft',
         className,
       )}
     >
@@ -147,7 +147,7 @@ export function ServiceCard({
           // An official logo is drawn for white paper; a tint behind it reads as
           // a mistake. Anything else gets the usual status-coloured panel.
           !imageUrl && logoUrl
-            ? 'bg-white'
+            ? 'bg-surface-lowest'
             : available
               ? 'bg-brand-soft'
               : 'bg-surface-container',
@@ -184,8 +184,8 @@ export function ServiceCard({
 
         <span
           className={cn(
-            'absolute bottom-0 left-6 z-10 flex translate-y-1/2 items-center justify-center rounded-full text-white shadow-md ring-4 ring-white',
-            badgeClassName ?? 'bg-[#132a6e]',
+            'absolute bottom-0 left-6 z-10 flex translate-y-1/2 items-center justify-center rounded-full text-white shadow-soft ring-4 ring-white',
+            badgeClassName ?? 'bg-marianne',
             s.badge,
           )}
         >
@@ -196,7 +196,7 @@ export function ServiceCard({
       <div className={cn('flex flex-1 flex-col', s.body)}>
         <p className={cn('line-clamp-2 font-display font-bold text-ink', s.name)}>{name}</p>
         {fullName && (
-          <p className="mt-1 line-clamp-2 text-xs font-semibold leading-snug text-brand">
+          <p className="mt-1 line-clamp-2 text-label-sm leading-snug text-brand">
             {fullName}
           </p>
         )}
@@ -209,7 +209,7 @@ export function ServiceCard({
             <Link
               to={to}
               className={cn(
-                'inline-flex w-full items-center justify-center gap-2 rounded-sm bg-brand px-4 font-semibold text-white shadow-sm',
+                'inline-flex w-full items-center justify-center gap-2 rounded-sm bg-brand px-4 font-semibold text-white shadow-soft',
                 'transition-colors duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
                 // Stretches the hit area over the whole card — see the component note.
                 'after:absolute after:inset-0 after:content-[""]',

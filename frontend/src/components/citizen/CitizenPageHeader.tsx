@@ -32,7 +32,7 @@ export function CitizenPageHeader({
       <div>
         {backTo && <CitizenBackButton fallbackTo={backTo} className="mb-4" />}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="mt-2 font-display text-2xl font-extrabold leading-tight text-ink sm:text-3xl">
+        <h1 className="mt-2 font-display text-headline-lg-mobile leading-tight text-ink sm:text-3xl">
           {title}
         </h1>
         {description && (

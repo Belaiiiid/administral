@@ -1,6 +1,6 @@
 import { Bell, HelpCircle, Menu, User } from 'lucide-react';
 import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AGENT_ROUTES } from '@/features/agent';
+import { isAgentPath } from '@/features/agent/paths';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { getInitials } from '@/lib/utils';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -31,6 +32,7 @@ export function Header() {
   const refreshCount = useNotificationStore((state) => state.refreshCount);
   const openAssistant = useChatbotUiStore((state) => state.open);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   // Keep the badge honest across a reload: fetch the count once the shell mounts.
   useEffect(() => {
@@ -77,18 +79,24 @@ export function Header() {
       </Button>
 
       {/* Real logos, not decoration: Mistral (mistral.ai) and Talan
-          (talan.com), matching the marks used on the France Travail page. */}
-      <div className="hidden items-center gap-4 sm:flex">
-        <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-          <img src="/mistral-logo.svg" alt="" aria-hidden="true" className="h-3.5 w-auto" />
-          Powered by Mistral
-        </span>
-        <span aria-hidden="true" className="h-4 w-px bg-border" />
-        <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
-          Partenaire
-          <img src="/talan-logo.svg" alt="Talan" className="h-3.5 w-auto" />
-        </span>
-      </div>
+          (talan.com), matching the marks used on the France Travail page.
+
+          Hidden in the back-office: there the two marks belong to the rail and
+          the rail only, so they are stated once per screen instead of twice.
+          France Travail shares this header and keeps them. */}
+      {!isAgentPath(pathname) && (
+        <div className="hidden items-center gap-4 sm:flex">
+          <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+            <img src="/mistral-logo.svg" alt="" aria-hidden="true" className="h-3.5 w-auto" />
+            Powered by Mistral
+          </span>
+          <span aria-hidden="true" className="h-4 w-px bg-border" />
+          <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
+            Partenaire
+            <img src="/talan-logo.svg" alt="Talan" className="h-3.5 w-auto" />
+          </span>
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         <Button

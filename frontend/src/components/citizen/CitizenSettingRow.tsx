@@ -34,7 +34,7 @@ export function CitizenSettingRow({
           <Icon className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <label htmlFor={id} className="cursor-pointer text-sm font-semibold text-ink">
+          <label htmlFor={id} className="cursor-pointer text-label-md text-ink">
             {label}
           </label>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>

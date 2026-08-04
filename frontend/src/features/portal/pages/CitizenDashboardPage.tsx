@@ -33,10 +33,10 @@ const CAF_SERVICE_ICONS: Record<CafServiceId, LucideIcon> = {
 
 /** Badge accent per service — mirrors the artwork in `public/caf-services/`. */
 const CAF_SERVICE_BADGE: Record<CafServiceId, string> = {
-  apl: 'bg-[#1e40af]',
-  af: 'bg-[#db2777]',
-  alf: 'bg-[#7c3aed]',
-  'prime-activite': 'bg-[#059669]',
+  apl: 'bg-brand',
+  af: 'bg-secondary',
+  alf: 'bg-chart-3',
+  'prime-activite': 'bg-success',
 };
 
 interface QuickAction {
@@ -125,8 +125,8 @@ export default function CitizenDashboardPage() {
       {/* Which administration you are inside. `/portal` is reachable straight
           from a bookmark, where "Mes services" alone says nothing about whose. */}
       {caf && (
-        <div className="mb-10 flex items-center gap-4 rounded-sm border border-border/60 bg-card p-5 shadow-sm">
-          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border/60 bg-white p-1.5">
+        <div className="mb-10 flex items-center gap-4 rounded-sm border border-border/60 bg-card p-5 shadow-soft">
+          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-border/60 bg-surface-lowest p-1.5">
             <img src={caf.logoUrl} alt="" aria-hidden="true" className="size-full object-contain" />
           </span>
           <div className="min-w-0">
@@ -146,13 +146,13 @@ export default function CitizenDashboardPage() {
               <li key={action.to}>
                 <Link
                   to={action.to}
-                  className="group flex h-full items-center gap-4 rounded-sm border border-border/60 bg-card p-5 shadow-sm transition-all duration-300 hover:border-brand hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  className="group flex h-full items-center gap-4 rounded-sm border border-border/60 bg-card p-5 shadow-soft transition-all duration-300 hover:border-brand hover:shadow-soft-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-brand-soft text-brand transition-colors duration-300 group-hover:bg-brand group-hover:text-white">
                     <action.icon className="size-5" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-display text-sm font-bold text-ink">
+                    <span className="block font-display text-label-md text-ink">
                       {action.label}
                     </span>
                     <span className="block text-xs leading-relaxed text-muted-foreground">
@@ -183,7 +183,7 @@ export default function CitizenDashboardPage() {
           </div>
           <Link
             to={ROUTES.login}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-sm bg-brand px-6 py-3 text-label-md text-white shadow-soft transition-colors duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             <LogIn className="size-4" aria-hidden="true" />
             Se connecter
@@ -191,7 +191,7 @@ export default function CitizenDashboardPage() {
         </div>
       )}
 
-      <h2 className="mb-2 font-display text-2xl font-extrabold leading-tight text-ink">
+      <h2 className="mb-2 font-display text-headline-lg-mobile leading-tight text-ink">
         Les services CAF
       </h2>
       <p className="mb-8 max-w-2xl text-sm leading-relaxed text-muted-foreground">

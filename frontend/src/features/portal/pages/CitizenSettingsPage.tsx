@@ -28,7 +28,7 @@ export default function CitizenSettingsPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
         <div className="divide-y divide-border/60">
           {isLoading || !settings ? (
             <SettingsSkeleton />

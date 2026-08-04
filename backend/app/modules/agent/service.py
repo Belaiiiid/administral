@@ -25,6 +25,7 @@ from app.modules.audit.models import AuditAction
 from app.modules.auth.models import User
 from app.modules.notifications import service as notifications_service
 from app.modules.agent.schemas import (
+    AgentStatisticsSchema,
     CaseCitizenSchema,
     CaseDecisionSchema,
     CaseDetailSchema,
@@ -33,7 +34,10 @@ from app.modules.agent.schemas import (
     CaseQueueStatsSchema,
     CaseScoreSchema,
     CaseServiceSchema,
+    CaseStatusBreakdownSchema,
     CaseSummarySchema,
+    MonthlyVolumeSchema,
+    ServiceBreakdownSchema,
     CoherenceAnomalySchema,
     CoherenceReportSchema,
     CompletenessItemSchema,
@@ -403,4 +407,52 @@ def get_queue_stats(db: Session) -> CaseQueueStatsSchema:
         pending=pending,
         to_review_today=to_review_today,
         citizens_tracked=citizens_tracked,
+    )
+
+
+#: How far back the submissions chart reaches. Twelve months so the series
+#: always spans a full year of seasonality rather than a partial one.
+STATISTICS_MONTHS = 12
+
+
+def get_statistics_overview(db: Session) -> AgentStatisticsSchema:
+    """Service-level indicators. Backs ``GET /agent/stats/overview``.
+
+    Read-only: every figure is an aggregate over rows the instruction workflow
+    already writes. Nothing here creates, mutates or interprets a case — adding
+    a statistic must never become a reason for the queue to behave differently.
+    """
+    status_counts = repository.count_cases_by_status(db)
+
+    # Absent status → 0. The schema declares all six, so a status nobody has
+    # reached yet renders as an empty row instead of vanishing from the table.
+    by_status = CaseStatusBreakdownSchema(
+        submitted=status_counts.get(CaseStatus.submitted, 0),
+        awaiting_documents=status_counts.get(CaseStatus.awaiting_documents, 0),
+        under_review=status_counts.get(CaseStatus.under_review, 0),
+        ready_for_decision=status_counts.get(CaseStatus.ready_for_decision, 0),
+        validated=status_counts.get(CaseStatus.validated, 0),
+        rejected=status_counts.get(CaseStatus.rejected, 0),
+    )
+
+    return AgentStatisticsSchema(
+        citizens_total=repository.count_citizens(db),
+        citizens_with_cases=repository.count_citizens_with_cases(db),
+        # Summed from the breakdown rather than counted again: two queries could
+        # disagree under concurrent writes, and the table must equal its total.
+        cases_total=sum(status_counts.values()),
+        by_status=by_status,
+        by_service=[
+            ServiceBreakdownSchema(service_id=service_id, label=label, count=count)
+            for service_id, label, count in repository.count_cases_by_service(db)
+        ],
+        monthly_submissions=[
+            MonthlyVolumeSchema(month=month, count=count)
+            for month, count in repository.count_submissions_by_month(
+                db, months=STATISTICS_MONTHS
+            )
+        ],
+        average_processing_days=repository.average_processing_days(db),
+        average_completion_rate=repository.average_completion_rate(db),
+        average_score=repository.average_score(db),
     )

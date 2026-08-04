@@ -1,11 +1,18 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 import { APP_CONFIG, FOOTER_LINKS } from '@/app/config/app';
 import { RepublicMark } from '@/components/layout/Logo';
 import { PartnerLogos } from '@/components/layout/PartnerLogos';
+import { isAgentPath } from '@/features/agent/paths';
 import { cn } from '@/lib/utils';
 
 export function Footer({ className }: { className?: string }) {
+  const { pathname } = useLocation();
+  // The legal links address citizens — accessibility statement, legal notice,
+  // personal data, cookies. The back-office is a staff tool behind a role
+  // guard, so they are dropped there and kept everywhere else.
+  const showLegalLinks = !isAgentPath(pathname);
+
   return (
     <footer
       className={cn(
@@ -21,20 +28,22 @@ export function Footer({ className }: { className?: string }) {
           </p>
         </div>
 
-        <nav aria-label="Liens de pied de page">
-          <ul className="flex flex-wrap gap-x-6 gap-y-2">
-            {FOOTER_LINKS.map((link) => (
-              <li key={link.id}>
-                <Link
-                  to={link.href}
-                  className="text-body-sm text-on-surface-variant transition-colors hover:text-primary hover:underline"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {showLegalLinks && (
+          <nav aria-label="Liens de pied de page">
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              {FOOTER_LINKS.map((link) => (
+                <li key={link.id}>
+                  <Link
+                    to={link.href}
+                    className="text-body-sm text-on-surface-variant transition-colors hover:text-primary hover:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         <PartnerLogos />
       </div>

@@ -119,10 +119,10 @@ export default function LoginPage() {
     // The `short:` variants (max-height: 820px, see tailwind.config) trim
     // whitespace only, so the whole card still fits a laptop viewport without
     // a scrollbar. Nothing is hidden or shrunk below its readable size.
-    <Card className="rounded-[28px] border-none bg-white shadow-soft-hover">
+    <Card className="rounded-2xl border-none bg-surface-lowest shadow-soft-hover">
       <CardContent className="p-8 pb-6 sm:p-10 sm:pb-7 short:p-6 short:pb-5 short:sm:p-7">
         <div className="mb-8 flex flex-col items-center text-center short:mb-5">
-          <span className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-white shadow-soft ring-1 ring-[#DCE3F5] short:mb-3 short:size-14 shorter:size-12">
+          <span className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-surface-lowest shadow-soft ring-1 ring-primary-fixed short:mb-3 short:size-14 shorter:size-12">
             <img
               src="/logo.png"
               alt={APP_CONFIG.name}
@@ -155,7 +155,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={handleResend}
                   disabled={resending}
-                  className="mt-2 flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                  className="mt-2 flex items-center gap-1.5 text-label-md text-primary hover:underline"
                 >
                   {resending ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -194,7 +194,7 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-12 rounded-2xl border-[#DCE3F5] bg-[#f8f9fc] text-body-md"
+            className="h-12 rounded-2xl border-primary-fixed bg-surface text-body-md"
           />
 
           <Input
@@ -208,7 +208,7 @@ export default function LoginPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            className="h-12 rounded-2xl border-[#DCE3F5] bg-[#f8f9fc] text-body-md"
+            className="h-12 rounded-2xl border-primary-fixed bg-surface text-body-md"
             endAdornment={
                 <button
                   type="button"
@@ -258,16 +258,16 @@ export default function LoginPage() {
             block
             size="lg"
             disabled={isLoggingIn || !turnstileToken}
-            className="mt-1 h-12 rounded-2xl bg-[#102a74] text-body-lg font-semibold hover:bg-[#0b1f57]"
+            className="mt-1 h-12 rounded-2xl bg-marianne text-body-lg font-semibold hover:bg-primary"
           >
             {isLoggingIn ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
 
         <div className="my-6 flex items-center gap-4 short:my-4">
-          <span aria-hidden="true" className="h-px flex-1 bg-[#DCE3F5]" />
+          <span aria-hidden="true" className="h-px flex-1 bg-primary-fixed" />
           <span className="text-label-sm text-on-surface-variant">Ou connectez-vous avec</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-[#DCE3F5]" />
+          <span aria-hidden="true" className="h-px flex-1 bg-primary-fixed" />
         </div>
 
         <FranceConnectButton className="h-12 rounded-2xl" />

@@ -175,6 +175,21 @@
      */
     --admtl-card-veil: oklch(1 0 0 / 0.82);
     --admtl-chart-2: oklch(0.6 0.118 184.704);
+    /* Third categorical/gradient stop. Declared rather than reached for as
+       `violet-600`: a Tailwind palette colour is invisible to the
+       accessibility preferences, which is what rule n°1 of the charter
+       forbids (docs/design-system.md §9). */
+    --admtl-chart-3: oklch(0.541 0.247 293);
+  }
+
+  /*
+   * WhatsApp's own brand green. A third-party identity value, like the
+   * tricolore in §2.8 — not a theme colour, and deliberately not mapped onto
+   * `success`, which would stop it being WhatsApp's green. A token all the
+   * same: rule n°1 forbids the inline hex, not the colour.
+   */
+  :root {
+    --brand-whatsapp: #25d366;
   }
 
   /*
@@ -197,6 +212,26 @@
      not override; without this the citizen area focuses in the agent navy. */
   .citizen-scope :focus-visible {
     @apply ring-brand;
+  }
+
+  /*
+   * Agent back-office — squared corners on every element, matching the
+   * statistics page's stat tiles. Retuning the scale here squares cards,
+   * tables, panels, inputs and buttons at once, so a component added later
+   * cannot drift back to rounded.
+   *
+   * A deliberate departure from docs/design-system.md §6.1, which gives one
+   * radius scale to the whole platform: the back-office is an instruction
+   * desk, not a citizen-facing surface. Colours and typefaces are untouched —
+   * only the corner geometry differs. `rounded-full` stays round (avatars,
+   * status dots).
+   */
+  .agent-scope {
+    --radius-sm: 1px;
+    --radius-md: 1px;
+    --radius-lg: 1px;
+    --radius-xl: 1px;
+    --radius-2xl: 1px;
   }
 
   /* Uppercase eyebrow label — section kickers across the Administral redesign. */

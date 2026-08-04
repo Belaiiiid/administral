@@ -39,17 +39,17 @@ const FIGURES: Figure[] = [
 function FigureItem({ figure, duplicate = false }: { figure: Figure; duplicate?: boolean }) {
   return (
     <li aria-hidden={duplicate || undefined} className="shrink-0 px-3">
-      <div className="flex items-center gap-4 rounded-sm border border-border/60 bg-card px-6 py-5 shadow-sm transition-colors duration-300 hover:border-brand/40">
+      <div className="flex items-center gap-4 rounded-sm border border-border/60 bg-card px-6 py-5 shadow-soft transition-colors duration-300 hover:border-brand/40">
         <span
           className={cn(
             'flex size-11 shrink-0 items-center justify-center rounded-sm',
-            figure.tone === 'teal' ? 'bg-teal-50 text-chart-2' : 'bg-brand-soft text-brand',
+            figure.tone === 'teal' ? 'bg-chart-2/10 text-chart-2' : 'bg-brand-soft text-brand',
           )}
         >
           <figure.icon className="size-5" aria-hidden="true" />
         </span>
         <span className="flex flex-col whitespace-nowrap">
-          <span className="font-display text-2xl font-extrabold leading-tight tabular-nums text-ink">
+          <span className="font-display text-headline-lg-mobile leading-tight tabular-nums text-ink">
             {figure.value}
           </span>
           <span className="mt-0.5 text-sm text-muted-foreground">{figure.label}</span>
@@ -70,15 +70,15 @@ function FigureItem({ figure, duplicate = false }: { figure: Figure; duplicate?:
  */
 export function LandingStatsMarquee() {
   return (
-    <div className="relative overflow-hidden border-y border-border/60 bg-neutral-50 py-10">
+    <div className="relative overflow-hidden border-y border-border/60 bg-surface py-10">
       {/* Fades the items into the page edges instead of cutting them off. */}
       {/* Must match the band's own background, or the fade shows as a band edge. */}
       <div
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-neutral-50 to-transparent"
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-surface to-transparent"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-neutral-50 to-transparent"
+        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-surface to-transparent"
         aria-hidden="true"
       />
 

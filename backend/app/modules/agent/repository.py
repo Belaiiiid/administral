@@ -136,3 +136,83 @@ def count_queue_stats(
     )
 
     return (pending or 0, to_review_today or 0, citizens_tracked or 0)
+
+
+# ---------------------------------------------------------------------------
+# Statistics — GET /agent/stats/overview
+# ---------------------------------------------------------------------------
+
+
+def count_citizens(db: Session) -> int:
+    """Every citizen on record, whether or not they have filed anything."""
+    return db.scalar(select(func.count()).select_from(Citizen)) or 0
+
+
+def count_citizens_with_cases(db: Session) -> int:
+    """Citizens who have filed at least once — the active share of the base."""
+    return db.scalar(select(func.count(func.distinct(Case.citizen_id)))) or 0
+
+
+def count_cases_by_status(db: Session) -> dict[CaseStatus, int]:
+    """One row per status. Statuses with no case are absent, not zero."""
+    rows = db.execute(select(Case.status, func.count()).group_by(Case.status)).all()
+    return {status: count for status, count in rows}
+
+
+def count_cases_by_service(db: Session) -> list[tuple[str, str, int]]:
+    """Case volume per administration, busiest first.
+
+    Grouped on the label as well as the id so the caller gets a display name
+    without a second query — the pair is denormalised onto the case and is
+    constant for a given id.
+    """
+    rows = db.execute(
+        select(Case.service_id, Case.service_label, func.count())
+        .group_by(Case.service_id, Case.service_label)
+        .order_by(func.count().desc())
+    ).all()
+    return [(service_id, label, count) for service_id, label, count in rows]
+
+
+def count_submissions_by_month(db: Session, *, months: int) -> list[tuple[str, int]]:
+    """Submissions per calendar month, oldest first.
+
+    Truncation happens in the database rather than by bucketing rows in Python:
+    the table is the only thing that knows the whole history, and pulling every
+    submission date back to group it here would not survive the table growing.
+    """
+    bucket = func.date_trunc("month", Case.submitted_at).label("bucket")
+    rows = db.execute(
+        select(bucket, func.count()).group_by(bucket).order_by(bucket.desc()).limit(months)
+    ).all()
+
+    # `limit` needs the newest months, the chart needs the oldest first.
+    return [(moment.strftime("%Y-%m"), count) for moment, count in reversed(rows)]
+
+
+def average_processing_days(db: Session) -> float | None:
+    """Mean days from submission to recorded decision, over decided cases only.
+
+    ``None`` when nothing has been decided yet — distinct from ``0.0``, which
+    would claim same-day instruction.
+    """
+    seconds = db.scalar(
+        select(
+            func.avg(
+                func.extract("epoch", CaseDecision.created_at - Case.submitted_at)
+            )
+        ).select_from(CaseDecision).join(Case, Case.id == CaseDecision.case_id)
+    )
+    return round(float(seconds) / 86400, 1) if seconds is not None else None
+
+
+def average_completion_rate(db: Session) -> float | None:
+    """Mean completeness percentage across cases that have been checked."""
+    rate = db.scalar(select(func.avg(CompletenessReport.completion_rate)))
+    return round(float(rate), 1) if rate is not None else None
+
+
+def average_score(db: Session) -> float | None:
+    """Mean decision-support score across cases the scorer has run on."""
+    score = db.scalar(select(func.avg(Case.score_value)).where(Case.score_value.isnot(None)))
+    return round(float(score), 1) if score is not None else None

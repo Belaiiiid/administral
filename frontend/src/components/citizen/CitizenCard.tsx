@@ -20,9 +20,9 @@ export function CitizenCard({ children, interactive = false, className }: Citize
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm',
+        'overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft',
         interactive &&
-          'transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg',
+          'transition-all duration-200 ease-standard hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-soft-hover',
         className,
       )}
     >
@@ -52,7 +52,7 @@ export function CitizenCardHeader({ title, icon: Icon, action, className }: Citi
             <Icon className="size-4" aria-hidden="true" />
           </span>
         )}
-        <h2 className="truncate font-display text-base font-bold text-ink">{title}</h2>
+        <h2 className="truncate font-display text-headline-md text-ink">{title}</h2>
       </span>
       {action}
     </div>

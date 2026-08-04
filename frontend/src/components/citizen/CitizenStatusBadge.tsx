@@ -8,10 +8,18 @@ const STATUS_MAP: Record<
   { label: string; className: string; Icon: typeof CheckCircle2 }
 > = {
   draft: { label: 'Brouillon', className: 'bg-surface text-muted-foreground', Icon: FileText },
-  pending: { label: 'En attente', className: 'bg-amber-50 text-amber-700', Icon: Clock },
+  pending: { label: 'En attente', className: 'bg-warning-surface text-warning', Icon: Clock },
   in_progress: { label: 'En cours', className: 'bg-brand-soft text-brand', Icon: RefreshCw },
-  validated: { label: 'Validé', className: 'bg-emerald-50 text-emerald-700', Icon: CheckCircle2 },
-  rejected: { label: 'Rejeté', className: 'bg-destructive/10 text-destructive', Icon: AlertTriangle },
+  validated: {
+    label: 'Validé',
+    className: 'bg-success-surface text-success',
+    Icon: CheckCircle2,
+  },
+  rejected: {
+    label: 'Rejeté',
+    className: 'bg-destructive-surface text-destructive',
+    Icon: AlertTriangle,
+  },
 };
 
 export interface CitizenStatusBadgeProps {
@@ -33,7 +41,7 @@ export function CitizenStatusBadge({ status, label, className }: CitizenStatusBa
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
+        'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-label-sm',
         toneClass,
         className,
       )}

@@ -44,13 +44,13 @@ export function ProfilageAssistantPanel() {
   if (profilComplet) {
     return (
       <section
-        className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm"
+        className="mb-8 rounded-2xl border border-success/20 bg-success-surface p-5 shadow-soft"
         aria-label="Assistant de profilage APL"
       >
         <div className="flex gap-3">
-          <PartyPopper className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+          <PartyPopper className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
           <div>
-            <p className="font-display text-sm font-bold text-ink">
+            <p className="font-display text-label-md text-ink">
               Profil de demande APL complété
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -66,7 +66,7 @@ export function ProfilageAssistantPanel() {
 
   return (
     <section
-      className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-brand-soft shadow-sm"
+      className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-brand-soft shadow-soft"
       aria-label="Assistant de profilage APL"
       aria-live="polite"
     >
@@ -75,9 +75,9 @@ export function ProfilageAssistantPanel() {
           <Sparkles className="size-5" aria-hidden="true" />
         </span>
         <div className="flex-1">
-          <p className="font-display text-sm font-bold text-ink">Assistant CAF</p>
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-            <span className="size-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
+          <p className="font-display text-label-md text-ink">Assistant CAF</p>
+          <p className="flex items-center gap-1.5 text-label-sm text-success">
+            <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
             En ligne
           </p>
         </div>

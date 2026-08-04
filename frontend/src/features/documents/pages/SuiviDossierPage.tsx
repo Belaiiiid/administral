@@ -87,7 +87,7 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
         <span
           className={cn(
             'absolute left-[15px] top-8 h-[calc(100%-1.5rem)] w-0.5',
-            step.state === 'done' ? 'bg-emerald-500' : 'bg-border',
+            step.state === 'done' ? 'bg-success' : 'bg-border',
           )}
           aria-hidden="true"
         />
@@ -96,7 +96,7 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
         className={cn(
           'z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2',
           step.state === 'done'
-            ? 'border-emerald-500 bg-emerald-500 text-white'
+            ? 'border-success bg-success text-white'
             : step.state === 'current'
               ? 'border-brand bg-brand-soft text-brand'
               : 'border-border bg-surface text-muted-foreground',
@@ -105,7 +105,7 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
         <Icon className="size-4" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1 pt-1">
-        <p className="font-display text-sm font-bold text-ink">{step.label}</p>
+        <p className="font-display text-label-md text-ink">{step.label}</p>
         {step.description && (
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
         )}
@@ -122,20 +122,20 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
  * agent might be double-checking a piece of information.
  */
 const COHERENCE_OUTCOME_META: Record<string, { label: string; className: string }> = {
-  passed: { label: 'Cohérent', className: 'bg-emerald-50 text-emerald-700' },
-  warning: { label: 'À vérifier', className: 'bg-amber-50 text-amber-700' },
+  passed: { label: 'Cohérent', className: 'bg-success-surface text-success' },
+  warning: { label: 'À vérifier', className: 'bg-warning-surface text-warning' },
   failed: { label: 'Incohérence détectée', className: 'bg-destructive/10 text-destructive' },
 };
 
 const ANOMALY_SEVERITY_META: Record<string, { label: string; className: string }> = {
   info: { label: 'Information', className: 'bg-brand-soft text-brand' },
-  warning: { label: 'Vigilance', className: 'bg-amber-50 text-amber-700' },
+  warning: { label: 'Vigilance', className: 'bg-warning-surface text-warning' },
   error: { label: 'Erreur', className: 'bg-destructive/10 text-destructive' },
 };
 
 function Pill({ label, className }: { label: string; className: string }) {
   return (
-    <span className={cn('inline-flex rounded-full px-3 py-1 text-xs font-semibold', className)}>
+    <span className={cn('inline-flex rounded-full px-3 py-1 text-label-sm', className)}>
       {label}
     </span>
   );
@@ -146,20 +146,20 @@ function AnomalyRow({ anomaly }: { anomaly: DossierAnomaly }) {
   return (
     <li className="rounded-xl border border-border/60 p-4">
       <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <p className="font-display text-sm font-bold text-ink">{anomaly.field}</p>
+        <p className="font-display text-label-md text-ink">{anomaly.field}</p>
         <Pill label={meta.label} className={meta.className} />
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">{anomaly.message}</p>
       {(anomaly.declared_value || anomaly.observed_value) && (
         <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <dt className="text-label-sm uppercase tracking-wide text-muted-foreground">
               Déclaré
             </dt>
             <dd className="text-ink">{anomaly.declared_value || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <dt className="text-label-sm uppercase tracking-wide text-muted-foreground">
               Constaté
             </dt>
             <dd className="text-ink">{anomaly.observed_value || '—'}</dd>
@@ -197,7 +197,7 @@ function CoherenceCard({ coherence }: { coherence: NonNullable<DossierReview['co
             ))}
           </ul>
         ) : (
-          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
+          <p className="flex items-center gap-2 text-label-md text-success">
             <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
             Aucune incohérence relevée entre vos informations et vos pièces.
           </p>
@@ -224,7 +224,7 @@ function EcologieCard() {
       <CitizenCardHeader title="Impact écologique" icon={Leaf} />
       <CitizenCardBody>
         <p className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
-          <Leaf className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          <Leaf className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
           En transmettant votre dossier entièrement en ligne, vous évitez l’impression et
           l’envoi postal de vos justificatifs papier.
         </p>
@@ -354,7 +354,7 @@ export default function SuiviDossierPage() {
                     label={review.decision.outcome === 'validated' ? 'Validé' : 'Rejeté'}
                     className={
                       review.decision.outcome === 'validated'
-                        ? 'bg-emerald-50 text-emerald-700'
+                        ? 'bg-success-surface text-success'
                         : 'bg-surface text-muted-foreground'
                     }
                   />

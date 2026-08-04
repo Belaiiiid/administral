@@ -37,7 +37,7 @@ export function LandingHeader() {
       className={cn(
         'sticky top-0 z-50 transition-all duration-300',
         scrolled
-          ? 'border-b border-border/60 bg-background/85 shadow-sm backdrop-blur-md'
+          ? 'border-b border-border/60 bg-background/85 shadow-soft backdrop-blur-md'
           : 'border-b border-transparent bg-background',
       )}
     >
@@ -71,7 +71,7 @@ export function LandingHeader() {
             <a
               key={link.href}
               href={link.href}
-              className="group relative rounded-sm px-3 py-2 text-sm font-semibold text-foreground/70 transition-colors hover:text-brand"
+              className="group relative rounded-sm px-3 py-2 text-label-md text-foreground/70 transition-colors hover:text-brand"
             >
               {link.label}
               {/* Underline grows from the centre — gives the links a hover state
@@ -87,7 +87,7 @@ export function LandingHeader() {
         <div className="flex items-center gap-2">
           <Link
             to={ROUTES.login}
-            className="hidden items-center gap-2 rounded-sm bg-marianne px-5 py-2.5 text-sm font-semibold text-marianne-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:inline-flex"
+            className="hidden items-center gap-2 rounded-sm bg-marianne px-5 py-2.5 text-label-md text-marianne-foreground shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft-hover sm:inline-flex"
           >
             <UserRound className="size-4" aria-hidden="true" />
             Se connecter
@@ -116,7 +116,7 @@ export function LandingHeader() {
               key={link.href}
               href={link.href}
               onClick={() => setMenuOpen(false)}
-              className="rounded-sm px-4 py-3 text-sm font-semibold text-foreground/80 transition-colors hover:bg-brand-soft hover:text-brand"
+              className="rounded-sm px-4 py-3 text-label-md text-foreground/80 transition-colors hover:bg-brand-soft hover:text-brand"
             >
               {link.label}
             </a>
@@ -124,7 +124,7 @@ export function LandingHeader() {
           <Link
             to={ROUTES.login}
             onClick={() => setMenuOpen(false)}
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-sm bg-marianne px-5 py-3 text-sm font-semibold text-marianne-foreground sm:hidden"
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-sm bg-marianne px-5 py-3 text-label-md text-marianne-foreground sm:hidden"
           >
             <UserRound className="size-4" aria-hidden="true" />
             Se connecter

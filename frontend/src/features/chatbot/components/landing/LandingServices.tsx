@@ -40,10 +40,10 @@ export function LandingServices() {
   }, [api]);
 
   return (
-    // `bg-neutral-50` rather than `bg-surface`: the `--surface` token carries a
+    // `bg-surface` rather than `bg-surface`: the `--surface` token carries a
     // slight blue chroma (oklch hue 250), which read as a blue tint over a full
     // section. This is a genuinely neutral light grey.
-    <section id="services" className="bg-neutral-50">
+    <section id="services" className="bg-surface">
       <div className="mx-auto max-w-7xl px-6 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow text-base">Services principaux</p>

@@ -10,6 +10,7 @@ import {
 import { Logo } from '@/components/layout/Logo';
 import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { Button } from '@/components/ui/button';
+import { isAgentPath } from '@/features/agent/paths';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/store/uiStore';
 import { useSessionStore } from '@/store/sessionStore';
@@ -55,7 +56,8 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-low px-4 py-6">
       <div className="mb-4 flex items-center justify-between gap-2 px-2">
-        <Logo />
+        {/* One rail, two areas — the subtitle is what tells them apart. */}
+        <Logo subtitle={isAgentPath(pathname) ? 'Espace agent' : undefined} />
         {inDrawer && (
           <Button variant="ghost" size="icon" onClick={closeSidebar} aria-label="Fermer le menu">
             <X aria-hidden="true" />
@@ -65,7 +67,12 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-label-sm text-on-surface-variant">
         <span>Propulsé par</span>
-        <PartnerLogos className="flex-wrap gap-3" />
+        {/* The back-office wears the 2025 brand mark; France Travail shares
+            this rail and keeps the « Le Chat » mascot. */}
+        <PartnerLogos
+          className="flex-wrap gap-3"
+          mistralMark={isAgentPath(pathname) ? 'brand' : 'chat'}
+        />
       </div>
 
       <nav aria-label="Navigation principale" className="flex-1">
