@@ -24,6 +24,9 @@ export interface ServiceDefinition {
    *  generic icon, when the administration's own mark should be recognisable
    *  rather than genericised. Optional — most services fall back to the icon. */
   logoUrl?: string;
+  /** Photo (`public/`) filling the service card's image panel on the landing
+   *  page. Optional — falls back to a tinted panel with the icon. */
+  photoUrl?: string;
 }
 
 /** Envelope returned by every service-layer call. */

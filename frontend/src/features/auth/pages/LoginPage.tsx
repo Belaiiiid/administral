@@ -2,6 +2,7 @@ import { Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
 import Turnstile from '@/components/shared/Turnstile';
@@ -114,12 +115,12 @@ export default function LoginPage() {
   });
 
   return (
-    <Card className="shadow-soft">
+    <Card className="rounded-xl border-outline-variant shadow-soft transition-all hover:shadow-soft-hover">
       <CardContent className="p-6 sm:p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-headline-md text-on-surface">Connexion</h1>
-          <p className="mt-1 text-body-sm text-on-surface-variant">
-            Accédez à votre espace personnel
+          <h1 className="text-headline-lg-mobile text-primary md:text-headline-lg">Bienvenue</h1>
+          <p className="mt-1 text-body-md text-on-surface-variant">
+            Connectez-vous à votre portail citoyen intelligent
           </p>
         </div>
 
@@ -134,9 +135,9 @@ export default function LoginPage() {
         </p>
 
         <div className="my-8 flex items-center gap-4">
-          <span aria-hidden="true" className="h-px flex-1 bg-border" />
-          <span className="text-label-sm text-on-surface-variant">OU</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-border" />
+          <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
+          <span className="text-label-sm uppercase tracking-widest text-outline">ou</span>
+          <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
         </div>
 
         {notice && (
@@ -201,7 +202,7 @@ export default function LoginPage() {
               <Label htmlFor="password">Mot de passe</Label>
               <Link
                 to={ROUTES.forgotPassword}
-                className="text-body-sm text-on-surface-variant hover:underline"
+                className="text-body-sm text-ai hover:underline"
               >
                 Oublié ?
               </Link>
@@ -246,16 +247,22 @@ export default function LoginPage() {
             onExpire={() => setTurnstileToken(null)}
           />
 
-          <Button type="submit" block size="lg" disabled={isLoggingIn || !turnstileToken}>
+          <Button
+            type="submit"
+            block
+            size="lg"
+            disabled={isLoggingIn || !turnstileToken}
+            className="bg-ai"
+          >
             {isLoggingIn ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
 
-        <div className="mt-8 border-t border-border pt-6 text-center">
-          <p className="text-body-sm text-on-surface-variant">
-            Vous n'avez pas de compte ?{' '}
-            <Link to={ROUTES.register} className="font-medium text-primary hover:underline">
-              Créer un espace personnel
+        <div className="mt-8 text-center">
+          <p className="text-body-md text-on-surface-variant">
+            Nouveau sur {APP_CONFIG.name} ?{' '}
+            <Link to={ROUTES.register} className="font-bold text-ai hover:underline">
+              Créer un compte
             </Link>
           </p>
         </div>

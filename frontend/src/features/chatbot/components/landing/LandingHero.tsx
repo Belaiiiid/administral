@@ -73,7 +73,7 @@ export function LandingHero({ onStart }: LandingHeroProps) {
           <span className="inline-flex rounded-full bg-brand-soft px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
             Bienvenue sur Administral
           </span>
-          <h1 className="mt-6 max-w-2xl text-4xl font-extrabold leading-[1.08] text-ink sm:text-5xl lg:text-6xl">
+          <h1 className="mt-6 max-w-2xl text-4xl font-extrabold leading-[1.08] text-[#091431] sm:text-5xl lg:text-6xl">
             Une plateforme unique pour vos démarches et services publics.
           </h1>
           <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground">
@@ -101,7 +101,7 @@ export function LandingHero({ onStart }: LandingHeroProps) {
         </div>
 
         <div className="lg:pt-6">
-          <div className="relative min-h-[24rem] overflow-hidden rounded-2xl border border-brand/20 bg-background/75 p-6 shadow-lg backdrop-blur sm:p-8">
+          <div className="relative min-h-[24rem] overflow-hidden rounded-2xl border border-brand/20 bg-white/90 p-6 shadow-lg backdrop-blur-sm sm:p-8">
             <div className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-brand/5 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-14 -left-10 size-36 rounded-full bg-chart-2/5 blur-3xl" />
 
@@ -112,10 +112,10 @@ export function LandingHero({ onStart }: LandingHeroProps) {
             >
               {current.type === 'vision' ? (
                 <div>
-                  <h2 className="font-display text-3xl font-extrabold text-brand lg:text-4xl">
+                  <h2 className="font-display text-3xl font-extrabold text-[#5381be] lg:text-4xl">
                     RÉPUBLIQUE 5.0
                   </h2>
-                  <p className="mt-3 font-display text-lg font-semibold leading-snug text-brand">
+                  <p className="mt-3 font-display text-lg font-semibold leading-snug text-[#5381be]">
                     Connectée. Inclusive.
                     <br />
                     Intelligente. Humaine.
@@ -149,7 +149,7 @@ export function LandingHero({ onStart }: LandingHeroProps) {
                   </span>
                   <p
                     className={`mt-6 font-display text-5xl font-extrabold tabular-nums sm:text-6xl ${
-                      current.tone === 'teal' ? 'text-chart-2' : 'text-brand'
+                      current.tone === 'teal' ? 'text-chart-2' : 'text-[#5381be]'
                     }`}
                   >
                     {current.value}

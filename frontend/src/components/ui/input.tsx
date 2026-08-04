@@ -22,7 +22,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         className={cn(
           'h-11 w-full rounded-lg border border-border bg-surface-lowest px-4 text-body-md text-on-surface',
           'placeholder:text-muted-foreground',
-          'focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0',
+          'focus-visible:border-ai focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai/20 focus-visible:ring-offset-0',
           'disabled:cursor-not-allowed disabled:bg-surface-low disabled:opacity-60',
           'aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-destructive/20',
           startIcon && 'pl-11',
