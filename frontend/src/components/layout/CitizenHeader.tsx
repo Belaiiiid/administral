@@ -74,8 +74,12 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
       {/* On `full`, the sidebar already carries the mark on desktop (lg+) —
           shown here too so it's not missing on mobile, where the sidebar is a
           drawer. On `minimal` there is no sidebar at all, so it always shows. */}
+      {/* Toujours vers `home`, jamais vers `portal` : `portal` est le hub CAF,
+          et cliquer le logo depuis France Travail y atterrissait sans raison.
+          `HomeRoute` renvoie de lui-même un visiteur identifié vers la liste
+          des administrations, qui est bien son accueil. */}
       <Link
-        to={isAuthenticated ? ROUTES.portal : ROUTES.home}
+        to={ROUTES.home}
         className={cn('flex items-center gap-2.5', variant === 'full' && 'lg:hidden')}
       >
         <img src={logo} alt="Administral" className="size-9 shrink-0 object-contain" />

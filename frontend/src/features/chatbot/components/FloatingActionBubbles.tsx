@@ -194,7 +194,9 @@ export function FloatingActionBubbles({
   const location = useLocation();
   const isFinePointer = useFinePointer();
   // Called before any early return — hook order must stay stable across renders.
-  const lift = useFooterLift();
+  // Sa valeur ne sert pas ici : seul l'appel compte, d'où l'absence de liaison
+  // (une variable inutilisée fait échouer `tsc -b`, donc tout le build).
+  useFooterLift();
 
   if (hidden || isOpen || location.pathname === ROUTES.chat) return null;
 

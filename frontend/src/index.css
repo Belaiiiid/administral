@@ -166,6 +166,14 @@
     --admtl-foreground: oklch(0.22 0.05 262);
     --admtl-card: oklch(1 0 0);
     --admtl-card-foreground: oklch(0.129 0.042 264.695);
+    /*
+     * Surface translucide, pour une carte posée sur une photo (bandeaux
+     * France Travail). L'alpha est porté par le token lui-même : un
+     * modificateur Tailwind (`bg-card/70`) ne produirait aucune règle, les
+     * autres tokens contenant une couleur `oklch()` complète et non des
+     * canaux. Reste au-dessus de 4.5:1 pour `ink` quel que soit le fond.
+     */
+    --admtl-card-veil: oklch(1 0 0 / 0.82);
     --admtl-chart-2: oklch(0.6 0.118 184.704);
   }
 

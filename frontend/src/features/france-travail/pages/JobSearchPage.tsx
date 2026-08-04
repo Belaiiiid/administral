@@ -1,5 +1,4 @@
 import {
-  ArrowRight,
   BriefcaseBusiness,
   ExternalLink,
   Info,
@@ -12,13 +11,19 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { CitizenCard } from '@/components/citizen/CitizenCard';
 import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
 import { citizenButton } from '@/components/citizen/citizenButton';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { FranceTravailShell } from '@/features/france-travail/components/FranceTravailShell';
+import heroImage from '@/assets/ft-recherche-emploi.avif';
+import {
+  FtAside,
+  FtCard,
+  FtReveal,
+  FtSectionHeading,
+} from '@/features/france-travail/components/FtVisuals';
 import { jobSearchService } from '@/services/jobSearchService';
 import type { JobOffer, JobSearchResult } from '@/types';
 
@@ -31,10 +36,10 @@ import type { JobOffer, JobSearchResult } from '@/types';
  * not the data itself: an offer with `score: null` is still a real offer,
  * just one the scoring step couldn't rate.
  *
- * Passée au design Administral : cartes `CitizenCard`, pastille de score et
- * barre colorée reprises de la maquette design-to-code. Le filtre par contrat
- * est purement client — il trie ce que le backend a déjà renvoyé et ne
- * relance aucune recherche.
+ * Les offres arrivent en fondu décalé plutôt que d'apparaître en bloc : sur
+ * une liste classée par pertinence, l'ordre d'entrée fait lire de haut en bas
+ * dans le bon sens. Le filtre par contrat est purement client — il trie ce
+ * que le backend a déjà renvoyé et ne relance aucune recherche.
  */
 
 const EXAMPLE_PROMPT =
@@ -42,26 +47,28 @@ const EXAMPLE_PROMPT =
 
 /** Vert au-dessus de 66 %, bleu de marque au-dessus de 33 %, ambre en dessous. */
 function scoreTone(score: number) {
-  if (score >= 66) return { chip: 'bg-success-surface text-success', bar: 'bg-success' };
-  if (score >= 33) return { chip: 'bg-brand-soft text-brand', bar: 'bg-brand' };
-  return { chip: 'bg-warning-surface text-warning', bar: 'bg-warning' };
+  if (score >= 66)
+    return { chip: 'bg-success-surface text-success', bar: 'bg-success', accent: 'success' } as const;
+  if (score >= 33)
+    return { chip: 'bg-brand-soft text-brand', bar: 'bg-brand', accent: 'brand' } as const;
+  return { chip: 'bg-warning-surface text-warning', bar: 'bg-warning', accent: 'warning' } as const;
 }
 
 function OfferCard({ offer }: { offer: JobOffer }) {
   const tone = offer.score !== null ? scoreTone(offer.score) : null;
 
   return (
-    <CitizenCard interactive className="flex h-full flex-col p-6">
+    <FtCard interactive accent={tone?.accent} className="flex h-full flex-col p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-display text-lg font-bold leading-snug text-ink">{offer.intitule}</h3>
+          <h3 className="font-display text-headline-md text-ink">{offer.intitule}</h3>
           {offer.entreprise && (
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">{offer.entreprise}</p>
+            <p className="mt-1 text-label-sm text-muted-foreground">{offer.entreprise}</p>
           )}
         </div>
         {tone && (
           <span
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold tabular-nums ${tone.chip}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-label-sm tabular-nums ${tone.chip}`}
           >
             {offer.score} %
           </span>
@@ -69,23 +76,23 @@ function OfferCard({ offer }: { offer: JobOffer }) {
       </div>
 
       {tone && (
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-border/60">
+        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-surface-container">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${tone.bar}`}
+            className={`h-full rounded-full transition-[width] duration-200 ease-out ${tone.bar}`}
             style={{ width: `${offer.score}%` }}
           />
         </div>
       )}
 
-      <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
+      <dl className="mt-5 flex flex-wrap gap-2 text-label-sm">
         {offer.lieuLibelle && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-muted-foreground">
             <MapPin className="size-3.5 shrink-0 text-brand" aria-hidden="true" />
             <dd>{offer.lieuLibelle}</dd>
           </div>
         )}
         {offer.typeContrat && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-muted-foreground">
             <BriefcaseBusiness className="size-3.5 shrink-0 text-brand" aria-hidden="true" />
             <dd>{offer.typeContrat}</dd>
           </div>
@@ -93,30 +100,30 @@ function OfferCard({ offer }: { offer: JobOffer }) {
       </dl>
 
       {offer.raison && (
-        <p className="mt-5 flex items-start gap-3 rounded-xl border border-brand/15 bg-brand-soft/50 p-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-5 flex items-start gap-3 rounded-lg border-l-2 border-brand bg-brand-soft p-4 text-body-sm text-muted-foreground">
           <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
           {offer.raison}
         </p>
       )}
 
-      <p className="mt-5 flex-1 text-xs leading-relaxed text-muted-foreground">
+      <p className="mt-5 flex-1 text-body-sm text-muted-foreground">
         {offer.description}
       </p>
 
       {offer.url && (
-        <div className="mt-6 border-t border-border/60 pt-4">
+        <div className="mt-6 border-t border-border pt-4">
           <a
             href={offer.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-brand transition-all hover:gap-3"
+            className="inline-flex items-center gap-2 text-label-md text-brand transition-all hover:gap-3"
           >
             Voir l&rsquo;offre sur France Travail
             <ExternalLink className="size-4" aria-hidden="true" />
           </a>
         </div>
       )}
-    </CitizenCard>
+    </FtCard>
   );
 }
 
@@ -165,35 +172,35 @@ export default function JobSearchPage() {
       eyebrow="Recherche d'offres"
       title="Les offres qui correspondent vraiment à votre profil."
       description="Décrivez ce que vous cherchez en une phrase — métier, ville, tout autre détail — et retrouvez de vraies offres France Travail actuellement ouvertes, classées par pertinence."
+      image={heroImage}
+      // Contre-plongée : l'intérêt graphique est haut, vers le ciel et les
+      // arêtes des tours.
+      imagePosition="center 35%"
       aside={
-        <div className="relative overflow-hidden rounded-2xl border border-brand/20 bg-card/75 p-8 text-center shadow-lg backdrop-blur">
-          <div className="pointer-events-none absolute -right-12 -top-12 size-36 rounded-full bg-chart-2/5 blur-3xl" />
-          <div className="relative">
-            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-chart-2 text-white shadow-md ring-8 ring-chart-2/10">
-              <Target className="size-8" aria-hidden="true" />
-            </span>
-            <p className="mt-6 font-display text-5xl font-extrabold tabular-nums text-chart-2">
-              {result?.available ? result.offres.length : '—'}
+        <FtAside
+          icon={Target}
+          tone="chart"
+          value={result?.available ? result.offres.length : undefined}
+          title={result?.available ? 'Offres ouvertes aujourd’hui' : 'Aucune recherche lancée'}
+          description={
+            result?.available
+              ? 'Toutes réellement ouvertes chez France Travail, classées par pertinence.'
+              : 'Décrivez ce que vous cherchez ci-dessous pour voir vos offres.'
+          }
+        >
+          {result?.motsCles && (
+            <p className="inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-label-sm text-brand">
+              {result.motsCles}
+              {result.departement ? ` · ${result.departement}` : ''}
             </p>
-            <p className="mt-3 text-sm font-semibold leading-snug text-muted-foreground">
-              {result?.available
-                ? 'Offres réellement ouvertes aujourd’hui'
-                : 'Lancez une recherche pour voir vos offres'}
-            </p>
-            {result?.motsCles && (
-              <p className="mt-4 inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand">
-                {result.motsCles}
-                {result.departement ? ` · ${result.departement}` : ''}
-              </p>
-            )}
-          </div>
-        </div>
+          )}
+        </FtAside>
       }
     >
       <div className="space-y-gutter">
-        <CitizenCard className="p-6">
+        <FtCard accent="brand" className="p-6">
           <p className="eyebrow">Votre recherche</p>
-          <h2 className="mt-3 font-display text-xl font-extrabold leading-tight text-ink">
+          <h2 className="mt-3 font-display text-headline-md text-ink">
             Décrivez ce que vous cherchez
           </h2>
 
@@ -213,24 +220,35 @@ export default function JobSearchPage() {
                 }
               }}
             />
-            <button
-              type="button"
-              onClick={() => void search()}
-              disabled={!prompt.trim() || isSearching}
-              className={citizenButton({ variant: 'marianne' })}
-            >
-              {isSearching ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Search aria-hidden="true" />
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void search()}
+                disabled={!prompt.trim() || isSearching}
+                className={citizenButton({ variant: 'marianne' })}
+              >
+                {isSearching ? (
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Search aria-hidden="true" />
+                )}
+                {isSearching ? 'Recherche en cours…' : 'Rechercher'}
+              </button>
+              {!prompt && (
+                <button
+                  type="button"
+                  onClick={() => setPrompt(EXAMPLE_PROMPT)}
+                  className="text-label-sm text-brand underline-offset-4 hover:underline"
+                >
+                  Essayer un exemple
+                </button>
               )}
-              {isSearching ? 'Recherche en cours…' : 'Rechercher'}
-            </button>
+            </div>
           </div>
 
           {contracts.length > 1 && (
-            <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/60 pt-5">
-              <span className="mr-1 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand">
+            <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border pt-5">
+              <span className="mr-1 inline-flex items-center gap-1.5 text-label-sm uppercase tracking-wide text-brand">
                 <SlidersHorizontal className="size-3.5" aria-hidden="true" />
                 Contrat
               </span>
@@ -240,10 +258,10 @@ export default function JobSearchPage() {
                   type="button"
                   onClick={() => setContract(item)}
                   aria-pressed={item === contract}
-                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                  className={`rounded-full px-3.5 py-1.5 text-label-sm transition-all duration-200 ${
                     item === contract
-                      ? 'bg-brand text-white'
-                      : 'bg-brand-soft text-brand hover:bg-brand/15'
+                      ? 'bg-brand text-marianne-foreground shadow-soft'
+                      : 'bg-brand-soft text-brand hover:bg-brand-soft'
                   }`}
                 >
                   {item}
@@ -251,7 +269,7 @@ export default function JobSearchPage() {
               ))}
             </div>
           )}
-        </CitizenCard>
+        </FtCard>
 
         {error && (
           <p role="alert" className="text-body-sm text-destructive">
@@ -281,23 +299,23 @@ export default function JobSearchPage() {
         )}
 
         {result?.available && visible.length > 0 && (
-          <div>
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <div>
-                <p className="eyebrow">Résultats classés par pertinence</p>
-                <h2 className="mt-3 font-display text-2xl font-extrabold leading-tight text-ink">
-                  {visible.length} offre{visible.length > 1 ? 's' : ''} pour votre profil
-                </h2>
-              </div>
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                Source : API Offres d’emploi France Travail
-                <ArrowRight className="size-3.5" aria-hidden="true" />
-              </p>
-            </div>
+          <div className="space-y-8">
+            <FtSectionHeading
+              eyebrow="Classées par pertinence"
+              title={`${visible.length} offre${visible.length > 1 ? 's' : ''} pour votre profil`}
+              icon={BriefcaseBusiness}
+              action={
+                <p className="text-body-sm text-muted-foreground">
+                  Source : API Offres d’emploi France Travail
+                </p>
+              }
+            />
 
-            <div className="mt-8 grid gap-6 lg:grid-cols-2">
-              {visible.map((offer) => (
-                <OfferCard key={offer.id} offer={offer} />
+            <div className="grid gap-6 lg:grid-cols-2">
+              {visible.map((offer, index) => (
+                <FtReveal key={offer.id} index={index} className="h-full">
+                  <OfferCard offer={offer} />
+                </FtReveal>
               ))}
             </div>
           </div>
