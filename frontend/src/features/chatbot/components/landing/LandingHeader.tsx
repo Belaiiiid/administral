@@ -60,7 +60,7 @@ export function LandingHeader() {
             <span className="block font-display text-lg font-extrabold tracking-tight text-ink">
               ADMINISTRAL
             </span>
-            <span className="block text-xs text-muted-foreground">
+            <span className="block text-lg text-muted-foreground">
               République 5.0
             </span>
           </span>

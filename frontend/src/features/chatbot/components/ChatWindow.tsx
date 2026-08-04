@@ -1,4 +1,5 @@
 import { Bot, Mic, Send } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '@/components/shared';
@@ -7,6 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MessageBubble } from '@/features/chatbot/components/MessageBubble';
 import type { ChatbotController } from '@/features/chatbot/hooks/useChatbot';
+
+// Adapter to use the Mistral logo (image) where a LucideIcon is expected
+const MistralGlyph = (({ className }: { className?: string }) => (
+  <img
+    src="/mistral-logo.svg"
+    alt=""
+    aria-hidden="true"
+    className={className ? className + ' object-contain' : 'object-contain'}
+  />
+)) as unknown as LucideIcon;
 
 /**
  * The conversation surface: thread, pending indicator and composer.
@@ -103,7 +114,7 @@ export function ChatWindow({
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-6">
           <EmptyState
-            icon={Bot}
+            icon={MistralGlyph}
             title="Aucune conversation"
             description="Posez une question pour démarrer un échange avec l’assistant."
           />
