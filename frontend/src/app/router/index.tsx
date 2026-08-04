@@ -12,7 +12,6 @@ import { FocusLayout } from '@/components/layout/FocusLayout';
 import { RouteFallback } from '@/app/router/RouteFallback';
 import { agentRoutes } from '@/features/agent';
 import { useSessionStore } from '@/store/sessionStore';
-import { useVoiceStore } from '@/features/voice/store/voiceStore';
 
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/features/auth/pages/RegisterPage'));
@@ -56,16 +55,12 @@ const AdminDashboardPage = lazy(
 /**
  * `/` — public by default. A signed-in visitor is sent straight to the
  * administrations list (there is nothing for them at a marketing/assistant
- * landing they have already moved past); everyone else meets the assistant
- * first and "Se connecter" second, never the other way around.
+ * landing they have already moved past); everyone else sees the landing page
+ * immediately, with the voice-or-not choice offered as a popup on top of it
+ * (see `VoiceOnboardingDialog`) rather than a separate page blocking the way in.
  */
 function HomeRoute() {
   const user = useSessionStore((state) => state.user);
-  const hasSeenVoiceOnboarding = useVoiceStore((state) => state.hasSeenVoiceOnboarding);
-
-  if (!hasSeenVoiceOnboarding) {
-    return <Navigate to={ROUTES.voiceOnboarding} replace />;
-  }
 
   return user ? <Navigate to={ROUTES.administrations} replace /> : <PublicLandingPage />;
 }

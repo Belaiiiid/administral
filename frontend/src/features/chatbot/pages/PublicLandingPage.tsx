@@ -17,6 +17,7 @@ import { LandingServices } from '@/features/chatbot/components/landing/LandingSe
 import { LandingTrust } from '@/features/chatbot/components/landing/LandingTrust';
 import { Reveal } from '@/features/chatbot/components/landing/Reveal';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
+import { VoiceOnboardingDialog } from '@/features/voice/components/VoiceOnboardingDialog';
 import { VoiceStatusStrip } from '@/features/voice/components/VoiceStatusStrip';
 import { VoicePageProvider, useVoicePage } from '@/features/voice/context/VoicePageContext';
 import { useVoiceComposer } from '@/features/voice/hooks/useVoiceComposer';
@@ -140,6 +141,7 @@ function LandingContent() {
   return (
     <div className="citizen-scope flex min-h-screen flex-col bg-background font-sans">
       <SkipLink />
+      <VoiceOnboardingDialog />
       <LandingHeader />
 
       <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
@@ -206,7 +208,7 @@ function LandingContent() {
 
       {/* Hidden once the embedded assistant is showing: the Mistral bubble
           would then just re-trigger what is already on screen. */}
-      <FloatingActionBubbles hidden={started} onAssistantClick={() => handleStart('text')} />
+      <FloatingActionBubbles orbit hidden={started} onAssistantClick={() => handleStart('text')} />
     </div>
   );
 }

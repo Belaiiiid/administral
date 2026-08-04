@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import Turnstile from '@/components/shared/Turnstile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -115,29 +116,17 @@ export default function LoginPage() {
   });
 
   return (
-    <Card className="rounded-xl border-outline-variant shadow-soft transition-all hover:shadow-soft-hover">
-      <CardContent className="p-6 sm:p-8">
-        <div className="mb-8 text-center">
-          <h1 className="text-headline-lg-mobile text-primary md:text-headline-lg">Bienvenue</h1>
-          <p className="mt-1 text-body-md text-on-surface-variant">
-            Connectez-vous à votre portail citoyen intelligent
-          </p>
-        </div>
-
-        <FranceConnectButton />
-        <p className="mt-3 text-center">
-          <Link
-            to="/franceconnect"
-            className="text-body-sm text-on-surface-variant hover:underline"
-          >
-            Qu'est-ce que FranceConnect ?
-          </Link>
-        </p>
-
-        <div className="my-8 flex items-center gap-4">
-          <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
-          <span className="text-label-sm uppercase tracking-widest text-outline">ou</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-outline-variant" />
+    <Card className="rounded-[28px] border-none bg-white shadow-soft-hover">
+      <CardContent className="p-8 pb-6 sm:p-10 sm:pb-7">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <span className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-white shadow-soft ring-1 ring-[#DCE3F5]">
+            <img
+              src="/logo.png"
+              alt={APP_CONFIG.name}
+              className="size-full rounded-2xl object-contain"
+            />
+          </span>
+          <h1 className="text-headline-lg text-primary">Connexion</h1>
         </div>
 
         {notice && (
@@ -181,42 +170,38 @@ export default function LoginPage() {
           </Alert>
         ) : null}
 
-        <form ref={formRef} className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Adresse e-mail</Label>
-            <Input
-              id="email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="nom@exemple.fr"
-              startIcon={<Mail />}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </div>
+        <form ref={formRef} className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+          {/* Placeholder-only fields, per the reference design. The visible
+              `<Label>` is gone, so each field carries an `aria-label` — a
+              placeholder alone is not an accessible name, and it disappears
+              as soon as the citizen starts typing. */}
+          <Input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            aria-label="Adresse e-mail"
+            placeholder="Adresse e-mail"
+            startIcon={<Mail />}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            className="h-12 rounded-2xl border-[#DCE3F5] bg-[#f8f9fc] text-body-md"
+          />
 
-          <div className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Link
-                to={ROUTES.forgotPassword}
-                className="text-body-sm text-ai hover:underline"
-              >
-                Oublié ?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              name="password"
-              autoComplete="current-password"
-              startIcon={<Lock />}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              endAdornment={
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            autoComplete="current-password"
+            aria-label="Mot de passe"
+            placeholder="Mot de passe"
+            startIcon={<Lock />}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+            className="h-12 rounded-2xl border-[#DCE3F5] bg-[#f8f9fc] text-body-md"
+            endAdornment={
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
@@ -232,16 +217,29 @@ export default function LoginPage() {
                   )}
                 </button>
               }
-            />
+          />
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Checkbox id="remember" />
+              <Label htmlFor="remember" className="cursor-pointer text-body-sm font-normal">
+                Se souvenir de moi
+              </Label>
+            </div>
+            {/* `text-destructive` (--error, #ba1a1a) rather than a literal red:
+                it rides the high-contrast preference, and clears AA at 6.5:1
+                where the previous pink sat at 3.6:1. */}
+            <Link
+              to={ROUTES.forgotPassword}
+              className="text-body-sm text-destructive hover:underline"
+            >
+              Oublié ?
+            </Link>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Checkbox id="remember" />
-            <Label htmlFor="remember" className="cursor-pointer font-normal">
-              Se souvenir de moi
-            </Label>
-          </div>
-
+          {/* Renders nothing without `VITE_TURNSTILE_SITE_KEY` — which is why
+              it is absent from the reference screenshot. It still gates the
+              submit button in any environment that configures a site key. */}
           <Turnstile
             onVerify={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
@@ -252,19 +250,40 @@ export default function LoginPage() {
             block
             size="lg"
             disabled={isLoggingIn || !turnstileToken}
-            className="bg-ai"
+            className="mt-1 h-12 rounded-2xl bg-[#102a74] text-body-lg font-semibold hover:bg-[#0b1f57]"
           >
             {isLoggingIn ? 'Connexion…' : 'Se connecter'}
           </Button>
         </form>
 
-        <div className="mt-8 text-center">
-          <p className="text-body-md text-on-surface-variant">
-            Nouveau sur {APP_CONFIG.name} ?{' '}
-            <Link to={ROUTES.register} className="font-bold text-ai hover:underline">
-              Créer un compte
+        <div className="my-6 flex items-center gap-4">
+          <span aria-hidden="true" className="h-px flex-1 bg-[#DCE3F5]" />
+          <span className="text-label-sm text-on-surface-variant">Ou connectez-vous avec</span>
+          <span aria-hidden="true" className="h-px flex-1 bg-[#DCE3F5]" />
+        </div>
+
+        <FranceConnectButton className="h-12 rounded-2xl" />
+        <p className="mt-4 text-center">
+          <Link to="/franceconnect" className="text-body-sm text-on-surface-variant hover:underline">
+            Qu’est-ce que FranceConnect ?
+          </Link>
+        </p>
+
+        <div className="mt-6 text-center opacity-70">
+          <p className="text-label-sm text-on-surface-variant">
+            Vous n’avez pas de compte ?{' '}
+            <Link to={ROUTES.register} className="text-ai hover:underline">
+              Créer un espace personnel
             </Link>
           </p>
+        </div>
+
+        {/* `PartnerLogos` rather than two hand-written `<img>`: it already
+            pairs Talan with Mistral and falls back to a text wordmark if an
+            asset is missing. `wordmark` selects /mistral-logo.svg. */}
+        <div className="mt-5 flex items-center justify-center gap-2 opacity-70">
+          <span className="text-label-sm text-on-surface-variant">Powered by</span>
+          <PartnerLogos className="gap-2" logoClassName="h-4" mistralMark="wordmark" />
         </div>
       </CardContent>
     </Card>

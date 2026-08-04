@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
@@ -6,7 +6,7 @@ import { ROUTES } from '@/app/router/paths';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { cn } from '@/lib/utils';
 
-interface BubbleButtonProps {
+interface BubbleSpec {
   id?: string;
   label: string;
   iconSrc: string;
@@ -14,7 +14,35 @@ interface BubbleButtonProps {
   className?: string;
 }
 
-function BubbleButton({ id, label, iconSrc, onClick, className }: BubbleButtonProps) {
+/**
+ * True for mouse / trackpad only.
+ *
+ * The orbit's only pause mechanism is hover, and touch screens have no
+ * hover — there, both CTAs would be permanently moving targets with no way
+ * to stop them (WCAG 2.2.2). Coarse pointers keep the static stack.
+ */
+function useFinePointer() {
+  const query = '(hover: hover) and (pointer: fine)';
+  const [isFine, setIsFine] = useState(() => window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = (event: MediaQueryListEvent) => setIsFine(event.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  return isFine;
+}
+
+function BubbleButton({
+  id,
+  label,
+  iconSrc,
+  onClick,
+  className,
+  tooltip = 'right',
+}: BubbleSpec & { tooltip?: 'right' | 'above' }) {
   return (
     <div className="group relative flex items-center">
       <button
@@ -34,7 +62,13 @@ function BubbleButton({ id, label, iconSrc, onClick, className }: BubbleButtonPr
           hidden from assistive tech rather than announced twice. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+        className={cn(
+          'pointer-events-none absolute whitespace-nowrap rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100',
+          // Above and left-aligned in orbit: centred-below would run off the
+          // left edge at the ellipse's far point and under the viewport at
+          // its lowest, since the whole system sits in the bottom-left corner.
+          tooltip === 'right' ? 'left-full ml-3' : 'bottom-full left-0 mb-3',
+        )}
       >
         {label}
       </span>
@@ -43,45 +77,38 @@ function BubbleButton({ id, label, iconSrc, onClick, className }: BubbleButtonPr
 }
 
 /**
- * How far to raise the bubbles so they rest on top of the footer instead of
- * covering it.
- *
- * The alternative — reserving a permanent ~144px band at the bottom of the
- * footer — made the footer a third taller on every page for a collision that
- * only happens once the page is scrolled to the very end.
+ * The bubbles in orbit — see `.orbit-*` in src/index.css for the 3D chain
+ * and the hover pause. The ellipse's long axis is vertical, so the travel
+ * reads top-to-bottom. Landing page only, mouse-only (`useFinePointer`).
  */
-function useFooterLift(): number {
-  const [lift, setLift] = useState(0);
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    const footer = document.querySelector('footer');
-    if (!footer) {
-      setLift(0);
-      return;
-    }
-
-    const update = () => {
-      const visibleFooter = window.innerHeight - footer.getBoundingClientRect().top;
-      // Never push them past the top of the viewport on a short screen.
-      const ceiling = Math.max(0, window.innerHeight - 200);
-      setLift(Math.min(Math.max(0, visibleFooter), ceiling));
-    };
-
-    update();
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    const observer = new ResizeObserver(update);
-    observer.observe(document.body);
-
-    return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-      observer.disconnect();
-    };
-  }, [pathname]);
-
-  return lift;
+function OrbitBubbles({ bubbles }: { bubbles: BubbleSpec[] }) {
+  return (
+    // `pointer-events-none` so the orbit's empty area never swallows a click
+    // meant for the page behind it; only the bubbles themselves take pointer
+    // events back (`:hover` still reaches this element through them).
+    <div className="orbit-system pointer-events-none fixed bottom-4 left-4 z-40 h-[200px] w-[130px]">
+      <div className="orbit-plane">
+        {bubbles.map((bubble, index) => (
+          <div
+            key={bubble.label}
+            className="orbit-slot"
+            // +90° so a stopped orbit (reduced motion) leaves the bubbles at
+            // the top and bottom of the ellipse. At 0° they would sit at its
+            // narrow sides — barely 58px apart — and overlap.
+            style={
+              { '--slot-angle': `${90 + (360 / bubbles.length) * index}deg` } as CSSProperties
+            }
+          >
+            <div className="orbit-despin">
+              <div className="orbit-face pointer-events-auto">
+                <BubbleButton {...bubble} tooltip="above" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -98,6 +125,7 @@ export function FloatingActionBubbles({
   offsetForSidebar = false,
   onAssistantClick,
   hidden = false,
+  orbit = false,
 }: {
   /** True in a shell that fixes a 256px nav rail to the left on `lg+` (see
    * `w-sidebar`) — shifts the bubbles clear of it instead of sitting on top
@@ -111,6 +139,13 @@ export function FloatingActionBubbles({
   onAssistantClick?: () => void;
   /** Force-hides the bubbles, for a host that opens its own assistant inline. */
   hidden?: boolean;
+  /**
+   * Sets the bubbles orbiting a central core instead of stacking them. Opted
+   * into by the public landing page only: it is a showcase surface, whereas
+   * the pages behind it are where a citizen is filling in a real dossier and
+   * peripheral motion is just noise. Ignored on touch (see `useFinePointer`).
+   */
+  orbit?: boolean;
 }) {
   const isOpen = useChatbotUiStore((state) => state.isOpen);
   const toggle = useChatbotUiStore((state) => state.toggle);
@@ -118,6 +153,26 @@ export function FloatingActionBubbles({
   const lift = useFooterLift();
 
   if (hidden || isOpen || location.pathname === ROUTES.chat) return null;
+
+  const bubbles: BubbleSpec[] = [
+    {
+      label: 'Discuter sur WhatsApp',
+      iconSrc: '/whatsapp-logo.svg',
+      onClick: () => window.open(APP_CONFIG.whatsappBotUrl, '_blank', 'noopener,noreferrer'),
+      className: 'bg-[#25D366]',
+    },
+    {
+      id: 'assistant-launcher-bubble',
+      label: 'Parler à l’assistant',
+      iconSrc: '/mistral-logo.svg',
+      onClick: onAssistantClick ?? toggle,
+      className: 'border border-border/60 bg-white',
+    },
+  ];
+
+  if (orbit && isFinePointer) {
+    return <OrbitBubbles bubbles={bubbles} />;
+  }
 
   return (
     <div
@@ -127,19 +182,9 @@ export function FloatingActionBubbles({
         offsetForSidebar && 'lg:left-[calc(theme(spacing.sidebar)+1.25rem)]',
       )}
     >
-      <BubbleButton
-        label="Discuter sur WhatsApp"
-        iconSrc="/whatsapp-logo.svg"
-        onClick={() => window.open(APP_CONFIG.whatsappBotUrl, '_blank', 'noopener,noreferrer')}
-        className="bg-[#25D366]"
-      />
-      <BubbleButton
-        id="assistant-launcher-bubble"
-        label="Parler à l’assistant"
-        iconSrc="/mistral-logo.svg"
-        onClick={onAssistantClick ?? toggle}
-        className="border border-border/60 bg-white"
-      />
+      {bubbles.map((bubble) => (
+        <BubbleButton key={bubble.label} {...bubble} />
+      ))}
     </div>
   );
 }

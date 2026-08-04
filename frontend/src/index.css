@@ -213,4 +213,105 @@
   .bento-grid {
     @apply grid grid-cols-1 gap-gutter md:grid-cols-12;
   }
+
+  /* ────────────────────────────────────────────────────────────────────
+   * Orbite « planétaire » des bulles flottantes (landing publique).
+   *
+   * Vraie 3D, pas une ellipse dessinée à la main : le plan de l'orbite est
+   * incliné (`rotateY`) puis tourné (`rotate`), et la `perspective` de
+   * l'ancêtre fait le reste — la bulle qui s'éloigne devient réellement
+   * plus petite et repasse devant, sans une seule keyframe de `scale` ni
+   * de `z-index`.
+   *
+   * L'inclinaison se fait autour de Y, pas de X : la grande excursion de
+   * l'ellipse est donc verticale et la course se lit de haut en bas. Avec
+   * `rotateX` elle serait horizontale.
+   *
+   * `.orbit-despin` annule la rotation du plan et `.orbit-face` son
+   * inclinaison : sans ces deux contre-rotations, les logos basculeraient
+   * et se retrouveraient à l'envers en bas de leur course. Les deux
+   * animations partagent la même durée et le même `linear`, donc elles se
+   * figent exactement ensemble.
+   *
+   * Pause au survol ou au focus clavier. `pointer-events: none` sur le
+   * conteneur laisse le contenu de la page cliquable derrière la zone
+   * d'orbite ; `:hover` remonte quand même depuis la bulle survolée, qui
+   * est le seul élément à réactiver les événements pointeur.
+   *
+   * L'arrêt est net, non amorti : une cible qui continue de dériver est
+   * une cible qu'on rate.
+   *
+   * `prefers-reduced-motion` et `.a11y-reduced-motion` (plus haut dans ce
+   * fichier) neutralisent déjà ces animations. Les bulles se figent à leur
+   * angle de départ — décalé de 90° côté composant, pour qu'au repos elles
+   * se retrouvent l'une au-dessus de l'autre plutôt que superposées.
+   */
+  .orbit-system {
+    --orbit-radius: 62px;
+    --orbit-tilt: 62deg;
+    --orbit-duration: 20s;
+    perspective: 420px;
+    transform-style: preserve-3d;
+  }
+
+  .orbit-plane {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    /* Statique *en plus* de l'animation, qui la surcharge tant qu'elle
+       tourne. Sans elle, dès que l'animation est neutralisée (reduced
+       motion : `animation-fill-mode` vaut `none`, donc l'élément revient à
+       son style non animé) le plan perdrait son inclinaison alors que la
+       contre-rotation de `.orbit-face`, elle, resterait — les bulles
+       s'afficheraient de profil, écrasées à cos(62°) de leur largeur. */
+    transform: rotateY(var(--orbit-tilt));
+    animation: orbit-spin var(--orbit-duration) linear infinite;
+  }
+
+  .orbit-slot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 3.5rem;
+    width: 3.5rem;
+    margin: -1.75rem 0 0 -1.75rem;
+    transform-style: preserve-3d;
+    transform: rotate(var(--slot-angle)) translateX(var(--orbit-radius));
+  }
+
+  .orbit-despin {
+    transform-style: preserve-3d;
+    animation: orbit-despin var(--orbit-duration) linear infinite;
+  }
+
+  .orbit-face {
+    transform: rotate(calc(-1 * var(--slot-angle))) rotateY(calc(-1 * var(--orbit-tilt)));
+  }
+
+  /* Survoler une seule bulle fige tout le système : les deux bulles restent
+     solidaires, rien ne se désynchronise. */
+  .orbit-system:hover .orbit-plane,
+  .orbit-system:hover .orbit-despin,
+  .orbit-system:focus-within .orbit-plane,
+  .orbit-system:focus-within .orbit-despin {
+    animation-play-state: paused;
+  }
+
+  @keyframes orbit-spin {
+    from {
+      transform: rotateY(var(--orbit-tilt)) rotate(0deg);
+    }
+    to {
+      transform: rotateY(var(--orbit-tilt)) rotate(360deg);
+    }
+  }
+
+  @keyframes orbit-despin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(-360deg);
+    }
+  }
 }
