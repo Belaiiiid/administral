@@ -61,7 +61,7 @@ export function LandingHeader() {
               ADMINISTRAL
             </span>
             <span className="block text-xs text-muted-foreground">
-              L’administration à vos côtés
+              République 5.0
             </span>
           </span>
         </Link>

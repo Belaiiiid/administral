@@ -86,7 +86,7 @@ function OrbitBubbles({ bubbles }: { bubbles: BubbleSpec[] }) {
     // `pointer-events-none` so the orbit's empty area never swallows a click
     // meant for the page behind it; only the bubbles themselves take pointer
     // events back (`:hover` still reaches this element through them).
-    <div className="orbit-system pointer-events-none fixed bottom-4 left-4 z-40 h-[200px] w-[130px]">
+    <div className="orbit-system pointer-events-none fixed bottom-4 right-4 z-40 h-[200px] w-[130px]">
       <div className="orbit-plane">
         {bubbles.map((bubble, index) => (
           <div

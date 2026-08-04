@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 import { useSessionStore } from '@/store/sessionStore';
 
 const ADMIN_REFS = [
-  { title: 'CAF', domain: 'caf.fr', href: 'https://www.caf.fr' },
-  { title: 'France Travail', domain: 'francetravail.fr', href: 'https://www.francetravail.fr' },
-  { title: 'Assurance Maladie', domain: 'ameli.fr', href: 'https://www.ameli.fr' },
-  { title: 'Impôts', domain: 'impots.gouv.fr', href: 'https://www.impots.gouv.fr' },
+  { title: 'CAF', domain: 'caf.fr', href: 'https://www.caf.fr', logo: '/caf-logo.svg' },
+  { title: 'France Travail', domain: 'francetravail.fr', href: 'https://www.francetravail.fr', logo: '/france-travail-logo.svg' },
+  { title: 'Assurance Maladie', domain: 'ameli.fr', href: 'https://www.ameli.fr', logo: '/assurance-maladie-logo.svg' },
+  { title: 'Impôts', domain: 'impots.gouv.fr', href: 'https://www.impots.gouv.fr', logo: '/impots.jpg' },
 ];
 
 /**
@@ -59,11 +59,18 @@ export function CitizenFooter({ className }: { className?: string }) {
                 rel="noreferrer"
                 className="flex items-center justify-between gap-2 rounded-xl border border-marianne-foreground/10 bg-marianne-foreground/5 px-4 py-3 transition-colors hover:bg-marianne-foreground/10"
               >
-                <span className="flex flex-col">
-                  <span className="text-label-md text-marianne-foreground">
-                    {r.title}
+                <span className="flex items-center gap-3">
+                  {r.logo && (
+                    <span className="mr-1 inline-flex h-15 w-15 items-center justify-center rounded bg-white p-2 shadow-sm ring-1 ring-black/5">
+                      <img src={r.logo} alt="" aria-hidden="true" className="h-6 w-6 object-contain" />
+                    </span>
+                  )}
+                  <span className="flex flex-col">
+                    <span className="text-label-md text-marianne-foreground">
+                      {r.title}
+                    </span>
+                    <span className="text-[11px] text-marianne-foreground/50">{r.domain}</span>
                   </span>
-                  <span className="text-[11px] text-marianne-foreground/50">{r.domain}</span>
                 </span>
                 <ExternalLink className="size-3.5 shrink-0 text-marianne-foreground/40" aria-hidden="true" />
               </a>
@@ -76,14 +83,13 @@ export function CitizenFooter({ className }: { className?: string }) {
             <span>
               © {new Date().getFullYear()} Administral — {APP_CONFIG.administration}.
             </span>
-            {/*
-              AI Act (Règlement (UE) 2024/1689, art. 50) transparency notice,
-              kept to a single line beside the copyright.
-            */}
-            <span className="inline-flex items-center gap-1.5">
-              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
-              interfaces générées par intelligence artificielle.
-            </span>
+            {/* AI Act (Règlement (UE) 2024/1689, art. 50) transparency notice */}
+            <img
+              src="https://digital-strategy.ec.europa.eu/sites/default/files/2026-06/AI%20LABELS_3x2_AI%20GENERATED_black.png?destination=/media/10207/edit"
+              alt="Contenu généré par l'IA — icône officielle de l'UE"
+              className="ml-2 h-20 w-auto align-middle"
+              loading="lazy"
+            />
           </p>
           <nav aria-label="Liens de pied de page" className="flex flex-wrap items-center justify-center gap-6">
             {FOOTER_LINKS.map((link) => (
