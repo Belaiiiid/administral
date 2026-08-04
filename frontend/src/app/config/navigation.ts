@@ -70,11 +70,15 @@ export const PRIMARY_NAV: NavItem[] = [
 /** Sidebar shown while browsing France Travail — see the note on `PRIMARY_NAV`. */
 const FRANCE_TRAVAIL_NAV: NavItem[] = [
   {
-    id: 'portal',
-    label: 'Mes services',
-    to: ROUTES.portal,
+    // `administrations`, pas `portal` : depuis France Travail, « Mes services »
+    // menait au hub CAF, qui n'a rien à voir avec l'administration en cours.
+    // La liste des administrations est le seul endroit d'où l'on peut
+    // réellement passer de France Travail à autre chose.
+    id: 'administrations',
+    label: 'Les administrations',
+    to: ROUTES.administrations,
     icon: LayoutGrid,
-    match: (pathname) => pathname === ROUTES.portal,
+    match: (pathname) => pathname === ROUTES.administrations,
   },
   {
     id: 'job-match',
@@ -103,7 +107,10 @@ const FRANCE_TRAVAIL_NAV: NavItem[] = [
     icon: Search,
     match: (pathname) => pathname === ROUTES.franceTravailJobSearch,
   },
-  { id: 'chat', label: 'Aide IA', to: ROUTES.chat, icon: Bot },
+  // Pas d'entrée « Aide IA » ici : elle pointait vers `ROUTES.chat`, l'assistant
+  // du dossier CAF (statut de dossier, documentation APL), qui ne sait rien
+  // répondre sur l'emploi. L'assistant de cette zone, c'est Coach CV
+  // ci-dessus — la même fenêtre de chat, branchée sur le bon backend.
 ];
 
 /** Footer of the sidebar. */

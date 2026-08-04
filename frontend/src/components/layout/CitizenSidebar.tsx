@@ -1,6 +1,7 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 
 import { isNavItemActive, resolveNavSections, SIGN_OUT_ITEM, type NavItem } from '@/app/config/navigation';
+import { ROUTES } from '@/app/router/paths';
 import logo from '@/assets/administral-logo.png';
 import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import { cn } from '@/lib/utils';
@@ -42,15 +43,22 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col border-r border-border/60 bg-surface px-4 py-6">
-      <div className="mb-6 flex items-center gap-3 px-2">
-        <img src={logo} alt="Administral" className="size-10 shrink-0 object-contain" />
+      {/* Cliquable : sur desktop la sidebar est le seul endroit où la marque
+          apparaît (le logo du header est masqué en `lg:`), et un logo de
+          portail qui ne ramène pas à l'accueil se cherche longtemps. */}
+      <Link
+        to={ROUTES.home}
+        onClick={onNavigate}
+        className="mb-6 flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-200 ease-standard hover:bg-brand-soft"
+      >
+        <img src={logo} alt="" aria-hidden="true" className="size-10 shrink-0 object-contain" />
         <span className="leading-tight">
           <span className="block font-display text-base font-extrabold tracking-tight text-ink">
             ADMINISTRAL
           </span>
-          <span className="block text-[10px] text-muted-foreground">Portail citoyen</span>
+          <span className="block text-label-sm text-muted-foreground">Portail citoyen</span>
         </span>
-      </div>
+      </Link>
 
       <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-xs text-muted-foreground">
         <span>Propulsé par</span>

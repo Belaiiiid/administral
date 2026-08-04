@@ -289,9 +289,16 @@ export default function LoginPage() {
         {/* `PartnerLogos` rather than two hand-written `<img>`: it already
             pairs Talan with Mistral and falls back to a text wordmark if an
             asset is missing. `wordmark` selects /mistral-logo.svg. */}
-        <div className="mt-5 flex items-center justify-center gap-2 opacity-70 short:mt-3">
-          <span className="text-label-sm text-on-surface-variant">Powered by</span>
-          <PartnerLogos className="gap-2" logoClassName="h-4" mistralMark="wordmark" />
+        <div className="mt-5 flex items-center justify-center gap-4 opacity-70 short:mt-3">
+          <span className="text-label-sm leading-none text-on-surface-variant">Powered by</span>
+          {/* `object-contain` + a shared height letterboxes each mark inside the
+              same box, so Talan's wordmark and Mistral's square sit on one
+              optical baseline instead of being centred on their own bounds. */}
+          <PartnerLogos
+            className="items-center gap-5"
+            logoClassName="h-5 w-auto object-contain"
+            mistralMark="wordmark"
+          />
         </div>
       </CardContent>
     </Card>

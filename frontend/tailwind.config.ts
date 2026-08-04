@@ -111,6 +111,8 @@ const config: Config = {
         card: {
           DEFAULT: 'var(--admtl-card)',
           foreground: 'var(--admtl-card-foreground)',
+          // Translucide — pour une carte posée sur une photo. Voir index.css.
+          veil: 'var(--admtl-card-veil)',
         },
         'chart-2': 'var(--admtl-chart-2)',
       },
