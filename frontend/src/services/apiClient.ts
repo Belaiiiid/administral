@@ -58,7 +58,7 @@ function buildQuery(params: RequestOptions['params']): string {
  * means a caller always receives an `ApiError`, never a JSON parse exception
  * masking the real status.
  */
-async function toApiError(response: Response): Promise<ApiError> {
+async function toApiError(response: Response, authenticated: boolean): Promise<ApiError> {
   try {
     const payload = (await response.json()) as unknown;
 
@@ -73,6 +73,30 @@ async function toApiError(response: Response): Promise<ApiError> {
 
     // FastAPI's own validation errors use `detail`, not `message`.
     if (payload && typeof payload === 'object' && 'detail' in payload) {
+      const { detail } = payload as { detail: unknown };
+
+      /*
+       * A 401, and a 403 sent without any credential, both mean the same thing:
+       * there is no usable session. FastAPI's `HTTPBearer` answers a missing
+       * `Authorization` header with 403 — not 401 — so this case cannot be
+       * folded into the 401 branch. Reporting it as "Requête invalide" told a
+       * citizen their submission was malformed at the exact moment their token
+       * had merely expired.
+       */
+      if (response.status === 401 || (response.status === 403 && !authenticated)) {
+        return {
+          code: 'SESSION_EXPIRED',
+          message:
+            'Votre session a expiré. Reconnectez-vous, puis relancez l’action — rien n’a été envoyé.',
+        };
+      }
+
+      // A role refusal carries a readable French sentence worth showing; a
+      // validation error carries a list of field objects, which does not.
+      if (typeof detail === 'string') {
+        return { code: 'FORBIDDEN', message: detail };
+      }
+
       return { code: 'VALIDATION_ERROR', message: `Requête invalide (${response.status}).` };
     }
   } catch {
@@ -131,7 +155,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     // invalid. Drop it so the app stops sending a dead credential; the session
     // store, watching for this, routes the user back to login.
     if (response.status === 401) clearToken();
-    throw new ApiClientError(response.status, await toApiError(response));
+    throw new ApiClientError(response.status, await toApiError(response, Boolean(token)));
   }
 
   // 204 has no body; calling .json() on it throws.
