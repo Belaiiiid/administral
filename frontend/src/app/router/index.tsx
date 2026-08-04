@@ -150,10 +150,12 @@ const router = createBrowserRouter([
         ],
       },
       {
-        // France Travail — out of scope for the Administral redesign, kept
-        // on the original shell (and its own sidebar rail, see
-        // `resolveNavSections`).
-        element: <AppShell />,
+        // France Travail — rattrapée par la refonte Administral : même
+        // `CitizenAppShell` que le reste de l'espace citoyen, donc même
+        // `.citizen-scope` (couleurs et typographies Administral). Le rail
+        // qui lui est propre est inchangé, il vient toujours de
+        // `resolveNavSections`.
+        element: <CitizenAppShell />,
         children: [
           { path: ROUTES.franceTravail, element: <JobMatchPage /> },
           { path: ROUTES.franceTravailCvCoach, element: <CvCoachPage /> },
