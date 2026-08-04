@@ -5,19 +5,26 @@ import {
   FileUser,
   Info,
   Loader2,
-  MessageSquareText,
+  MessagesSquare,
   Sparkles,
+  UploadCloud,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
 
-import { CitizenCard } from '@/components/citizen/CitizenCard';
 import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
 import { Dropzone } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { FranceTravailShell } from '@/features/france-travail/components/FranceTravailShell';
+import heroImage from '@/assets/ft-coach-cv.webp';
+import {
+  FtAside,
+  FtCard,
+  FtReveal,
+  FtSectionHeading,
+} from '@/features/france-travail/components/FtVisuals';
 import { useCvCoachChat } from '@/features/france-travail/hooks/useCvCoachChat';
 import { cvCoachService } from '@/services/cvCoachService';
 import type { CvReviewResult } from '@/types';
@@ -31,11 +38,14 @@ import type { CvReviewResult } from '@/types';
  * uses, pointed at a different backend), or send an existing CV directly
  * (right) for a one-shot review.
  *
- * Passée au design Administral. La maquette design-to-code affichait en plus
- * un score sur 100, des barres de critères et une réécriture avant/après :
- * le backend ne produit rien de tout ça, et inventer ces chiffres pour
- * respecter la maquette aurait menti à l'utilisateur. Seul le langage visuel
- * a été repris.
+ * Les deux voies sont annoncées comme telles — deux cartes marquées « ou »
+ * plutôt que deux blocs muets côte à côte : rien à l'écran ne disait qu'elles
+ * étaient indépendantes, et un utilisateur pouvait croire devoir faire les
+ * deux.
+ *
+ * La maquette design-to-code montrait en plus un score sur 100 et une
+ * réécriture avant/après. Le backend ne produit ni l'un ni l'autre, et
+ * inventer ces chiffres pour respecter la maquette aurait menti.
  */
 
 const STARTER_QUESTIONS = [
@@ -58,28 +68,31 @@ function AdviceBlock({
   icon: typeof CheckCircle2;
 }) {
   const tones = {
-    success: { label: 'text-success', dot: 'bg-success' },
-    warning: { label: 'text-warning', dot: 'bg-warning' },
-    brand: { label: 'text-brand', dot: 'bg-brand' },
+    success: { label: 'text-success', dot: 'bg-success', accent: 'success' },
+    warning: { label: 'text-warning', dot: 'bg-warning', accent: 'warning' },
+    brand: { label: 'text-brand', dot: 'bg-brand', accent: 'brand' },
   } as const;
 
   return (
-    <CitizenCard className="p-6">
+    <FtCard accent={tones[tone].accent} className="p-6">
       <p
-        className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wide ${tones[tone].label}`}
+        className={`flex items-center gap-2 text-label-sm uppercase tracking-wide ${tones[tone].label}`}
       >
         <Icon className="size-3.5" aria-hidden="true" />
         {title}
+        <span className="ml-auto rounded-full bg-surface px-2 py-0.5 tabular-nums text-muted-foreground">
+          {items.length}
+        </span>
       </p>
 
       {items.length === 0 ? (
-        <p className="mt-4 text-xs text-muted-foreground">{emptyLabel}</p>
+        <p className="mt-4 text-body-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
         <ul className="mt-4 space-y-3">
           {items.map((item) => (
             <li
               key={item}
-              className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground"
+              className="flex items-start gap-3 text-body-sm text-muted-foreground"
             >
               <span
                 aria-hidden="true"
@@ -90,7 +103,7 @@ function AdviceBlock({
           ))}
         </ul>
       )}
-    </CitizenCard>
+    </FtCard>
   );
 }
 
@@ -107,28 +120,34 @@ function ReviewPanel({ result }: { result: CvReviewResult }) {
   }
 
   return (
-    <div className="space-y-gutter">
-      <AdviceBlock
-        title="Points forts"
-        items={result.pointsForts}
-        emptyLabel="Aucun point fort identifié."
-        tone="success"
-        icon={CheckCircle2}
-      />
-      <AdviceBlock
-        title="Points à améliorer"
-        items={result.pointsAAmeliorer}
-        emptyLabel="Rien à signaler."
-        tone="warning"
-        icon={AlertTriangle}
-      />
-      <AdviceBlock
-        title="Conseils"
-        items={result.conseils}
-        emptyLabel="Aucun conseil supplémentaire."
-        tone="brand"
-        icon={Sparkles}
-      />
+    <div className="space-y-4">
+      <FtReveal>
+        <AdviceBlock
+          title="Points forts"
+          items={result.pointsForts}
+          emptyLabel="Aucun point fort identifié."
+          tone="success"
+          icon={CheckCircle2}
+        />
+      </FtReveal>
+      <FtReveal index={1}>
+        <AdviceBlock
+          title="Points à améliorer"
+          items={result.pointsAAmeliorer}
+          emptyLabel="Rien à signaler."
+          tone="warning"
+          icon={AlertTriangle}
+        />
+      </FtReveal>
+      <FtReveal index={2}>
+        <AdviceBlock
+          title="Conseils"
+          items={result.conseils}
+          emptyLabel="Aucun conseil supplémentaire."
+          tone="brand"
+          icon={Sparkles}
+        />
+      </FtReveal>
     </div>
   );
 }
@@ -168,49 +187,56 @@ export default function CvCoachPage() {
       eyebrow="Coach CV"
       title="Votre CV relu et commenté par l’assistant."
       description="Décrivez votre expérience à l’assistant, ou envoyez directement votre CV pour un retour — ce qui est déjà bien, ce qui manque, et des conseils concrets."
+      image={heroImage}
+      // Le groupe occupe la moitié basse de la photo ; ce cadrage garde les
+      // visages plutôt que le plafond du plateau.
+      imagePosition="center 45%"
       aside={
-        <div className="relative overflow-hidden rounded-2xl border border-brand/20 bg-card/75 p-8 text-center shadow-lg backdrop-blur">
-          <div className="pointer-events-none absolute -right-12 -top-12 size-36 rounded-full bg-brand/5 blur-3xl" />
-          <div className="relative">
-            <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-brand text-white shadow-md ring-8 ring-brand/10">
-              <FileUser className="size-8" aria-hidden="true" />
-            </span>
-            <p className="mt-6 font-display text-2xl font-extrabold leading-snug text-ink">
-              {review?.available ? 'Analyse terminée' : 'Deux façons de commencer'}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              {review?.available
-                ? 'Vos points forts et les conseils sont détaillés ci-dessous.'
-                : 'Racontez votre parcours à l’assistant, ou déposez un CV déjà rédigé.'}
-            </p>
-          </div>
-        </div>
+        <FtAside
+          icon={FileUser}
+          title={review?.available ? 'Analyse terminée' : 'Deux façons de commencer'}
+          description={
+            review?.available
+              ? 'Vos points forts et les conseils sont détaillés à droite.'
+              : 'Racontez votre parcours à l’assistant, ou déposez un CV déjà rédigé. Les deux sont indépendants.'
+          }
+        />
       }
     >
-      <div className="grid gap-gutter lg:grid-cols-3">
-        <CitizenCard className="flex flex-col lg:col-span-2">
-          <div className="flex flex-1 flex-col p-6">
-            <ChatWindow controller={controller} starterQuestions={STARTER_QUESTIONS} />
-          </div>
-        </CitizenCard>
+      <div className="grid gap-gutter lg:grid-cols-[1.6fr_1fr]">
+        {/* Voie 1 — la conversation */}
+        <div className="space-y-5">
+          <FtSectionHeading
+            eyebrow="Première façon"
+            title="Racontez votre parcours"
+            icon={MessagesSquare}
+          />
+          <FtCard accent="brand" className="flex min-h-[32rem] flex-col">
+            <div className="flex flex-1 flex-col p-6">
+              <ChatWindow controller={controller} starterQuestions={STARTER_QUESTIONS} />
+            </div>
+          </FtCard>
+        </div>
 
-        <aside className="flex flex-col gap-gutter">
-          <CitizenCard className="p-6">
-            <p className="eyebrow">Ou envoyez votre CV</p>
-            <h2 className="mt-3 font-display text-xl font-extrabold leading-tight text-ink">
-              Un retour immédiat
-            </h2>
+        {/* Voie 2 — le dépôt de CV */}
+        <div className="space-y-5">
+          <FtSectionHeading
+            eyebrow="Ou, au choix"
+            title="Envoyez votre CV"
+            icon={UploadCloud}
+          />
 
-            <p className="mt-4 flex items-start gap-3 rounded-xl border border-brand/15 bg-brand-soft/50 p-4 text-xs leading-relaxed text-muted-foreground">
-              <MessageSquareText className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
-              Indépendant de la conversation à gauche — sur un CV déjà rédigé. L’assistant le
-              commente, il ne le réécrit pas à votre place.
+          <FtCard className="p-6">
+            <p className="flex items-start gap-3 rounded-lg border-l-2 border-brand bg-brand-soft p-4 text-body-sm text-muted-foreground">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden="true" />
+              Indépendant de la conversation — sur un CV déjà rédigé. L’assistant le commente, il
+              ne le réécrit pas à votre place.
             </p>
 
             <div className="mt-5">
               {cvFile ? (
-                <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-surface p-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                <div className="flex items-center gap-3 rounded-lg border border-brand bg-brand-soft p-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand text-marianne-foreground">
                     {isReviewing ? (
                       <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                     ) : (
@@ -250,10 +276,10 @@ export default function CvCoachPage() {
                 {error}
               </p>
             )}
-          </CitizenCard>
+          </FtCard>
 
           {review && <ReviewPanel result={review} />}
-        </aside>
+        </div>
       </div>
     </FranceTravailShell>
   );
