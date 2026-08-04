@@ -14,6 +14,8 @@ export interface CaseFraudCardProps {
 const detectorLabel: Record<string, string> = {
   metadata: 'Informations du fichier',
   integrity: 'Vérifications du document',
+  twodoc: 'Code 2D-Doc (ANTS)',
+  llm_vision: 'Analyse contextuelle IA',
   ela: 'Analyse de compression',
   trufor: 'Analyse visuelle',
   copy_move: 'Recherche de zones copiées',

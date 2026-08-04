@@ -9,6 +9,112 @@ Legend: ✅ complete · 🟡 partial / diverges · ❌ missing.
 
 ---
 
+## Iteration 7 — Fraud module (Agent C4): from a 48% confidence ceiling to calibrated multi-evidence fusion (2026-08-04)
+
+Starting point: manual testing showed the fraud analysis topping out at **48%
+confidence** even on documents with clear anomalies. Diagnosis before any
+code change: this is architectural, not a bug in one detector.
+
+### Root cause
+
+`confiance` (`fusion.py`) measures evidence *coverage and corroboration*, not
+probability of fraud — and it was structurally incapable of reaching high
+values. Contributing factors, all fixed or documented below:
+
+- Every detector's own reliability, and every calibration curve, was capped
+  well below 1.0 — even a maximally certain deterministic signal (MRZ
+  checksum invalid) calibrated to 0.98 at best, never 1.0.
+- TruFor — the single highest-weight, highest-reliability detector (16% of
+  fusion weight) — has never been deployed (`FRAUD_VISION_ENDPOINT` points to
+  nothing running), silently dropping its entire weight from every analysis.
+- `metadata.py`'s "no software metadata → suspicious" rule fired on nearly
+  every JPG/PNG uploaded via a phone or messaging app (WhatsApp strips EXIF
+  from all photos it touches, legitimate or not) — noise, not signal, for a
+  citizen-facing upload flow.
+- `ExifTool` (external binary) was silently absent in this environment,
+  degrading metadata confidence and missing the EXIF sub-IFD entirely
+  (`Image.getexif()` only reads the base IFD0 — `DateTimeOriginal` was never
+  found even when present).
+
+### What changed
+
+- **`metadata.py`** — ExifTool replaced by `exifread` (pure Python, reads the
+  EXIF sub-IFD ExifTool did) plus a namespace-agnostic XMP packet scanner
+  (catches Producer/CreatorTool written only to XMP — common for
+  Photoshop/Canva/GIMP exports the old fallback never saw). The
+  no-software-metadata rule is now PDF-only; removed entirely for JPG/PNG.
+- **`integrity.py`** — PDF signature check upgraded from "field present" to
+  real cryptographic validation via **pyHanko**: `intact`/`valid` against the
+  signed byte range. A document edited after signing is now detected
+  (`SIGNEE_ALTEREE`, integrity score 1.0), not just flagged as "has a
+  signature, unverified".
+- **`twodoc.py` (new)** — decodes and verifies the 2D-Doc/Datamatrix carried
+  by many French administrative documents (avis d'imposition, justificatif de
+  domicile, bulletin de salaire, carte d'identité) against the real ANTS
+  trust list, via `fr_2ddoc_parser` (DINUM/betagouv). Also cross-checks the
+  barcode's decoded fields against the OCR'd visible text — a barcode that is
+  cryptographically valid but whose content doesn't match the page it's on is
+  a stronger and more realistic fraud signal than an invalid signature alone
+  (a lazy forger reuses a genuine code rather than fabricating a new one).
+  Data Matrix decoding uses `pylibdmtx`: `pyzbar`/ZBar could not decode a real
+  Data Matrix in testing despite its own documentation suggesting it could.
+- **`llm_analyzer.py` / `service.py`** — Mistral now receives the document's
+  actual page image(s) (base64, up to 2 pages), not just a JSON metadata
+  summary, and is explicitly prompted for an *independent* visual/contextual
+  judgment rather than a restatement of the other detectors' findings. Its
+  verdict is now fused as real evidence (`llm_vision` detector) instead of
+  being computed and then discarded — previously
+  `llm_raw["niveau_risque"] = fused["niveau_risque"]` overwrote it
+  unconditionally after the fact.
+- **`fusion_config.json`** — calibration ceilings for near-certain
+  deterministic signals (MRZ checksum invalid, PDF signature altered, 2D-Doc
+  signature invalid) raised to a true 1.0. A weaker, more ambiguous signal
+  (exact file duplicate elsewhere in the dossier — plausibly an honest
+  double-upload) deliberately keeps a lower ceiling (~0.67).
+- Two real mojibake bugs (UTF-8 decoded as Latin-1 and re-encoded, doubling
+  the corruption) fixed in `integrity.py` and `vision_model.py` signal text.
+
+### Dependency notes for whoever runs `pip install` next
+
+`fr_2ddoc_parser` declares `cryptography<44.0.0` and `pydantic>=2.12.4`;
+pyHanko declares `cryptography>=48.0.0`. These are mutually exclusive, so a
+single `pip install -r requirements.txt` resolution is impossible — verified,
+not assumed: `fr_2ddoc_parser`'s own signature verification works correctly
+against the newer `cryptography`/`pydantic` actually pinned, so its bounds
+are stale rather than a real incompatibility. Resolved with a second file,
+**`requirements-2ddoc.txt`**, installed with `--no-deps` after the main file
+(see its header comment and `backend/README.md`). The main `pydantic` pin
+also moved 2.11.2 → 2.13.4 for this — project-wide, not fraud-module-only;
+verified against the fraud module's own code but **not re-run against the
+full backend test suite**.
+
+### Explicitly deferred (scoped, not built)
+
+- **TruFor deployment** — the wrapper is already coded (`vision_model.py`),
+  but the upstream project ships a batch CLI in Docker, not an HTTP service;
+  pins PyTorch 1.11.0 (2022, needs its own isolated environment, incompatible
+  with what's used elsewhere in this backend); and needs a ~260 MB weights
+  download. Needs a small FastAPI wrapper + bounding-box extraction from its
+  anomaly map before `FRAUD_VISION_ENDPOINT` can point at anything real.
+- PDF revision diffing (pikepdf) — currently only counts `%%EOF` markers;
+  diffing what object actually changed between revisions was proposed but not
+  built.
+- Screen-recapture (moiré) detection, a template-conformity detector per
+  document type, and API Particulier / FranceConnect source verification —
+  all discussed as high-value follow-ups, none started.
+
+### Testing
+
+13/13 tests in `tests/test_fraud.py` pass, including new coverage for the PDF
+signature sign/tamper round-trip and the 2D-Doc decode/verify path (using a
+real — if untrusted-authority — 2D-Doc string from `fr_2ddoc_parser`'s own
+test suite). The live Mistral vision call is untested here: no API key is
+configured in this environment, consistent with how the rest of this module
+already avoids hitting the live LLM in tests — needs a manual check with a
+real key.
+
+---
+
 ## Iteration 6 — Citizen assistant: engine re-synced, structured clarification, real checklist (2026-07-28)
 
 The assistant's engine (migrated APL RAG, `app/modules/chatbot/rag/`) was a

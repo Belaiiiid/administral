@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def analyse_with_vision_model(path: Path) -> dict:
     if not settings.fraud_vision_endpoint:
         logger.warning("TruFor non configuré (FRAUD_VISION_ENDPOINT absent) : analyse de %s sans preuve visuelle CV.", path.name)
-        return {"provider": "TRUFOR", "status": "NON_CONFIGURE", "score": None, "message": "ModÃ¨le CV non dÃ©ployÃ©.", "pages": []}
+        return {"provider": "TRUFOR", "status": "NON_CONFIGURE", "score": None, "message": "Modèle CV non déployé.", "pages": []}
     try:
         with path.open("rb") as file_handle:
             response = httpx.post(

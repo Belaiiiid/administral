@@ -17,10 +17,15 @@ python -m venv .venv
 .venv/Scripts/activate        # Windows
 # source .venv/bin/activate   # macOS / Linux
 pip install -r requirements.txt
+pip install --no-deps -r requirements-2ddoc.txt
 ```
 
 > Utilisez l'environnement virtuel. Une installation globale écrase les
 > versions de paquets utilisées par vos autres projets.
+>
+> La deuxième commande installe la vérification 2D-Doc (module fraude) à
+> part, avec `--no-deps` : voir l'en-tête de `requirements-2ddoc.txt` pour
+> pourquoi une résolution pip unique n'est pas possible pour ce paquet.
 
 ### 2. Configuration
 

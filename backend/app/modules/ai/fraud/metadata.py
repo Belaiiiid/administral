@@ -1,31 +1,34 @@
 """Deterministic document metadata forensics — Agent C4, Layer 1.
 
 Ported from the `metadata-extractor` contribution (`metadata_extractor_exiftool.py`).
-Extracts a document's metadata and applies five explicit forgery-signal rules —
+Extracts a document's metadata and applies explicit forgery-signal rules —
 no AI, always on. The signals are *à vérifier* (to be verified), not verdicts:
 each is a reason a human or the LLM layer should look closer.
 
-Two extraction backends, exactly as the original:
-  * **ExifTool** if the binary is on PATH — 150+ formats.
-  * **Pure-Python PDF parser** otherwise — PDFs only, no dependency.
+Two pure-Python extraction backends, no external binary:
+  * **PDF** — the Info-dictionary regex parser below.
+  * **JPG/PNG** — `exifread` for classic EXIF (all IFDs, not just the base
+    one Pillow's `Image.getexif()` exposes) plus a direct scan of any
+    embedded XMP packet, since several common editors (Photoshop, GIMP,
+    Canva, online PDF tools) write Producer/CreatorTool only to XMP.
 
-The 27 MB bundled ExifTool from the contribution is deliberately *not* vendored;
-the module detects a system ExifTool and falls back to the Python parser for
-PDFs, which covers the common case.
+This previously shelled out to the ExifTool binary when present, falling back
+to a much weaker PIL-only reader otherwise. That made metadata coverage
+depend on whatever happened to be installed on the host, and the fallback had
+a real gap: `Image.getexif()` only reads the base IFD0, so `DateTimeOriginal`
+(stored in the EXIF sub-IFD) was silently never found. `exifread` plus the
+XMP scan removes both the environment dependency and that gap.
 """
 
 from __future__ import annotations
 
-import json
 import re
-import shutil
-import subprocess
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 
-from PIL import ExifTags, Image
-
-from app.core.logger import logger
+import exifread
+from PIL import Image
 
 # Field names vary by format (PDF vs Office vs image); checked in preference order.
 _CREATION_FIELDS = ("CreateDate", "DateTimeOriginal", "CreationDate")
@@ -39,9 +42,9 @@ _SUSPECT_SOFTWARE = (
     "pixlr", "pdfescape", "smallpdf", "ilovepdf", "pdf2go", "sejda", "fotor",
 )
 
-
-def exiftool_available() -> bool:
-    return shutil.which("exiftool") is not None or shutil.which("exiftool.exe") is not None
+#: Local (namespace-stripped) XMP field names mapped to the ExifTool-style keys
+#: used everywhere else in this module.
+_XMP_FIELDS = {"CreatorTool": "Creator", "Producer": "Producer", "ModifyDate": "ModifyDate", "CreateDate": "CreateDate"}
 
 
 def _first_present(raw: dict, fields: tuple[str, ...]) -> tuple[str | None, str | None]:
@@ -52,30 +55,57 @@ def _first_present(raw: dict, fields: tuple[str, ...]) -> tuple[str | None, str 
 
 
 def _parse_exif_date(value: str | None) -> str | None:
-    """ExifTool dates are `YYYY:MM:DD HH:MM:SS[+TZ]`; normalise to ISO."""
+    """EXIF/ExifTool dates are `YYYY:MM:DD HH:MM:SS[+TZ]`; XMP dates are ISO
+    8601. Both normalise to ISO."""
     if not value:
         return None
-    date_part = str(value).strip().split("+")[0].split("Z")[0].strip()
+    text = str(value).strip()
+    try:
+        # Downstream rules compare against `datetime.now()` (naive); XMP dates
+        # carry a UTC offset that EXIF/PDF dates never do, so it is dropped
+        # here rather than producing a mix of naive and aware datetimes.
+        return datetime.fromisoformat(text).replace(tzinfo=None).isoformat()
+    except ValueError:
+        pass
+    date_part = text.split("+")[0].split("Z")[0].strip()
     try:
         return datetime.strptime(date_part[:19], "%Y:%m:%d %H:%M:%S").isoformat()
     except ValueError:
-        return str(value)
+        return text
 
 
-def _extract_with_exiftool(path: Path) -> dict | None:
+def _extract_xmp(path: Path) -> dict[str, str]:
+    """Read Producer/CreatorTool/dates from an embedded XMP packet, if any.
+
+    Namespace-agnostic on purpose: different writers declare `xmp:`/`pdf:`
+    with different prefixes (or none), so matching is done on the local tag
+    name, in both its attribute form (`xmp:CreatorTool="..."`) and element
+    form (`<xmp:CreatorTool>...</xmp:CreatorTool>`).
+    """
     try:
-        proc = subprocess.run(
-            ["exiftool", "-j", "-a", str(path)],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if proc.returncode != 0:
-            return None
-        return json.loads(proc.stdout)[0]
-    except (subprocess.SubprocessError, json.JSONDecodeError, IndexError, OSError) as exc:
-        logger.warn("ExifTool indisponible ou illisible", {"error": str(exc)})
-        return None
+        raw_bytes = path.read_bytes()
+    except OSError:
+        return {}
+    start = raw_bytes.find(b"<x:xmpmeta")
+    end = raw_bytes.find(b"</x:xmpmeta>")
+    if start == -1 or end == -1:
+        return {}
+    end += len(b"</x:xmpmeta>")
+    try:
+        root = ET.fromstring(raw_bytes[start:end])
+    except ET.ParseError:
+        return {}
+
+    fields: dict[str, str] = {}
+    for element in root.iter():
+        local = element.tag.rsplit("}", 1)[-1]
+        if local in _XMP_FIELDS and element.text and element.text.strip():
+            fields.setdefault(_XMP_FIELDS[local], element.text.strip())
+        for attr_name, attr_value in element.attrib.items():
+            attr_local = attr_name.rsplit("}", 1)[-1]
+            if attr_local in _XMP_FIELDS and attr_value.strip():
+                fields.setdefault(_XMP_FIELDS[attr_local], attr_value.strip())
+    return fields
 
 
 def _parse_pdf_date(date_str: str | None) -> str | None:
@@ -91,7 +121,7 @@ def _parse_pdf_date(date_str: str | None) -> str | None:
 
 
 def _extract_pdf_fallback(path: Path) -> dict:
-    """Pure-Python PDF metadata parser, used when ExifTool is absent."""
+    """Pure-Python PDF Info-dictionary parser."""
     try:
         content = path.read_bytes().decode("latin-1")
     except OSError as exc:
@@ -146,18 +176,15 @@ def _deterministic_signals(raw: dict, date_creation: str | None, date_modificati
             f"suspect ({logiciel}) plutôt qu'un outil bureautique standard ou un scanner"
         )
 
-    # 4. All software metadata purged.
-    if not raw.get("_metadata_limited") and not raw.get("Producer") and not raw.get("Creator") and not raw.get("Software"):
+    # 4. All software metadata purged. PDF-only: a native PDF exporter (Word,
+    # LibreOffice, a scanner, a print-to-PDF driver) always writes Producer/
+    # Creator, so its absence there is informative. On JPG/PNG this is not a
+    # forgery signal: phones and messaging apps (WhatsApp, etc.) strip EXIF
+    # from essentially every photo they touch, authentic or not, so the same
+    # rule on images mostly fires on ordinary phone uploads.
+    if path.suffix.lower() == ".pdf" and not raw.get("Producer") and not raw.get("Creator") and not raw.get("Software"):
         flags.append(
             "SIGNAL : aucune métadonnée de logiciel présente — a pu être supprimée intentionnellement"
-        )
-        
-    # 4b. PNG completely missing temporal and software context (LLM feedback derived)
-    is_png = path.suffix.lower() == ".png" or str(raw.get("FileType", "")).lower() == "png"
-    if is_png and not date_creation and not date_modification and not logiciel:
-        flags.append(
-            "SIGNAL : absence totale de métadonnées temporelles (DateTimeOriginal, ModifyDate) et de champ 'Software' "
-            "dans un fichier PNG, inhabituel pour un document numérique non expurgé."
         )
 
     # 5. Multiple incremental revisions (PDF-specific).
@@ -176,27 +203,46 @@ def _deterministic_signals(raw: dict, date_creation: str | None, date_modificati
     return flags
 
 
-def _extract_image_fallback(path: Path) -> dict:
-    """Read safe, local EXIF fields when the optional ExifTool binary is absent.
+def _extract_image_metadata(path: Path) -> dict:
+    """Read EXIF (via exifread, all IFDs) and any embedded XMP packet.
 
-    This fallback never invents missing metadata: it explicitly marks its
-    coverage as limited so the fusion engine reduces decision confidence.
+    No external binary required. `exifread` covers the classic EXIF sub-IFDs
+    (`DateTimeOriginal` lives in the Exif sub-IFD, not the base IFD0 that
+    `Image.getexif()` alone exposes), and the XMP scan catches
+    Producer/CreatorTool written by tools that skip classic EXIF entirely.
     """
     try:
         with Image.open(path) as image:
-            tags = {ExifTags.TAGS.get(key, str(key)): value for key, value in image.getexif().items()}
-            return {
-                "FileType": (image.format or path.suffix.removeprefix(".")).upper(),
-                "ImageWidth": image.width,
-                "ImageHeight": image.height,
-                "Software": tags.get("Software"),
-                "DateTimeOriginal": tags.get("DateTimeOriginal"),
-                "ModifyDate": tags.get("DateTime"),
-                "Artist": tags.get("Artist"),
-                "_metadata_limited": True,
-            }
+            file_type = (image.format or path.suffix.removeprefix(".")).upper()
+            width, height = image.width, image.height
     except (OSError, ValueError):
-        return {"erreur": "Métadonnées image illisibles.", "_metadata_limited": True}
+        return {"erreur": "Métadonnées image illisibles."}
+
+    try:
+        with path.open("rb") as handle:
+            exif_tags = exifread.process_file(handle, details=False)
+    except (OSError, ValueError):
+        exif_tags = {}
+    xmp = _extract_xmp(path)
+
+    def tag(*names: str) -> str | None:
+        for name in names:
+            value = exif_tags.get(name)
+            if value not in (None, ""):
+                return str(value)
+        return None
+
+    return {
+        "FileType": file_type,
+        "ImageWidth": width,
+        "ImageHeight": height,
+        "Software": tag("Image Software") or xmp.get("Creator"),
+        "Producer": xmp.get("Producer"),
+        "Creator": xmp.get("Creator"),
+        "DateTimeOriginal": tag("EXIF DateTimeOriginal", "Image DateTime") or xmp.get("CreateDate"),
+        "ModifyDate": xmp.get("ModifyDate"),
+        "Artist": tag("Image Artist"),
+    }
 
 
 def extract_metadata(path: Path) -> dict:
@@ -208,24 +254,19 @@ def extract_metadata(path: Path) -> dict:
     if not path.exists():
         return {"erreur": f"Fichier introuvable : {path}"}
 
-    raw = _extract_with_exiftool(path) if exiftool_available() else None
-    if raw is None:
-        if path.suffix.lower() == ".pdf":
-            raw = _extract_pdf_fallback(path)
-            if "erreur" in raw:
-                return raw
-        elif path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
-            raw = _extract_image_fallback(path)
-            if "erreur" in raw:
-                return {**raw, "signaux_a_verifier": []}
-        else:
-            return {
-                "erreur": (
-                    f"ExifTool requis pour ce format ({path.suffix}). "
-                    "Installez ExifTool pour analyser ce type de fichier."
-                ),
-                "signaux_a_verifier": [],
-            }
+    if path.suffix.lower() == ".pdf":
+        raw = _extract_pdf_fallback(path)
+        if "erreur" in raw:
+            return raw
+    elif path.suffix.lower() in {".jpg", ".jpeg", ".png"}:
+        raw = _extract_image_metadata(path)
+        if "erreur" in raw:
+            return {**raw, "signaux_a_verifier": []}
+    else:
+        return {
+            "erreur": f"Format non supporté pour l'analyse de métadonnées ({path.suffix}).",
+            "signaux_a_verifier": [],
+        }
 
     date_creation_raw, champ_creation = _first_present(raw, _CREATION_FIELDS)
     date_modif_raw, champ_modif = _first_present(raw, _MODIFICATION_FIELDS)
@@ -242,7 +283,6 @@ def extract_metadata(path: Path) -> dict:
         "logiciel": logiciel,
         "auteur_declare": raw.get("Author") or raw.get("Creator"),
         "metadonnees_brutes": raw,
-        "metadata_limited": bool(raw.get("_metadata_limited")),
         "signaux_a_verifier": _deterministic_signals(
             raw, date_creation, date_modification, logiciel, path
         ),

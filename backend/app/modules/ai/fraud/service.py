@@ -14,7 +14,7 @@ from app.modules.ai.fraud.additional_detectors import (
 )
 from app.modules.ai.fraud.fusion import DetectorEvidence, EvidenceRegion, fuse
 from app.modules.ai.fraud.integrity import analyse_integrity
-from app.modules.ai.fraud.llm_analyzer import analyze_with_mistral
+from app.modules.ai.fraud.llm_analyzer import analyze_with_mistral, is_llm_available, render_pages_for_llm
 from app.modules.ai.fraud.metadata import extract_metadata
 from app.modules.ai.fraud.schemas import (
     DocumentIntegritySchema,
@@ -23,6 +23,7 @@ from app.modules.ai.fraud.schemas import (
     FraudVisualSchema,
     VisionModelSchema,
 )
+from app.modules.ai.fraud.twodoc import analyse_2ddoc
 from app.modules.ai.fraud.vision_model import analyse_with_vision_model
 
 
@@ -30,14 +31,11 @@ def _metadata_evidence(meta: dict) -> DetectorEvidence:
     signals = meta.get("signaux_a_verifier", [])
     if "erreur" in meta:
         return DetectorEvidence("metadata", "UNAVAILABLE", None, 0.0, "Métadonnées indisponibles.", limitations=[meta["erreur"]])
-    limited = bool(meta.get("metadata_limited"))
     strong = any("logiciel" in signal.lower() or "date" in signal.lower() for signal in signals)
     return DetectorEvidence(
-        "metadata", "APPLICABLE", 1.0 if strong else min(1.0, len(signals) / 1.5), 0.45 if limited else 0.82,
-        "Métadonnées partielles : aucune incohérence vérifiable." if limited and not signals
-        else "Aucune incohérence de métadonnées." if not signals
+        "metadata", "APPLICABLE", 1.0 if strong else min(1.0, len(signals) / 1.5), 0.82,
+        "Aucune incohérence de métadonnées." if not signals
         else f"{len(signals)} incohérence(s) de métadonnées détectée(s).",
-        limitations=["ExifTool absent : lecture EXIF locale partielle."] if limited else [],
     )
 
 
@@ -50,8 +48,14 @@ def _integrity_evidence(raw: dict, extracted_text: str | None) -> DetectorEviden
     if raw["mrz_detected"] and raw["mrz_checksum_valid"] is False:
         score = 1.0
         reasons.append("checksum MRZ invalide")
-    # The presence of a signature field is an information only, never suspicion.
-    confidence = 0.96 if raw["mrz_detected"] or raw["exact_duplicate_in_dossier"] else 0.65
+    # A signature that no longer matches its signed byte range means the
+    # document was edited after signing — as close to a cryptographic proof
+    # of tampering as this module can produce.
+    if raw["pdf_signature_state"] == "SIGNEE_ALTEREE":
+        score = 1.0
+        reasons.append("signature PDF invalide : document modifié après signature")
+    signature_checked = raw["pdf_signature_state"] in {"SIGNEE_INTEGRE", "SIGNEE_ALTEREE"}
+    confidence = 0.96 if raw["mrz_detected"] or raw["exact_duplicate_in_dossier"] or signature_checked else 0.65
     limitations = [] if extracted_text else ["MRZ non vérifiable : texte OCR non fourni."]
     return DetectorEvidence(
         "integrity", "APPLICABLE", score, confidence,
@@ -96,6 +100,22 @@ def _ela_evidence(path: Path, enabled: bool) -> tuple[DetectorEvidence, list[Fra
     ), visuals
 
 
+_LLM_RISK_TO_SCORE = {"FAIBLE": 0.10, "MODÉRÉ": 0.45, "ÉLEVÉ": 0.75, "CRITIQUE": 0.95}
+
+
+def _llm_vision_evidence(llm_raw: dict | None) -> DetectorEvidence:
+    if llm_raw is None:
+        return DetectorEvidence("llm_vision", "NON_APPLICABLE", None, 0.0, "Analyse contextuelle IA non configurée (clé Mistral absente).")
+    risk = llm_raw.get("niveau_risque")
+    if risk not in _LLM_RISK_TO_SCORE:
+        return DetectorEvidence("llm_vision", "UNAVAILABLE", None, 0.0, llm_raw.get("verdict") or "Analyse contextuelle IA indisponible.")
+    return DetectorEvidence(
+        "llm_vision", "APPLICABLE", _LLM_RISK_TO_SCORE[risk], 0.55,
+        llm_raw.get("verdict") or "Analyse contextuelle IA sans anomalie notable.",
+        limitations=["Jugement visuel et contextuel d'un modèle de langage ; à confirmer par un examen humain, jamais un verdict seul."],
+    )
+
+
 def _trufor_evidence(vision: VisionModelSchema) -> DetectorEvidence:
     if vision.status != "TERMINE" or vision.score is None:
         status = "NON_APPLICABLE" if vision.status == "NON_CONFIGURE" else "UNAVAILABLE"
@@ -130,10 +150,24 @@ def analyze_document(
     integrity = DocumentIntegritySchema.model_validate(integrity_raw)
     vision_model = VisionModelSchema.model_validate(analyse_with_vision_model(path))
 
+    # Mistral now forms its own independent visual + contextual judgment and
+    # feeds the fusion below as the `llm_vision` evidence, so it is called
+    # before fuse(): the deterministic signals passed here are pre-fusion
+    # (metadata + integrity only) context for its narrative, not evidence it
+    # should restate into its own risk level — see llm_analyzer.py's prompt.
+    deterministic_signals = list(meta.get("signaux_a_verifier", [])) + integrity_raw["signals"]
+    llm_context = dict(meta)
+    llm_context["controle_integrite"] = integrity.model_dump(by_alias=True)
+    llm_context["modele_vision"] = vision_model.model_dump(by_alias=True)
+    llm_images = render_pages_for_llm(path) if is_llm_available() else []
+    llm_raw = analyze_with_mistral(llm_context, deterministic_signals, llm_images)
+
     ela_evidence, ela_visuals = _ela_evidence(path, settings.fraud_enable_ela)
     evidences = [
         _metadata_evidence(meta),
         _integrity_evidence(integrity_raw, extracted_text),
+        analyse_2ddoc(path, extracted_text),
+        _llm_vision_evidence(llm_raw),
         ela_evidence,
         _trufor_evidence(vision_model),
         analyse_copy_move(path),
@@ -142,22 +176,17 @@ def analyze_document(
         analyse_ocr_layout(path, extracted_text),
     ]
     fused = fuse(evidences)
-    signals = list(meta.get("signaux_a_verifier", [])) + integrity_raw["signals"]
+    signals = list(deterministic_signals)
     signals.extend(item["explanation"] for item in fused["contributions"] if item["score"] is not None and item["score"] >= 0.45 and item["explanation"] not in signals)
 
-    # Mistral explains pre-computed evidence only: it does not influence score or risk.
-    llm_context = dict(meta)
-    llm_context["controle_integrite"] = integrity.model_dump(by_alias=True)
-    llm_context["modele_vision"] = vision_model.model_dump(by_alias=True)
-    llm_context["evidence_fusion"] = fused
-    llm_raw = analyze_with_mistral(llm_context, signals)
-    
     manual_review = any(c.get("depreciation_applied", False) and c.get("raw_score", 0.0) is not None and float(c.get("raw_score", 0.0)) >= 0.8 for c in fused["contributions"])
-    
+
     if manual_review and fused["niveau_risque"] in {"FAIBLE", "INCONNU", "A_VERIFIER"}:
         fused["niveau_risque"] = "MODERE"
 
-    # Force LLM risk level to match the deterministic top-level risk
+    # The displayed LLM risk badge matches the fused verdict for one coherent
+    # number in the UI — now legitimately informed by Mistral's own
+    # contribution above, not purely cosmetic like before.
     if llm_raw and isinstance(llm_raw, dict) and "niveau_risque" in llm_raw:
         llm_raw["niveau_risque"] = fused["niveau_risque"]
 

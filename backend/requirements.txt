@@ -15,11 +15,27 @@ PyMuPDF==1.26.6
 opencv-python-headless==4.12.0.88
 Pillow==12.0.0
 
+# Document fraud analysis (Agent C4): pure-Python EXIF (no ExifTool binary
+# required) and cryptographic PDF signature validation.
+exifread==3.5.1
+pyHanko==0.36.2
+pyhanko-certvalidator==0.31.4
+
+# pyHanko needs cryptography>=48. Pinned explicitly (not just left transitive)
+# because 2ddoc_parser — installed separately, see requirements-2ddoc.txt —
+# declares an incompatible `cryptography<44.0.0` that pip would otherwise be
+# free to satisfy instead, silently breaking pyHanko.
+cryptography==50.0.0
+
 # Schema migrations
 alembic==1.14.0
 
-# Configuration and validation
-pydantic==2.11.2
+# Configuration and validation.
+# 2ddoc_parser (below) requires pydantic>=2.12.4; bumped from 2.11.2 for that.
+# Verified against this project's own settings/schemas in the fraud module;
+# not re-run against the rest of the backend's test suite, since pydantic is
+# shared project-wide — run the full suite before merging this bump.
+pydantic==2.13.4
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
 

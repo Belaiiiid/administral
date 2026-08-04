@@ -1,12 +1,14 @@
 """Tests for the C4 metadata forensics — the deterministic rules.
 
-These need no ExifTool and no Mistral key: they build tiny PDFs and check the
-five deterministic signals fire (or don't). The LLM layer is not tested here —
-it needs a key and network, and mocking the model would test the mock.
+These need no external binary and no Mistral key: they build tiny PDFs and
+check the deterministic signals fire (or don't). The LLM layer is not tested
+here — it needs a key and network, and mocking the model would test the mock.
 """
 
 from __future__ import annotations
 
+import datetime
+import io
 from pathlib import Path
 
 from app.modules.ai.fraud.metadata import extract_metadata
@@ -183,4 +185,136 @@ def test_duplicate_document_is_an_explicit_review_signal(tmp_path, monkeypatch) 
 
     assert analysis.integrity is not None
     assert analysis.integrity.exact_duplicate_in_dossier is True
-    assert any("mÃªme empreinte" in signal for signal in analysis.signaux_a_verifier)
+    assert any("même empreinte" in signal for signal in analysis.signaux_a_verifier)
+
+
+def _sign_pdf(tmp_path: Path, name: str) -> Path:
+    """Build a minimal PDF and sign it with a throwaway self-signed EC cert.
+
+    Used only to exercise pyHanko's integrity check: a real deployment has no
+    accredited trust root configured, so this never claims `trusted`, only
+    `intact`/`valid` — which is exactly what these tests assert on.
+    """
+    import fitz
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+    from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+    from pyhanko.sign import signers
+    from pyhanko.sign.fields import SigFieldSpec, append_signature_field
+
+    document = fitz.open()
+    document.new_page().insert_text((72, 72), "Attestation de test.")
+    source_bytes = document.tobytes()
+    document.close()
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Test Signer")])
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject).issuer_name(subject).public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - datetime.timedelta(days=1)).not_valid_after(now + datetime.timedelta(days=365))
+        .sign(key, hashes.SHA256())
+    )
+    key_path, cert_path = tmp_path / "key.pem", tmp_path / "cert.pem"
+    key_path.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    signer = signers.SimpleSigner.load(key_file=str(key_path), cert_file=str(cert_path), key_passphrase=None, ca_chain_files=None)
+
+    writer = IncrementalPdfFileWriter(io.BytesIO(source_bytes))
+    append_signature_field(writer, SigFieldSpec(sig_field_name="Signature1"))
+    output = io.BytesIO()
+    signers.sign_pdf(writer, signers.PdfSignatureMetadata(field_name="Signature1"), signer=signer, output=output)
+
+    path = tmp_path / name
+    path.write_bytes(output.getvalue())
+    return path
+
+
+def test_intact_pdf_signature_is_reported_as_cryptographically_valid(tmp_path) -> None:
+    from app.modules.ai.fraud.integrity import analyse_integrity
+
+    signed = _sign_pdf(tmp_path, "signed.pdf")
+    result = analyse_integrity(signed)
+
+    assert result["pdf_signature_state"] == "SIGNEE_INTEGRE"
+    assert any("cryptographiquement intègre" in s for s in result["signals"])
+
+
+def test_pdf_altered_after_signing_is_flagged(tmp_path) -> None:
+    from app.modules.ai.fraud.integrity import analyse_integrity
+    from app.modules.ai.fraud.service import _integrity_evidence
+
+    signed = _sign_pdf(tmp_path, "signed.pdf")
+    tampered_bytes = bytearray(signed.read_bytes())
+    marker = tampered_bytes.find(b"stream")
+    assert marker != -1
+    tampered_bytes[marker + 20] ^= 0xFF
+    tampered = tmp_path / "tampered.pdf"
+    tampered.write_bytes(bytes(tampered_bytes))
+
+    result = analyse_integrity(tampered)
+
+    assert result["pdf_signature_state"] == "SIGNEE_ALTEREE"
+    assert any("modifié après signature" in s for s in result["signals"])
+
+    evidence = _integrity_evidence(result, extracted_text=None)
+    assert evidence.raw_score == 1.0
+
+
+# A real 2D-Doc string (from the fr_2ddoc_parser project's own test suite):
+# well-formed and correctly signed in *format*, but issued under a test
+# certificate authority ("FR00") absent from the real ANTS trust list — so it
+# is expected, and correct, for signature verification to fail on it. That is
+# exactly the behaviour these tests rely on: it proves the check is actually
+# validating against ANTS, not rubber-stamping any well-formed code.
+_SAMPLE_2D_DOC = (
+    "DC04FR000001000F23DC2801FR432,75\x1d44227801234567845202146RETI PATRICK\x1d4A310720224Y1"
+    "45 RUE JULLIARD/ZASPECIMEN/78320/LEVIS STNOM\x1d4163198\x1d47300112345678948RETISOPHIE"
+    "\x1d4907019877654324V3542\x1d4W182\x1d4X3724\x1d"
+    "\x1f6W76EBC3I2LWHBVGNNYTL34SC6V32S2GDCIQQZLZNMTKCHNVEUISJYUQH5WE3AJJICBNG3YMQ2NXXHP5ZHVOQE332R6TUJDHNOHQ6BI"
+)
+
+
+def _write_2ddoc_image(tmp_path: Path, name: str, payload: str) -> Path:
+    from pylibdmtx.pylibdmtx import encode as dmtx_encode
+    from PIL import Image
+
+    encoded = dmtx_encode(payload.encode("utf-8"))
+    image = Image.frombytes("RGB", (encoded.width, encoded.height), encoded.pixels)
+    # libdmtx's native encoding resolution is far smaller than a real printed
+    # code photographed at document scale; upscale so the detector's own
+    # resize step has something realistic to decode.
+    image = image.resize((encoded.width * 6, encoded.height * 6), Image.NEAREST)
+    path = tmp_path / name
+    image.save(path)
+    return path
+
+
+def test_2ddoc_with_untrusted_authority_is_flagged_invalid(tmp_path) -> None:
+    from app.modules.ai.fraud.twodoc import analyse_2ddoc
+
+    image = _write_2ddoc_image(tmp_path, "avis.png", _SAMPLE_2D_DOC)
+    evidence = analyse_2ddoc(image, extracted_text=None)
+
+    assert evidence.detector == "twodoc"
+    assert evidence.status == "APPLICABLE"
+    assert evidence.raw_score == 1.0
+    assert "signature 2D-Doc invalide" in evidence.explanation
+
+
+def test_2ddoc_absent_is_non_applicable(tmp_path) -> None:
+    from app.modules.ai.fraud.twodoc import analyse_2ddoc
+
+    plain = tmp_path / "plain.png"
+    from PIL import Image
+
+    Image.new("RGB", (80, 60), "white").save(plain)
+
+    evidence = analyse_2ddoc(plain, extracted_text=None)
+
+    assert evidence.status == "NON_APPLICABLE"
+    assert evidence.raw_score is None

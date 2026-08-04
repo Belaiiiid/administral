@@ -1,19 +1,33 @@
 """Structural checks for administrative documents.
 
-These controls make no authenticity claim.  They expose verifiable facts for
-the human reviewer: an exact duplicate in the same dossier, an embedded QR
-code, an MRZ checksum, and the presence (not validity) of a PDF signature.
+These controls make no authenticity claim beyond what is cryptographically or
+mathematically verifiable: an exact duplicate in the same dossier, an
+embedded QR code, an MRZ checksum, and — via pyHanko — whether an embedded PDF
+signature's signed byte range still matches the current file content.
 """
 
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from pathlib import Path
 
 import cv2
 import fitz
 import numpy as np
+from pyhanko.pdf_utils.reader import PdfFileReader
+from pyhanko.sign.validation import validate_pdf_signature
+from pyhanko_certvalidator import ValidationContext
+
+# Full chain-of-trust validation needs an accredited root (e.g. a French
+# RGS/eIDAS trust list) that is not configured here, so every check below
+# hits an expected "no issuer found" failure while building that chain.
+# pyHanko logs that failure at ERROR with a full traceback; since it is
+# expected and already surfaced through `issuer_verification_status`, it is
+# silenced here rather than spamming the logs on every signed document.
+logging.getLogger("pyhanko_certvalidator").setLevel(logging.CRITICAL)
+logging.getLogger("pyhanko.sign.validation").setLevel(logging.CRITICAL)
 
 
 def _mrz_check(value: str) -> int:
@@ -47,20 +61,40 @@ def _mrz_status(text: str | None) -> tuple[bool, bool | None]:
     return True, False
 
 
-def _pdf_signature_state(path: Path) -> str:
+def _pdf_signature_state(path: Path) -> tuple[str, list[str]]:
+    """Cryptographically check embedded PDF signatures, if any.
+
+    Only what needs no configured trust anchor is asserted: whether the
+    signed byte range still matches the current file (``intact``) and
+    whether the signature verifies against its embedded certificate
+    (``valid``). A document that fails ``intact`` was modified *after* being
+    signed — close to a cryptographic proof of tampering. Whether the
+    signing certificate itself is trusted needs an accredited root (e.g. the
+    French RGS/eIDAS list), not configured here, so issuer trust stays
+    explicitly unverified (``issuer_verification_status``) rather than
+    silently assumed.
+    """
     if path.suffix.lower() != ".pdf":
-        return "NON_APPLICABLE"
+        return "NON_APPLICABLE", []
     try:
-        document = fitz.open(path)
-        try:
-            has_signature = document.get_sigflags() > 0
-        finally:
-            document.close()
-        if has_signature:
-            return "PRESENT_A_VERIFIER"
-        return "ABSENTE"
+        with path.open("rb") as handle:
+            embedded = PdfFileReader(handle).embedded_signatures
+            if not embedded:
+                return "ABSENTE", []
+            validation_context = ValidationContext(trust_roots=[], allow_fetching=False, revocation_mode="soft-fail")
+            details: list[str] = []
+            state = "SIGNEE_INTEGRE"
+            for signature in embedded:
+                status = validate_pdf_signature(signature, signer_validation_context=validation_context)
+                subject = status.signing_cert.subject.human_friendly
+                if not status.intact or not status.valid:
+                    state = "SIGNEE_ALTEREE"
+                    details.append(f"Signature de « {subject} » invalide : le document a été modifié après signature.")
+                else:
+                    details.append(f"Signature de « {subject} » cryptographiquement intègre (confiance de l'émetteur non vérifiée).")
+            return state, details
     except Exception:
-        return "ILLISIBLE"
+        return "ILLISIBLE", []
 
 
 def _qr_count(path: Path) -> int:
@@ -102,16 +136,18 @@ def analyse_integrity(
     content_hash = hashlib.sha256(path.read_bytes()).hexdigest()
     mrz_detected, mrz_checksum_valid = _mrz_status(extracted_text)
     qr_count = _qr_count(path) if path.suffix.lower() in {".png", ".jpg", ".jpeg"} else 0
-    signature_state = _pdf_signature_state(path)
+    signature_state, signature_details = _pdf_signature_state(path)
     signals: list[str] = []
     if duplicate_count > 1:
         signals.append(
-            f"SIGNAL D'INTÃ‰GRITÃ‰ : ce fichier est dÃ©posÃ© {duplicate_count} fois dans ce dossier (mÃªme empreinte SHA-256)."
+            f"SIGNAL D'INTÉGRITÉ : ce fichier est déposé {duplicate_count} fois dans ce dossier (même empreinte SHA-256)."
         )
     if mrz_detected and mrz_checksum_valid is False:
-        signals.append("SIGNAL MRZ : une zone lisible Ã  la machine a Ã©tÃ© dÃ©tectÃ©e, mais son checksum est invalide.")
-    if signature_state == "PRESENT_A_VERIFIER":
-        signals.append("INFORMATION : le PDF contient un champ de signature ; sa validitÃ© cryptographique doit Ãªtre vÃ©rifiÃ©e auprÃ¨s de l'Ã©metteur.")
+        signals.append("SIGNAL MRZ : une zone lisible à la machine a été détectée, mais son checksum est invalide.")
+    if signature_state == "SIGNEE_ALTEREE":
+        signals.append("SIGNAL DE SIGNATURE : " + (signature_details[0] if signature_details else "le document a été modifié après signature."))
+    elif signature_state == "SIGNEE_INTEGRE":
+        signals.append("INFORMATION : signature PDF présente et cryptographiquement intègre ; confiance de l'émetteur non vérifiée.")
 
     return {
         "content_hash": content_hash,

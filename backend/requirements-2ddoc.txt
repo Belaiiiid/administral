@@ -1,0 +1,26 @@
+# 2D-Doc (ANTS) decoding + signature verification, for the fraud module's
+# `twodoc` detector (app/modules/ai/fraud/twodoc.py).
+#
+# Install AFTER `pip install -r requirements.txt`, with --no-deps:
+#
+#   pip install --no-deps -r requirements-2ddoc.txt
+#
+# Why a separate file: 2ddoc_parser declares `cryptography<44.0.0` and
+# `pydantic<3.0.0,>=2.12.4`. The cryptography upper bound directly
+# contradicts pyHanko's `>=48.0.0` (see requirements.txt) — there is no
+# version that satisfies both, so a single unified `pip install -r
+# requirements.txt` resolution is not possible; pip's resolver hard-fails
+# (ResolutionImpossible) rather than just warning. --no-deps skips
+# 2ddoc_parser's own declared bounds and relies on what requirements.txt
+# already installs instead. This was verified empirically, not assumed: the
+# library's own ANTS-signed test vectors decode and verify correctly against
+# both the newer cryptography and the newer pydantic pinned in
+# requirements.txt (the declared upper/lower bounds are stale, not a real
+# incompatibility).
+#
+# Not on PyPI, pinned to the v1.0.5 tag for reproducibility.
+2ddoc_parser @ git+https://github.com/betagouv/2ddoc-parser.git@v1.0.5
+
+# Data Matrix decoding: pylibdmtx (libdmtx), not pyzbar. pyzbar/ZBar could
+# not decode a real Data Matrix code in testing; pylibdmtx did, reliably.
+pylibdmtx==0.1.10

@@ -150,7 +150,7 @@ def fuse(evidences: list[DetectorEvidence]) -> dict:
     confirmed_detectors = {detector for region in merged_regions for detector in region["detectors"]}
     
     # Calculate convergence for visual detectors globally across the document
-    visual_detectors = {"ela", "trufor", "copy_move", "noise", "dct", "ocr_layout"}
+    visual_detectors = {"ela", "trufor", "copy_move", "noise", "dct", "ocr_layout", "llm_vision"}
     convergent_count = sum(1 for e in applicable if e.detector in visual_detectors and e.raw_score is not None and float(e.raw_score) >= 0.70)
     
     contributions: list[dict] = []
@@ -204,11 +204,12 @@ def fuse(evidences: list[DetectorEvidence]) -> dict:
     confidence = min(1.0, coverage * (sum(reliability.values()) / len(reliability)) + corroboration)
     score = _clamp(score)
     thresholds = config["riskThresholds"]
-    # A deterministic, verifiable integrity/metadata anomaly must remain visible
-    # even when several neutral visual detectors are applicable. This rule is
-    # deliberately restricted: TruFor, ELA, noise and DCT can never trigger it.
+    # A deterministic, verifiable integrity/metadata/2D-Doc anomaly must remain
+    # visible even when several neutral visual detectors are applicable. This
+    # rule is deliberately restricted: TruFor, ELA, noise and DCT can never
+    # trigger it.
     strong_verifiable_signal = any(
-        item["detector"] in {"metadata", "integrity"}
+        item["detector"] in {"metadata", "integrity", "twodoc"}
         and item["score"] >= 0.75
         and item["confidence"] >= 0.75
         for item in contributions
