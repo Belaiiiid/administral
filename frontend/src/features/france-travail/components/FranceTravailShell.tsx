@@ -55,14 +55,31 @@ export function FranceTravailShell({
             style={{ objectPosition: imagePosition }}
           />
           {/*
-            Opaque jusqu'à 60 % de la largeur, puis fondu : le texte reste sur
-            du blanc plein (contraste 18,5:1) et la photo respire à droite.
+            Réglage mesuré, pas choisi à l'œil : blanc plein jusqu'à 40 % de la
+            largeur puis fondu jusqu'à 85 %.
+
+            `LandingHero` éteint son voile à 60 % (`lg:w-3/5`), ce qui marche
+            chez lui parce que sa colonne de texte s'arrête avant et que sa
+            photo est claire à cet endroit. Ici la colonne va jusqu'à 59 % et
+            deux des trois photos y sont sombres : le titre tombait à 1,0:1,
+            littéralement invisible. Étendre le fondu jusqu'à 85 % ramène le
+            pire cas à 6,0:1 tout en montrant plus de photo qu'un voile qui
+            s'arrête tôt — 37 % contre 20 %.
           */}
           <div
             aria-hidden="true"
-            className="absolute inset-0 hidden bg-gradient-to-r from-card via-card via-60% to-transparent lg:block"
+            className="absolute inset-y-0 left-0 hidden w-full bg-gradient-to-r from-card from-40% to-transparent to-85% lg:block"
           />
-          {/* Sous `lg`, la photo est masquée : on garde le voile de marque. */}
+          {/* Raccord avec le bas de la carte. */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 hidden h-20 bg-gradient-to-t from-card to-transparent lg:block"
+          />
+          {/*
+            Sous `lg`, la photo est masquée. Le texte y occupe toute la largeur :
+            aucun voile ne le protégerait sans rendre la photo invisible de
+            toute façon. On garde le voile de marque à la place.
+          */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -right-28 -top-32 size-80 rounded-full bg-brand-soft blur-3xl lg:hidden"
