@@ -1,65 +1,67 @@
 import type { ReactNode } from 'react';
 
-/**
- * Talan's real brand colors — read directly from the `fill` values in their
- * own official logo (`public/talan-logo.svg`, fetched from talan.com), not
- * guessed. Scoped to the France Travail zone only — the rest of the portal
- * keeps MonParcours' own identity; this is what visually marks the
- * difference from APL rather than reusing the same grey shell.
- */
-const TALAN_BLUE = '#5480BA';
-const TALAN_PURPLE = '#6B367D';
-const TALAN_PINK = '#E04580';
-const TALAN_OLIVE = '#8F9424';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 
-/**
- * Partnership hero banner — background gradient built from Talan's own logo
- * colors. The France Travail mark is their "Logo FT" variant (no République
- * Française bloc marque) — just their own name, not the government
- * signature block — sitting on a white chip so it stays crisp on the
- * gradient.
- */
-function PartnerBanner() {
-  return (
-    <div
-      className="mb-6 flex flex-wrap items-center gap-6 rounded-xl border-b-4 px-6 py-8 sm:px-10"
-      style={{
-        background: `linear-gradient(135deg, ${TALAN_BLUE} 0%, ${TALAN_PURPLE} 55%, ${TALAN_PINK} 100%)`,
-        borderBottomColor: TALAN_OLIVE,
-      }}
-    >
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex items-center rounded-lg bg-white p-3 shadow-soft">
-          <img src="/france-travail-logo.svg" alt="France Travail" className="h-10 w-auto sm:h-12" />
-        </div>
-        <div className="leading-tight">
-          <p className="text-headline-sm text-white">Accompagnement à la candidature</p>
-          <p className="text-body-sm text-white/80">Propulsé par MonParcours</p>
-        </div>
-      </div>
-    </div>
-  );
+interface FranceTravailShellProps {
+  eyebrow: string;
+  title: string;
+  description: string;
+  /** Encart optionnel à droite du titre (score, chiffre clé, statut…). */
+  aside?: ReactNode;
+  children: ReactNode;
 }
 
 /**
- * Shared shell for every France Travail page — the partner banner plus a
- * colored backdrop (light tints of Talan's colors, so a plain grey page
- * doesn't look identical to APL's, which is exactly what this exists to
- * avoid). Extracted once a second France Travail page (the CV coach) needed
- * the same treatment; both now read as the same zone.
+ * Bandeau commun aux pages France Travail, aligné sur la refonte Administral.
+ *
+ * Remplace l'ancien bandeau dégradé aux couleurs Talan : la zone France
+ * Travail ne se distingue plus par une identité de couleur à elle, elle suit
+ * le même template que le reste de l'espace citoyen. Ne reste de spécifique
+ * que le logo France Travail, sur pastille blanche comme sur la maquette.
+ *
+ * Le titre passe par `CitizenPageHeader` plutôt que par un balisage maison —
+ * même rythme et mêmes tokens que les autres pages citoyennes.
  */
-export function FranceTravailShell({ children }: { children: ReactNode }) {
+export function FranceTravailShell({
+  eyebrow,
+  title,
+  description,
+  aside,
+  children,
+}: FranceTravailShellProps) {
   return (
     <div className="mx-auto max-w-container">
-      <div
-        className="rounded-2xl p-4 sm:p-6"
-        style={{
-          background: `linear-gradient(160deg, ${TALAN_BLUE}1F 0%, ${TALAN_PURPLE}17 50%, ${TALAN_PINK}1F 100%)`,
-        }}
-      >
-        <PartnerBanner />
-        {children}
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-surface px-6 py-8 sm:px-10">
+        {/* Halos décoratifs, comme la carte hero de la landing */}
+        <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-brand/5 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 size-64 rounded-full bg-chart-2/5 blur-3xl" />
+
+        <div className="relative grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
+          <div>
+            <div className="mb-6 flex items-center gap-4">
+              <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+                <img
+                  src="/france-travail-logo.svg"
+                  alt="France Travail"
+                  className="max-h-9 max-w-full object-contain"
+                />
+              </span>
+              <p className="text-xs text-muted-foreground">France Travail — ex-Pôle emploi</p>
+            </div>
+
+            <CitizenPageHeader
+              eyebrow={eyebrow}
+              title={title}
+              description={description}
+              className="mb-0"
+            />
+          </div>
+
+          {aside && <div className="lg:justify-self-end">{aside}</div>}
+        </div>
       </div>
+
+      <div className="mt-8">{children}</div>
     </div>
   );
 }
