@@ -188,6 +188,15 @@ const config: Config = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(300%)' },
         },
+        /*
+         * Continuous horizontal ticker. The track renders its items twice, so
+         * translating by exactly -50% lands on the start of the second copy —
+         * which is pixel-identical to the start of the first, hence seamless.
+         */
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 200ms cubic-bezier(0.4, 0, 0.2, 1)',

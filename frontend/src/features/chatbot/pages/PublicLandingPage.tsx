@@ -12,6 +12,7 @@ import { LandingAI } from '@/features/chatbot/components/landing/LandingAI';
 import { LandingFeatures } from '@/features/chatbot/components/landing/LandingFeatures';
 import { LandingHeader } from '@/features/chatbot/components/landing/LandingHeader';
 import { LandingHero } from '@/features/chatbot/components/landing/LandingHero';
+import { LandingStatsMarquee } from '@/features/chatbot/components/landing/LandingStatsMarquee';
 import { LandingServices } from '@/features/chatbot/components/landing/LandingServices';
 import { LandingTrust } from '@/features/chatbot/components/landing/LandingTrust';
 import { Reveal } from '@/features/chatbot/components/landing/Reveal';
@@ -181,6 +182,7 @@ function LandingContent() {
         ) : (
           <>
             <LandingHero onStart={() => handleStart('text')} />
+            <LandingStatsMarquee />
             <Reveal>
               <LandingServices />
             </Reveal>
