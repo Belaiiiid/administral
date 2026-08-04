@@ -101,7 +101,7 @@ export function AppShell({
       {role === 'citizen' && (
         <>
           <FloatingChatbot />
-          <FloatingActionBubbles offsetForSidebar={!hideSidebar} />
+          <FloatingActionBubbles />
         </>
       )}
     </div>

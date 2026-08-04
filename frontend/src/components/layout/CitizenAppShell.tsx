@@ -77,7 +77,7 @@ export function CitizenAppShell({ variant = 'full' }: { variant?: 'full' | 'mini
           </div>
 
           <FloatingChatbot />
-          <FloatingActionBubbles offsetForSidebar={!hideChrome} />
+          <FloatingActionBubbles />
         </div>
       </VoiceAssistantProvider>
     </VoicePageProvider>

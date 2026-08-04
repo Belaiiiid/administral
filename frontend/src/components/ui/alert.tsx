@@ -13,7 +13,9 @@ const alertVariants = cva('flex gap-3 rounded-lg border-l-4 p-4 [&_svg]:mt-0.5 [
       info: 'border-l-primary bg-surface-low text-on-surface [&_svg]:text-primary',
       ai: 'border-l-ai bg-ai-surface text-on-surface [&_svg]:text-ai',
       success: 'border-l-success bg-success-surface text-on-surface [&_svg]:text-success',
-      warning: 'border-l-warning bg-warning-surface text-on-surface [&_svg]:text-warning',
+      // Fond soutenu : texte et icône passent en blanc, contrairement aux
+      // autres tons dont la surface est pâle et porte `--on-surface`.
+      warning: 'border-l-warning bg-warning-surface text-warning-foreground [&_svg]:text-warning-foreground',
       error: 'border-l-destructive bg-destructive-surface text-on-surface [&_svg]:text-destructive',
       accent: 'border-l-secondary bg-secondary-fixed/40 text-on-surface [&_svg]:text-secondary',
     },

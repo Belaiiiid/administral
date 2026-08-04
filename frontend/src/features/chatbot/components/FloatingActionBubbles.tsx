@@ -41,8 +41,8 @@ function BubbleButton({
   iconSrc,
   onClick,
   className,
-  tooltip = 'right',
-}: BubbleSpec & { tooltip?: 'right' | 'above' }) {
+  tooltip = 'left',
+}: BubbleSpec & { tooltip?: 'left' | 'above' }) {
   return (
     <div className="group relative flex items-center">
       <button
@@ -64,10 +64,10 @@ function BubbleButton({
         aria-hidden="true"
         className={cn(
           'pointer-events-none absolute whitespace-nowrap rounded-md bg-ink px-3 py-1.5 text-label-sm text-white opacity-0 shadow-soft transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100',
-          // Above and left-aligned in orbit: centred-below would run off the
-          // left edge at the ellipse's far point and under the viewport at
-          // its lowest, since the whole system sits in the bottom-left corner.
-          tooltip === 'right' ? 'left-full ml-3' : 'bottom-full left-0 mb-3',
+          // La pile vit dans le coin bas-droit : l'étiquette part vers la
+          // gauche, sinon elle sort du viewport. En orbite (coin bas-gauche)
+          // elle reste au-dessus, cf. commentaire d'`OrbitBubbles`.
+          tooltip === 'left' ? 'right-full mr-3' : 'bottom-full left-0 mb-3',
         )}
       >
         {label}
@@ -154,7 +154,40 @@ function useFooterLift(): number {
 }
 
 /**
- * Two floating bubbles, bottom-left, on every citizen page — WhatsApp
+ * Vrai pendant qu'on fait défiler la page, faux ~700 ms après le dernier
+ * événement de scroll.
+ *
+ * Les deux bulles sont fixes : posées sur le contenu, elles masquent en
+ * permanence le coin bas-droit — exactement la zone qu'on lit en faisant
+ * défiler. Plutôt que de les rendre plus petites (elles deviendraient une cible
+ * tactile hors norme) ou de les cacher pour de bon, on les efface pendant le
+ * geste et on les ramène dès qu'il s'arrête : elles ne gênent pas la lecture en
+ * mouvement et restent joignables à l'arrêt.
+ */
+function useIsScrolling(delay = 700): boolean {
+  const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const onScroll = () => {
+      setIsScrolling(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setIsScrolling(false), delay);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(timer);
+    };
+  }, [delay]);
+
+  return isScrolling;
+}
+
+/**
+ * Two floating bubbles, bottom-right, on every citizen page — WhatsApp
  * (redirects to the real bot number) and Mistral (opens the assistant panel,
  * `FloatingChatbot`, via the same `chatbotUiStore` it already toggles from
  * its own launcher).
@@ -164,15 +197,10 @@ function useFooterLift(): number {
  * over, and the bubbles would sit right behind the panel).
  */
 export function FloatingActionBubbles({
-  offsetForSidebar = false,
   onAssistantClick,
   hidden = false,
   orbit = false,
 }: {
-  /** True in a shell that fixes a 256px nav rail to the left on `lg+` (see
-   * `w-sidebar`) — shifts the bubbles clear of it instead of sitting on top
-   * of its own bottom links (profile, sign out). */
-  offsetForSidebar?: boolean;
   /**
    * Replaces the default action of the Mistral bubble (toggling
    * `FloatingChatbot`). The public landing page has no floating panel — it
@@ -194,9 +222,11 @@ export function FloatingActionBubbles({
   const location = useLocation();
   const isFinePointer = useFinePointer();
   // Called before any early return — hook order must stay stable across renders.
-  // Sa valeur ne sert pas ici : seul l'appel compte, d'où l'absence de liaison
-  // (une variable inutilisée fait échouer `tsc -b`, donc tout le build).
-  useFooterLift();
+  const lift = useFooterLift();
+  const isScrolling = useIsScrolling();
+  // Le survol et le focus l'emportent sur le retrait : une bulle qu'on vise à
+  // la souris ou qu'on atteint au clavier ne doit pas se dérober.
+  const [isEngaged, setIsEngaged] = useState(false);
 
   if (hidden || isOpen || location.pathname === ROUTES.chat) return null;
 
@@ -220,11 +250,23 @@ export function FloatingActionBubbles({
     return <OrbitBubbles bubbles={bubbles} />;
   }
 
+  // Retrait pendant le défilement : les bulles glissent vers la droite en
+  // laissant dépasser une amorce (assez pour rester visibles et cliquables) et
+  // s'estompent, puis reviennent quand le geste s'arrête. Combiné au
+  // relèvement au-dessus du pied de page, tout tient dans une seule
+  // `transform` — deux règles concurrentes s'écraseraient l'une l'autre.
+  const retreat = isScrolling && !isEngaged;
+
   return (
     <div
+      style={{ transform: `translate(${retreat ? '60%' : '0'}, -${lift}px)` }}
+      onMouseEnter={() => setIsEngaged(true)}
+      onMouseLeave={() => setIsEngaged(false)}
+      onFocusCapture={() => setIsEngaged(true)}
+      onBlurCapture={() => setIsEngaged(false)}
       className={cn(
-        'fixed bottom-5 left-5 z-40 flex flex-col gap-3 transition-transform duration-150 ease-out',
-        offsetForSidebar && 'lg:left-[calc(theme(spacing.sidebar)+1.25rem)]',
+        'fixed bottom-5 right-5 z-40 flex flex-col gap-3 transition-all duration-300 ease-out',
+        retreat && 'opacity-50',
       )}
     >
       {bubbles.map((bubble) => (

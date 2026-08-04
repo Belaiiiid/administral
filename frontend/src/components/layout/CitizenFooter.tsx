@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { APP_CONFIG, FOOTER_LINKS } from '@/app/config/app';
 import { cn } from '@/lib/utils';
+import { useSessionStore } from '@/store/sessionStore';
 
 const ADMIN_REFS = [
   { title: 'CAF', domain: 'caf.fr', href: 'https://www.caf.fr' },
@@ -15,8 +16,27 @@ const ADMIN_REFS = [
  * Administral-styled footer — citizen area only. Structural twin of
  * `components/layout/Footer`, restyled with the Administral tokens (dark
  * `bg-ink` band, matching the reference design-to-code footer).
+ *
+ * Signed-out only. Once there is a session the whole band is dropped: the
+ * authenticated area is a workspace, and the marketing-style references row
+ * plus the legal bar read as chrome there.
+ *
+ * Gated here rather than at each of the two call sites (`CitizenAppShell`,
+ * `PublicLandingPage`) so the rule holds wherever the footer is mounted next.
+ *
+ * ⚠️ This also removes the only link to « Mentions légales », the
+ * accessibility statement, « Données personnelles » and « Gestion des
+ * cookies » for a signed-in citizen — all four are mandatory on a French
+ * public service, as is the AI Act (Règlement (UE) 2024/1689, art. 50)
+ * notice above them. They stay reachable at their own routes, but nothing
+ * in the authenticated UI points to them any more; they need a home
+ * elsewhere (settings, or a discreet link in the shell).
  */
 export function CitizenFooter({ className }: { className?: string }) {
+  const user = useSessionStore((state) => state.user);
+
+  if (user) return null;
+
   return (
     <footer className={cn('bg-ink text-marianne-foreground', className)}>
       <div

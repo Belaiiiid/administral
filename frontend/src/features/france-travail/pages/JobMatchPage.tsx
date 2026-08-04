@@ -81,7 +81,7 @@ function SkillChips({
               className={`rounded-full px-3 py-1.5 text-label-sm ${
                 tone === 'success'
                   ? 'bg-success-surface text-success'
-                  : 'bg-warning-surface text-warning'
+                  : 'bg-warning-surface text-warning-foreground'
               }`}
             >
               {skill}

@@ -15,7 +15,7 @@
     --primary: #091f4e;
     --on-primary: #ffffff;
     --primary-container: #000927;
-    --primary-fixed: #dce3f5;
+    --primary-fixed: #f6fbff;
     --primary-fixed-dim: #b4c5ff;
     --on-primary-fixed: #00174b;
 
@@ -27,7 +27,7 @@
 
     /* AI accent */
     --accent-ai: #003593;
-    --accent-ai-surface: #dce3f5;
+    --accent-ai-surface: #f6fbff;
 
     /* Surfaces */
     --background: #f9f9f9;
@@ -54,7 +54,7 @@
     --success-surface: #dcfce7;
     --on-success: #ffffff;
     --warning: #b45309;
-    --warning-surface: #fef3c7;
+    --warning-surface: #96383e;
     --on-warning: #ffffff;
     --error: #ba1a1a;
     --status-error: #c00327;
@@ -232,6 +232,18 @@
     --radius-lg: 1px;
     --radius-xl: 1px;
     --radius-2xl: 1px;
+  }
+
+  /*
+   * Bleu d'action du dépôt de dossier — le même que le bouton de connexion.
+   * Redéfinir `--primary` sur le conteneur de la page suffit : boutons
+   * (`bg-primary`, `outline-primary`) et pastille d'upload (`text-primary` dans
+   * `Dropzone`) le lisent tous par ce jeton, sans surcharge au cas par cas.
+   * Scopé à la page, comme `.citizen-scope`, plutôt que posé sur `:root` : le
+   * portail agent garde son navy.
+   */
+  .dossier-scope {
+    --primary: #102a74;
   }
 
   /* Uppercase eyebrow label — section kickers across the Administral redesign. */

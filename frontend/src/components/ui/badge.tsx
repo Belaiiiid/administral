@@ -11,7 +11,10 @@ const badgeVariants = cva(
         neutral: 'bg-surface-container text-on-surface-variant',
         info: 'bg-primary-fixed text-primary',
         success: 'bg-success-surface text-success',
-        warning: 'bg-warning-surface text-warning',
+        // `--warning-surface` est un fond soutenu, pas une teinte pâle : le
+        // texte y passe en blanc (`--on-warning`), sinon le brun `--warning`
+        // devient illisible dessus.
+        warning: 'bg-warning-surface text-warning-foreground',
         error: 'bg-destructive-surface text-destructive',
         accent: 'bg-secondary-fixed text-secondary-on-fixed',
       },

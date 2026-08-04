@@ -5,9 +5,9 @@ import {
   Clock,
   FileCheck2,
   FileText,
-  IdCard,
   Info,
   Loader2,
+  Plus,
   Route,
   ScanSearch,
   Send,
@@ -15,21 +15,40 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
-import { CitizenBackButton } from '@/components/citizen/CitizenBackButton';
+import { citizenButton } from '@/components/citizen/citizenButton';
 import { Dropzone, EmptyState, PageHeader, SectionHeader } from '@/components/shared';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { birthDateError, socialSecurityNumberError } from '@/lib/civilStatusValidation';
+import { useIsDesktop } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { profilPartielToSnapshot } from '@/features/citizen/profiling';
 import {
@@ -74,13 +93,6 @@ const STATUS_ICON = {
   validated: CheckCircle2,
 } as const;
 
-/** ISO `YYYY-MM-DD` → `JJ/MM/AAAA`. */
-function formatDateFr(iso: string | null | undefined): string | undefined {
-  if (!iso) return undefined;
-  const [y, m, d] = iso.split('-');
-  return y && m && d ? `${d}/${m}/${y}` : iso;
-}
-
 /** Group items by category, preserving the backend's ordering. */
 function groupByCategory(
   items: DossierChecklistItem[],
@@ -98,22 +110,31 @@ function groupByCategory(
 }
 
 /**
- * `ChecklistRow` — reflects a piece's state, and, once received, lets the
- * citizen undo it. "Décocher" removes the document(s) that satisfied this
- * item (`dossierService.remove`, matched via `classification.matched
- * _checklist_document_id === item.documentType`) rather than flipping a
- * local flag — there is no client-side "checked" state to begin with, the
- * status is always derived from what actually reached the server, so
- * unchecking has to go through the same door uploading did.
+ * `ChecklistRow` — l'état d'une pièce, et sa propre cible de dépôt.
+ *
+ * La ligne accepte un fichier déposé dessus, et porte un bouton d'ajout
+ * explicite pour qui ne fait pas de glisser-déposer. Les deux passent par le
+ * même `onFilesAdded` que la zone globale : le serveur classe le fichier et
+ * décide à quelle pièce il correspond, il n'y a pas de rattachement côté
+ * client — déposer sur une ligne est un raccourci de saisie, pas une promesse
+ * que le fichier atterrira sur *cette* ligne.
+ *
+ * "Décocher" supprime le(s) document(s) qui satisfaisaient l'item
+ * (`dossierService.remove`, apparié via
+ * `classification.matched_checklist_document_id === item.documentType`) plutôt
+ * que de basculer un drapeau local : le statut vient toujours de ce qui a
+ * atteint le serveur.
  */
 function ChecklistRow({
   item,
   onUncheck,
+  onFilesAdded,
   isRemoving,
   disabled,
 }: {
   item: DossierChecklistItem;
   onUncheck: () => void;
+  onFilesAdded: (files: File[]) => void;
   isRemoving: boolean;
   disabled: boolean;
 }) {
@@ -122,39 +143,90 @@ function ChecklistRow({
   // A piece is "received" the moment a deposited file matched it — the row
   // turns green right then, not only once an agent later validates it.
   const isReceived = item.status !== 'missing';
+  const [isDragOver, setIsDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectFiles = (files: FileList | null) => {
+    if (files?.length) onFilesAdded(Array.from(files));
+  };
 
   return (
     <li
+      onDragOver={(event) => {
+        event.preventDefault();
+        if (!disabled) setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragOver(false);
+        if (!disabled) selectFiles(event.dataTransfer.files);
+      }}
       className={cn(
-        'rounded-lg border p-4 transition-colors',
+        'rounded-lg border px-3 py-2 transition-colors',
         isReceived ? 'border-success/40 bg-success-surface' : 'border-border',
+        isDragOver && 'border-primary bg-primary-fixed/30',
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Icon
-            className={cn('mt-0.5 size-5 shrink-0', isReceived ? 'text-success' : 'text-on-surface-variant')}
+            className={cn('size-4 shrink-0', isReceived ? 'text-success' : 'text-on-surface-variant')}
             aria-hidden="true"
           />
           <div className="min-w-0">
-            <p className="text-label-md text-on-surface">
+            <p className="truncate text-label-md text-on-surface">
               {item.libelle}
               {!item.required && (
                 <span className="ml-2 text-label-sm text-on-surface-variant">(facultatif)</span>
               )}
             </p>
-            <p className="mt-0.5 flex items-start gap-1 text-body-sm text-on-surface-variant">
-              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              {item.reason}
-            </p>
+            {isDragOver && (
+              <p className="text-label-sm text-primary">Déposez le fichier ici</p>
+            )}
           </div>
+          {/* La justification ("parce que vous êtes locataire…") quitte le flux
+              pour garder la ligne compacte, mais reste accessible au survol
+              comme au focus clavier plutôt que d'être perdue. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="shrink-0 rounded-full text-on-surface-variant transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={`Pourquoi « ${item.libelle} » est demandé`}
+              >
+                <Info className="size-4" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{item.reason}</TooltipContent>
+          </Tooltip>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1">
           <Badge tone={meta.tone}>{meta.label}</Badge>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={(event) => {
+              selectFiles(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={disabled}
+            onClick={() => inputRef.current?.click()}
+            aria-label={`Ajouter un fichier pour « ${item.libelle} »`}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+          </Button>
           {isReceived && (
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               disabled={disabled || isRemoving}
               onClick={onUncheck}
               aria-label={`Décocher « ${item.libelle} » — retirer le document déposé`}
@@ -164,12 +236,92 @@ function ChecklistRow({
               ) : (
                 <X className="size-4" aria-hidden="true" />
               )}
-              Décocher
             </Button>
           )}
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * La checklist, une catégorie par panneau repliable.
+ *
+ * Tout est replié par défaut sauf la première catégorie à laquelle il manque
+ * une pièce : c'est là que le citoyen a quelque chose à faire, et c'est la
+ * seule ouverture qui le guide sans lui rendre la colonne illisible. Sur mobile
+ * (`openByDefault` reçoit `undefined`) même cette catégorie reste fermée — la
+ * colonne y passe sous le dépôt, et une liste dépliée y ajouterait un écran
+ * entier de défilement avant le reste de la page.
+ *
+ * `type="multiple"` : ouvrir une catégorie n'en referme pas une autre, un
+ * citoyen qui compare deux rubriques n'a pas à faire d'aller-retour.
+ */
+function ChecklistAccordion({
+  groups,
+  openByDefault,
+  disabled,
+  removingItemKeys,
+  onUncheck,
+  onFilesAdded,
+}: {
+  groups: { categorie: DossierCategory; items: DossierChecklistItem[] }[];
+  openByDefault: DossierCategory | undefined;
+  disabled: boolean;
+  removingItemKeys: ReadonlySet<string>;
+  onUncheck: (item: DossierChecklistItem) => void;
+  onFilesAdded: (files: File[]) => void;
+}) {
+  // Clé de remontage : quand le passage mobile/desktop change la valeur par
+  // défaut, l'accordéon doit repartir de cet état plutôt que garder celui que
+  // le citoyen avait sur l'autre disposition.
+  const defaultValue = openByDefault ? [openByDefault] : [];
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Accordion
+        key={openByDefault ?? 'all-closed'}
+        type="multiple"
+        defaultValue={defaultValue}
+        className="rounded-lg border border-border bg-surface-lowest px-4"
+      >
+        {groups.map((group) => {
+          const received = group.items.filter((item) => item.status !== 'missing').length;
+          return (
+            <AccordionItem
+              key={group.categorie}
+              value={group.categorie}
+              className="last:border-b-0"
+            >
+              <AccordionTrigger className="py-3">
+                <span className="flex flex-1 items-center justify-between gap-3 pr-2">
+                  <span className="text-label-md text-on-surface">
+                    {DOSSIER_CATEGORY_LABEL[group.categorie]}
+                  </span>
+                  <Badge tone={received === group.items.length ? 'success' : 'info'}>
+                    {received}/{group.items.length} reçues
+                  </Badge>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-3">
+                <ul className="space-y-2">
+                  {group.items.map((item) => (
+                    <ChecklistRow
+                      key={item.documentType}
+                      item={item}
+                      disabled={disabled}
+                      isRemoving={removingItemKeys.has(item.documentType)}
+                      onUncheck={() => onUncheck(item)}
+                      onFilesAdded={onFilesAdded}
+                    />
+                  ))}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
+          );
+        })}
+      </Accordion>
+    </TooltipProvider>
   );
 }
 
@@ -252,33 +404,101 @@ function PendingFileRow({
   );
 }
 
-function PendingFilesColumn({
+/**
+ * Avancement du dossier : pièces obligatoires reçues sur obligatoires demandées.
+ *
+ * Rendu à deux endroits (bloc de dépôt et colonne des pièces attendues) à
+ * partir d'un seul objet, `checklistProgress`, dérivé du dossier chargé. Les
+ * deux affichages ne peuvent donc pas diverger — c'était le cas quand le dépôt
+ * comptait tous les items et l'en-tête seulement les obligatoires.
+ *
+ * Le dénominateur n'est pas une constante : le backend regénère la checklist à
+ * chaque `GET /citizen/dossier` depuis le profil, donc le total change d'un
+ * citoyen à l'autre et quand la situation d'un même citoyen évolue.
+ */
+function ChecklistProgress({
+  receivedCount,
+  totalCount,
+}: {
+  receivedCount: number;
+  totalCount: number;
+}) {
+  if (totalCount === 0) {
+    return (
+      <p className="text-label-md text-on-surface-variant">
+        Liste des pièces en attente de personnalisation
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-label-md text-on-surface">
+        {receivedCount}/{totalCount} pièce{totalCount > 1 ? 's' : ''} obligatoire
+        {totalCount > 1 ? 's' : ''} reçue{totalCount > 1 ? 's' : ''}
+      </p>
+      <Progress
+        value={(receivedCount / totalCount) * 100}
+        aria-label={`${receivedCount} pièces obligatoires reçues sur ${totalCount}`}
+      />
+    </div>
+  );
+}
+
+/**
+ * "Vos documents" — la checklist et le dépôt dans un seul bloc.
+ *
+ * Ils étaient côte à côte, chacun avec sa barre de progression : deux endroits
+ * pour la même information, et un aller-retour du regard entre "ce qu'on me
+ * demande" et "où je dépose". Ici la zone globale sert le cas courant (plusieurs
+ * fichiers d'un coup, le serveur les classe), et chaque ligne de la liste est
+ * elle-même une cible de dépôt pour le cas précis. Une seule progression, celle
+ * du bloc, et une seule liste de statuts : celle du serveur.
+ */
+function DocumentsSection({
   uploads,
   onFilesAdded,
   onRetry,
   onRemove,
   disabled,
+  progress,
+  groups,
+  openByDefault,
+  removingItemKeys,
+  onUncheck,
+  hasItems,
+  profileComplete,
+  checklistError,
 }: {
   uploads: UploadEntry[];
   onFilesAdded: (files: File[]) => void;
   onRetry: (id: string) => void;
   onRemove: (id: string) => void;
   disabled: boolean;
+  progress: { receivedCount: number; totalCount: number };
+  groups: { categorie: DossierCategory; items: DossierChecklistItem[] }[];
+  openByDefault: DossierCategory | undefined;
+  removingItemKeys: ReadonlySet<string>;
+  onUncheck: (item: DossierChecklistItem) => void;
+  hasItems: boolean;
+  profileComplete: boolean;
+  checklistError: string | null;
 }) {
   return (
     <Card>
       <CardHeader>
-        <SectionHeader title="Documents à déposer" as="h3" />
+        <SectionHeader title="Vos documents" as="h2" />
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-body-sm text-on-surface-variant">
-          Ajoutez vos justificatifs ici — chacun est envoyé immédiatement et vient compléter
-          votre dossier ; la liste des pièces ci-contre se met à jour dès qu’il est reçu, sans
-          attendre l’envoi final.
-        </p>
+      <CardContent className="space-y-gutter">
+        <ChecklistProgress
+          receivedCount={progress.receivedCount}
+          totalCount={progress.totalCount}
+        />
+
         <Dropzone
+          compact
           title="Glissez vos fichiers ici"
-          hint="Ou cliquez pour parcourir votre ordinateur — PDF, JPG, PNG"
+          hint="Plusieurs à la fois — chaque fichier est associé automatiquement à la pièce correspondante. PDF, JPG, PNG"
           disabled={disabled}
           onFilesSelected={onFilesAdded}
         />
@@ -296,182 +516,45 @@ function PendingFilesColumn({
             ))}
           </ul>
         )}
-      </CardContent>
-    </Card>
-  );
-}
 
-export interface CivilStatusCardRef {
-  setBirthDate: (val: string) => void;
-  setNir: (val: string) => void;
-}
-
-/**
- * État civil : NIR + date de naissance.
- *
- * Both are required before submission. When either is missing the citizen can
- * fill it here (the same `PATCH /citizen/profile` the profile page uses), so the
- * dossier is self-contained — no detour to another screen to become submittable.
- */
-const CivilStatusCard = forwardRef<
-  CivilStatusCardRef,
-  {
-    profile: CitizenProfilePersisted;
-    onSaved: (updated: CitizenProfilePersisted) => void;
-  }
->(({ profile, onSaved }, ref) => {
-  const hasNir = profile.hasSocialSecurityNumber;
-  const hasBirthDate = Boolean(profile.birthDate);
-  const complete = hasNir && hasBirthDate;
-
-  const [editing, setEditing] = useState(!complete);
-  const [birthDate, setBirthDate] = useState(profile.birthDate ?? '');
-  const [nir, setNir] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useImperativeHandle(ref, () => ({
-    setBirthDate: (val: string) => {
-      setEditing(true);
-      setBirthDate(val);
-    },
-    setNir: (val: string) => {
-      setEditing(true);
-      setNir(val);
-    },
-  }));
-
-  const birthDateInvalid = birthDateError(birthDate);
-  const nirInvalid = nir ? socialSecurityNumberError(nir) : null;
-  const canSave = !birthDateInvalid && !nirInvalid;
-
-  const save = async () => {
-    if (!canSave) return;
-    setIsSaving(true);
-    setError(null);
-    try {
-      const payload: { birthDate?: string; socialSecurityNumber?: string } = {};
-      if (birthDate && birthDate !== (profile.birthDate ?? '')) payload.birthDate = birthDate;
-      const digits = nir.replace(/\D/g, '');
-      if (digits) payload.socialSecurityNumber = digits;
-      if (Object.keys(payload).length === 0) {
-        setEditing(false);
-        return;
-      }
-      const updated = await citizenProfileService.mettreAJour(payload);
-      setNir('');
-      onSaved(updated);
-      setEditing(false);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Enregistrement impossible.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <SectionHeader
-          title="État civil"
-          as="h2"
-          action={
-            <Badge tone={complete ? 'success' : 'neutral'}>
-              {complete ? 'Complet' : 'À compléter'}
-            </Badge>
-          }
-        />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-          <IdCard className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-          Votre numéro de sécurité sociale et votre date de naissance sont nécessaires pour
-          transmettre le dossier à l’administration.
-        </p>
-
-        {!editing ? (
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-            <div>
-              <dt className="mb-1 text-label-sm text-on-surface-variant">
-                Numéro de sécurité sociale
-              </dt>
-              <dd className="text-body-sm text-on-surface">
-                {profile.socialSecurityNumberMasked ?? (
-                  <span className="text-on-surface-variant">Non renseigné</span>
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="mb-1 text-label-sm text-on-surface-variant">Date de naissance</dt>
-              <dd className="text-body-sm text-on-surface">
-                {formatDateFr(profile.birthDate) ?? (
-                  <span className="text-on-surface-variant">Non renseignée</span>
-                )}
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                Modifier
-              </Button>
-            </div>
-          </dl>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="dossier-naissance">Date de naissance</Label>
-                <Input
-                  id="dossier-naissance"
-                  type="date"
-                  value={birthDate}
-                  aria-invalid={Boolean(birthDateInvalid)}
-                  onChange={(event) => setBirthDate(event.target.value)}
-                />
-                {birthDateInvalid && (
-                  <p role="alert" className="text-body-sm text-destructive">
-                    {birthDateInvalid}
-                  </p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="dossier-nir">Numéro de sécurité sociale</Label>
-                <Input
-                  id="dossier-nir"
-                  inputMode="numeric"
-                  placeholder={hasNir ? 'Renseigné — laisser vide pour ne pas modifier' : '13 ou 15 chiffres'}
-                  value={nir}
-                  aria-invalid={Boolean(nirInvalid)}
-                  onChange={(event) => setNir(event.target.value)}
-                />
-                {nirInvalid && (
-                  <p role="alert" className="text-body-sm text-destructive">
-                    {nirInvalid}
-                  </p>
-                )}
-              </div>
-            </div>
-            {error && (
-              <p role="alert" className="text-body-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={isSaving || !canSave}>
-                {isSaving ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-                Enregistrer
-              </Button>
-              {complete && (
-                <Button variant="ghost" size="sm" onClick={() => setEditing(false)} disabled={isSaving}>
-                  Annuler
-                </Button>
-              )}
-            </div>
+        {!profileComplete && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
+            <p className="flex items-center gap-2 text-on-surface-variant">
+              <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              Complétez votre profil pour personnaliser davantage la liste des pièces.
+            </p>
+            <Button variant="outline-primary" size="sm" asChild>
+              <Link to={ROUTES.profile}>Compléter mon profil</Link>
+            </Button>
           </div>
+        )}
+
+        {checklistError && (
+          <p role="alert" className="text-body-sm text-destructive">
+            {checklistError}
+          </p>
+        )}
+
+        {!hasItems ? (
+          <EmptyState
+            icon={FileText}
+            title="Aucune pièce requise pour le moment"
+            description="Complétez votre profil pour générer la liste de vos justificatifs."
+          />
+        ) : (
+          <ChecklistAccordion
+            groups={groups}
+            openByDefault={openByDefault}
+            disabled={disabled}
+            removingItemKeys={removingItemKeys}
+            onUncheck={onUncheck}
+            onFilesAdded={onFilesAdded}
+          />
         )}
       </CardContent>
     </Card>
   );
-});
+}
 
 /**
  * Indicative benefit estimate — deliberately simplified, never presented as
@@ -486,8 +569,13 @@ const CivilStatusCard = forwardRef<
  * estimation" could refuse to even try before a single document existed.
  * Removed — a citizen can get their estimate the moment their profile is
  * filled in, uploads or not.
+ *
+ * Hors du parcours de dépôt : l'estimation ne dépend d'aucune pièce, elle ne
+ * doit donc pas s'intercaler entre déposer, vérifier et transmettre. Elle vit
+ * dans un bouton permanent en tête de page, qui ouvre cette modale — disponible
+ * à tout moment, sans jamais interrompre le fil.
  */
-function EstimationCard() {
+function EstimationDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [estimation, setEstimation] = useState<EstimationAide | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -507,88 +595,156 @@ function EstimationCard() {
   };
 
   return (
-    <Card>
-      <CardContent className="space-y-4 pt-6">
-        {!attempted && (
-          <div className="space-y-3">
-            <p className="text-body-sm text-on-surface-variant">
-              Calculez un montant indicatif, à partir des informations validées de votre profil
-              — rien n’est calculé tant que vous ne le demandez pas.
-            </p>
-            <Button onClick={lancerEstimation}>
-              <Calculator aria-hidden="true" />
-              Obtenir mon estimation
-            </Button>
-          </div>
-        )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="dossier-scope max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Estimation indicative de l’aide</DialogTitle>
+          <DialogDescription>
+            Calculée à partir des informations de votre profil, indépendamment des pièces
+            déposées.
+          </DialogDescription>
+        </DialogHeader>
 
-        {attempted && isLoading && <Skeleton className="h-20 w-full" />}
-
-        {attempted && !isLoading && error && (
-          <p className="text-body-sm text-on-surface-variant">{error}</p>
-        )}
-
-        {attempted && !isLoading && !error && estimation && !estimation.estimationPossible && (
-          <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            Renseignez votre logement (loyer, statut) dans votre profil pour obtenir une
-            estimation.
-          </p>
-        )}
-
-        {attempted && !isLoading && !error && estimation && estimation.estimationPossible && (
-          <>
-            <div className="flex items-baseline gap-2">
-              <span className="text-display text-primary">{estimation.montantEstime} €</span>
-              <span className="text-body-sm text-on-surface-variant">par mois, environ</span>
+        <div className="space-y-4">
+          {!attempted && (
+            <div className="space-y-3">
+              <p className="text-body-sm text-on-surface-variant">
+                Rien n’est calculé tant que vous ne le demandez pas.
+              </p>
+              <Button onClick={lancerEstimation}>
+                <Calculator aria-hidden="true" />
+                Obtenir mon estimation
+              </Button>
             </div>
-            <dl className="grid gap-x-6 gap-y-2 text-body-sm sm:grid-cols-2">
-              <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
-                <dt className="text-on-surface-variant">Loyer retenu</dt>
-                <dd className="text-on-surface">{estimation.loyerRetenu} €</dd>
-              </div>
-              <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
-                <dt className="text-on-surface-variant">Charges retenues</dt>
-                <dd className="text-on-surface">{estimation.chargesRetenues} €</dd>
-              </div>
-              <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
-                <dt className="text-on-surface-variant">Participation personnelle</dt>
-                <dd className="text-on-surface">{estimation.participationPersonnelle} €</dd>
-              </div>
-            </dl>
-          </>
-        )}
+          )}
 
-        {attempted && !isLoading && !error && estimation && (
-          <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
-            <Calculator className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {estimation.avertissement}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          {attempted && isLoading && <Skeleton className="h-20 w-full" />}
+
+          {attempted && !isLoading && error && (
+            <p className="text-body-sm text-on-surface-variant">{error}</p>
+          )}
+
+          {attempted && !isLoading && !error && estimation && !estimation.estimationPossible && (
+            <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              Renseignez votre logement (loyer, statut) dans votre profil pour obtenir une
+              estimation.
+            </p>
+          )}
+
+          {attempted && !isLoading && !error && estimation && estimation.estimationPossible && (
+            <>
+              <div className="flex items-baseline gap-2">
+                <span className="text-display text-primary">{estimation.montantEstime} €</span>
+                <span className="text-body-sm text-on-surface-variant">par mois, environ</span>
+              </div>
+              <dl className="grid gap-x-6 gap-y-2 text-body-sm sm:grid-cols-2">
+                <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
+                  <dt className="text-on-surface-variant">Loyer retenu</dt>
+                  <dd className="text-on-surface">{estimation.loyerRetenu} €</dd>
+                </div>
+                <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
+                  <dt className="text-on-surface-variant">Charges retenues</dt>
+                  <dd className="text-on-surface">{estimation.chargesRetenues} €</dd>
+                </div>
+                <div className="flex justify-between gap-2 sm:flex-col sm:justify-start">
+                  <dt className="text-on-surface-variant">Participation personnelle</dt>
+                  <dd className="text-on-surface">{estimation.participationPersonnelle} €</dd>
+                </div>
+              </dl>
+            </>
+          )}
+
+          {attempted && !isLoading && !error && estimation && (
+            <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
+              <Calculator className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              {estimation.avertissement}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Fermer</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /**
- * Action 1 — completeness check.
+ * Une étape du stepper : pastille numérotée, ligne de liaison, état court,
+ * action.
  *
- * Re-reads the server's own count rather than trusting what the page loaded
- * earlier: uploads are classified asynchronously, so the figure shown before a
- * document finished analysing is already stale by the time a citizen asks.
+ * La numérotation est l'ordre à suivre : compléter, puis contrôler la
+ * cohérence, puis envoyer — corriger un écart après l'envoi n'est plus
+ * possible. Techniquement les trois appels restent indépendants côté serveur,
+ * donc rien n'est verrouillé ; c'est l'énoncé et la ligne du stepper qui
+ * portent l'ordre.
  */
-function CompletudeCard({
+function StepperStep({
+  index,
+  isLast,
+  title,
+  state,
+  tone = 'info',
+  children,
+}: {
+  index: number;
+  isLast: boolean;
+  title: string;
+  state: string;
+  tone?: 'success' | 'info' | 'warning';
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <span
+          className={cn(
+            'flex size-8 shrink-0 items-center justify-center rounded-full text-label-md',
+            tone === 'success' ? 'bg-success text-white' : 'bg-primary-fixed text-primary',
+          )}
+          aria-hidden="true"
+        >
+          {index}
+        </span>
+        {/* La ligne de liaison : elle relie visuellement les étapes sans rien
+            impliquer sur leur ordre d'exécution. */}
+        {!isLast && <span className="w-px flex-1 bg-border" aria-hidden="true" />}
+      </div>
+      <div className={cn('min-w-0 flex-1 space-y-3', isLast ? 'pb-0' : 'pb-gutter')}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-label-md text-on-surface">{title}</h3>
+          <Badge tone={tone}>{state}</Badge>
+        </div>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Étape 1 — complétude, en ligne dans la page.
+ *
+ * Pas de modale : la liste des pièces manquantes est déjà à l'écran, juste
+ * au-dessus, dans "Vos documents". Rouvrir la même information par-dessus
+ * serait la dupliquer.
+ *
+ * Relit le compte du serveur plutôt que de faire confiance à ce que la page a
+ * chargé : les dépôts sont classés de façon asynchrone, le chiffre affiché
+ * avant la fin d'une analyse est déjà périmé quand le citoyen demande.
+ */
+function CompletudeStep({
   applicationId,
-  status,
-  requiredReceivedCount,
-  requiredDocumentCount,
   onRefreshed,
+  onChecked,
 }: {
   applicationId: string;
-  status: PersonalizedDossier['status'];
-  requiredReceivedCount: number;
-  requiredDocumentCount: number;
   onRefreshed: () => void;
+  /** Unlocks steps 2 and 3 — they stay disabled until this step has run once. */
+  onChecked: () => void;
 }) {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -602,6 +758,7 @@ function CompletudeCard({
       .then(() => {
         onRefreshed();
         setCheckedAt(new Date());
+        onChecked();
       })
       .catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : 'Vérification impossible.'),
@@ -609,56 +766,37 @@ function CompletudeCard({
       .finally(() => setIsChecking(false));
   };
 
-  const missing = Math.max(0, requiredDocumentCount - requiredReceivedCount);
-  const complete = status === 'complete';
-
   return (
-    <Card>
-      <CardContent className="space-y-4 pt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-label-md text-on-surface">
-            {requiredReceivedCount}/{requiredDocumentCount} pièces obligatoires
-          </span>
-          <Badge tone={complete ? 'success' : 'info'}>{complete ? 'Complet' : 'Incomplet'}</Badge>
-        </div>
+    <div className="space-y-2">
+      <p className="text-body-sm text-on-surface-variant">
+        Relit vos pièces côté serveur et met à jour la liste ci-dessus.
+      </p>
 
-        <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-          {complete ? (
-            <>
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-              Toutes les pièces obligatoires ont été reçues et lues.
-            </>
-          ) : (
-            <>
-              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              Il manque {missing} pièce{missing > 1 ? 's' : ''} obligatoire
-              {missing > 1 ? 's' : ''} — voir la liste ci-dessus.
-            </>
-          )}
+      {error && (
+        <p role="alert" className="text-body-sm text-destructive">
+          {error}
         </p>
+      )}
 
-        {error && (
-          <p role="alert" className="text-body-sm text-destructive">
-            {error}
-          </p>
+      {checkedAt && !error && (
+        <p className="text-label-sm text-on-surface-variant">
+          Vérifié à {checkedAt.toLocaleTimeString('fr-FR')}
+        </p>
+      )}
+
+      <Button
+        className={citizenButton({ variant: 'marianne' })}
+        onClick={verifier}
+        disabled={isChecking}
+      >
+        {isChecking ? (
+          <Loader2 className="animate-spin" aria-hidden="true" />
+        ) : (
+          <FileCheck2 aria-hidden="true" />
         )}
-
-        {checkedAt && !error && (
-          <p className="text-label-sm text-on-surface-variant">
-            Vérifié à {checkedAt.toLocaleTimeString('fr-FR')}
-          </p>
-        )}
-
-        <Button variant="outline-primary" onClick={verifier} disabled={isChecking}>
-          {isChecking ? (
-            <Loader2 className="animate-spin" aria-hidden="true" />
-          ) : (
-            <FileCheck2 aria-hidden="true" />
-          )}
-          Vérifier la complétude
-        </Button>
-      </CardContent>
-    </Card>
+        Vérifier la complétude
+      </Button>
+    </div>
   );
 }
 
@@ -681,13 +819,23 @@ const COHERENCE_META: Record<
  * `documentsExtraits` carries what the client genuinely holds: the file name and
  * the OCR text preview. No field is invented to pad the payload.
  */
-function CoherenceCard({
+function CoherenceStep({
   profileSnapshot,
   documents,
+  onRevoirDocuments,
+  locked,
+  onResult,
 }: {
   profileSnapshot: Record<string, unknown>;
   documents: CitizenDocument[];
+  /** Referme la modale et ramène le citoyen sur ses pièces. */
+  onRevoirDocuments: () => void;
+  /** Étape 1 pas encore lancée — voir `completenessChecked` dans la page. */
+  locked: boolean;
+  /** Remonte le verdict : l'étape 3 n'ouvre que sur un `coherent`. */
+  onResult: (result: CoherenceResult) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [result, setResult] = useState<CoherenceResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -708,90 +856,174 @@ function CoherenceCard({
           texte: doc.extractedTextPreview ?? '',
         })),
       })
-      .then(setResult)
+      .then((analysis) => {
+        setResult(analysis);
+        onResult(analysis);
+      })
       .catch((cause: unknown) =>
         setError(cause instanceof Error ? cause.message : 'Analyse impossible.'),
       )
       .finally(() => setIsLoading(false));
   };
 
+  const ouvrirEtLancer = () => {
+    setOpen(true);
+    lancer();
+  };
+
   const meta = result ? COHERENCE_META[result.statutGlobal] : null;
+  const ecarts = result?.incoherences.length ?? 0;
 
   return (
-    <Card>
-      <CardContent className="space-y-4 pt-6">
-        {!attempted && (
-          <div className="space-y-3">
-            <p className="text-body-sm text-on-surface-variant">
-              Compare ce que vous avez déclaré à ce que disent vos pièces déposées, et signale les
-              écarts avant qu’un agent ne les découvre.
-            </p>
-            <Button onClick={lancer} disabled={analysable.length === 0}>
-              <ScanSearch aria-hidden="true" />
-              Tester les incohérences
-            </Button>
-            {analysable.length === 0 && (
-              <p className="text-body-sm text-on-surface-variant">
-                Déposez au moins une pièce pour lancer l’analyse.
+    <div className="space-y-2">
+      <p className="text-body-sm text-on-surface-variant">
+        Compare ce que vous avez déclaré à ce que disent vos pièces, et signale les écarts avant
+        qu’un agent ne les découvre.
+      </p>
+      {/* Le verrou d'étape passe avant le manque de pièces : sinon le citoyen
+          lit « déposez une pièce », en dépose une, et le bouton reste grisé
+          sans que rien n'explique pourquoi. */}
+      {locked ? (
+        <p className="text-body-sm text-on-surface-variant">
+          Lancez d’abord la vérification de complétude (étape 1).
+        </p>
+      ) : (
+        analysable.length === 0 && (
+          <p className="text-body-sm text-on-surface-variant">
+            Déposez au moins une pièce pour lancer l’analyse.
+          </p>
+        )
+      )}
+      <Button
+        className={citizenButton({ variant: 'marianne' })}
+        onClick={ouvrirEtLancer}
+        disabled={locked || analysable.length === 0}
+      >
+        <ScanSearch aria-hidden="true" />
+        Tester les incohérences
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="dossier-scope max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Test des incohérences</DialogTitle>
+            <DialogDescription>
+              {isLoading
+                ? 'Analyse en cours…'
+                : result
+                  ? `${ecarts} écart${ecarts > 1 ? 's' : ''} détecté${ecarts > 1 ? 's' : ''} sur ${analysable.length} pièce${analysable.length > 1 ? 's' : ''} analysée${analysable.length > 1 ? 's' : ''}.`
+                  : 'Comparaison de votre profil déclaré avec vos pièces déposées.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {isLoading && <Skeleton className="h-24 w-full" />}
+
+            {!isLoading && error && (
+              <p role="alert" className="text-body-sm text-destructive">
+                {error}
               </p>
+            )}
+
+            {!isLoading && !error && result && meta && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-label-md text-on-surface">Résultat de l’analyse</p>
+                  <Badge tone={meta.tone}>{meta.label}</Badge>
+                </div>
+
+                {result.incoherences.length === 0 ? (
+                  <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
+                    <CheckCircle2
+                      className="mt-0.5 size-4 shrink-0 text-success"
+                      aria-hidden="true"
+                    />
+                    Aucun écart relevé entre vos informations et vos pièces.
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {result.incoherences.map((item, index) => (
+                      <li
+                        key={`${item.champ}-${index}`}
+                        className="rounded-lg border border-border p-3"
+                      >
+                        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                          <p className="flex items-center gap-2 text-label-md text-on-surface">
+                            {item.coherent ? (
+                              <CheckCircle2
+                                className="size-4 shrink-0 text-success"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <ShieldAlert
+                                className="size-4 shrink-0 text-warning"
+                                aria-hidden="true"
+                              />
+                            )}
+                            {item.champ}
+                          </p>
+                          <Badge tone={COHERENCE_META[item.statut].tone}>
+                            {COHERENCE_META[item.statut].label}
+                          </Badge>
+                        </div>
+                        <p className="text-body-sm text-on-surface-variant">{item.raison}</p>
+                        {/* Ce que le document dit, tel que l'analyseur l'a lu.
+                            Le service ne renvoie pas la valeur déclarée en
+                            regard : on montre l'extrait, sans reconstituer un
+                            « déclaré » que personne n'a renvoyé. */}
+                        {item.preuves.length > 0 && (
+                          <ul className="mt-2 space-y-1">
+                            {item.preuves.map((preuve, preuveIndex) => (
+                              <li
+                                key={preuveIndex}
+                                className="rounded-lg bg-surface-container px-3 py-2 text-body-sm text-on-surface-variant"
+                              >
+                                « {preuve} »
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {item.fichiersConcernes.length > 0 && (
+                          <p className="mt-2 text-label-sm text-on-surface-variant">
+                            Pièces concernées : {item.fichiersConcernes.join(', ')}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
+                  <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  Cette analyse vous aide à corriger votre dossier ; elle ne remplace pas la
+                  décision de l’agent CAF.
+                </p>
+              </>
+            )}
+
+            {attempted && !isLoading && (
+              <Button variant="outline" size="sm" onClick={lancer}>
+                Relancer l’analyse
+              </Button>
             )}
           </div>
-        )}
 
-        {attempted && isLoading && <Skeleton className="h-20 w-full" />}
-
-        {attempted && !isLoading && error && (
-          <p role="alert" className="text-body-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        {attempted && !isLoading && !error && result && meta && (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-label-md text-on-surface">Résultat de l’analyse</p>
-              <Badge tone={meta.tone}>{meta.label}</Badge>
-            </div>
-
-            {result.incoherences.length === 0 ? (
-              <p className="flex items-start gap-2 text-body-sm text-on-surface-variant">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-                Aucun écart relevé entre vos informations et vos pièces.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {result.incoherences.map((item, index) => (
-                  <li key={`${item.champ}-${index}`} className="rounded-lg border border-border p-3">
-                    <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-label-md text-on-surface">{item.champ}</p>
-                      <Badge tone={COHERENCE_META[item.statut].tone}>
-                        {COHERENCE_META[item.statut].label}
-                      </Badge>
-                    </div>
-                    <p className="text-body-sm text-on-surface-variant">{item.raison}</p>
-                    {item.fichiersConcernes.length > 0 && (
-                      <p className="mt-2 text-label-sm text-on-surface-variant">
-                        Pièces concernées : {item.fichiersConcernes.join(', ')}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
-              <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              Cette analyse vous aide à corriger votre dossier ; elle ne remplace pas la décision de
-              l’agent CAF.
-            </p>
-
-            <Button variant="outline" size="sm" onClick={lancer}>
-              Relancer l’analyse
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Fermer</Button>
+            </DialogClose>
+            <Button
+              onClick={() => {
+                setOpen(false);
+                onRevoirDocuments();
+              }}
+            >
+              Revoir mes documents
             </Button>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -808,10 +1040,8 @@ function CoherenceCard({
  * déposé" — the status, decision and contestation live there now, not
  * duplicated on this page.
  */
-function SubmissionCard({
+function SubmissionStep({
   applicationId,
-  requiredReceivedCount,
-  requiredDocumentCount,
   review,
   canSubmit,
   blockingReason,
@@ -820,8 +1050,6 @@ function SubmissionCard({
   submitRef,
 }: {
   applicationId: string;
-  requiredReceivedCount: number;
-  requiredDocumentCount: number;
   review: DossierReview | null;
   canSubmit: boolean;
   blockingReason: string | null;
@@ -830,6 +1058,7 @@ function SubmissionCard({
   /** Ref forwarded from the parent so the voice assistant can trigger submission. */
   submitRef?: React.RefObject<HTMLButtonElement>;
 }) {
+  const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -838,6 +1067,7 @@ function SubmissionCard({
     setError(null);
     try {
       await dossierService.submit(applicationId, profileSnapshot);
+      setOpen(false);
       onSubmitted();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'La soumission du dossier a échoué.');
@@ -846,53 +1076,94 @@ function SubmissionCard({
     }
   };
 
+  if (review?.submitted) {
+    return (
+      <div className="rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
+        <p className="flex items-center gap-2 text-label-md text-primary">
+          <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+          Dossier transmis — en cours d’instruction
+        </p>
+        <p className="mt-1 text-on-surface-variant">Référence {review.application_number}.</p>
+        <Button asChild variant="outline-primary" size="sm" className="mt-3">
+          <Link to={ROUTES.suivi}>
+            <Route aria-hidden="true" />
+            Suivre mon dossier
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardContent className="space-y-4 pt-6">
-        {review?.submitted ? (
-          <div className="rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
-            <p className="flex items-center gap-2 text-label-md text-primary">
-              <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
-              Dossier transmis — en cours d’instruction
+    <div className="space-y-2">
+      {/* L'envoi reste possible sur un dossier incomplet — le backend ne l'a
+          jamais interdit — mais le citoyen doit savoir ce que l'agent verra. */}
+      {blockingReason && (
+        <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          {blockingReason}
+        </p>
+      )}
+
+      {error && (
+        <p role="alert" className="text-body-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {/* Confirmation en modale, comme l'étape 2 : c'est la seule action
+          irréversible de la page, elle ne part pas sur un simple clic. */}
+      <Button
+        ref={submitRef}
+        className={citizenButton({ variant: 'marianne' })}
+        onClick={() => setOpen(true)}
+        disabled={!canSubmit}
+      >
+        <Send aria-hidden="true" />
+        Envoyer le dossier à la CAF
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="dossier-scope">
+          <DialogHeader>
+            <DialogTitle>Envoyer le dossier à la CAF</DialogTitle>
+            <DialogDescription>
+              Votre dossier part en instruction. Vous pourrez suivre son avancement, mais pas
+              revenir sur cet envoi.
+            </DialogDescription>
+          </DialogHeader>
+
+          {blockingReason && (
+            <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
+              <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              {blockingReason}
             </p>
-            <p className="mt-1 text-on-surface-variant">Référence {review.application_number}.</p>
-            <Button asChild variant="outline-primary" size="sm" className="mt-3">
-              <Link to={ROUTES.suivi}>
-                <Route aria-hidden="true" />
-                Suivre mon dossier
-              </Link>
-            </Button>
-          </div>
-        ) : (
-          <>
-            {blockingReason && (
-              <p className="flex items-start gap-2 rounded-lg bg-surface-container p-3 text-body-sm text-on-surface-variant">
-                <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                {blockingReason}
-              </p>
-            )}
-            <p className="text-body-sm text-on-surface-variant">
-              {requiredDocumentCount > 0
-                ? `${requiredReceivedCount}/${requiredDocumentCount} pièce(s) obligatoire(s) reçue(s).`
-                : 'Aucune pièce obligatoire pour votre situation — vous pouvez transmettre le dossier.'}
+          )}
+
+          {error && (
+            <p role="alert" className="text-body-sm text-destructive">
+              {error}
             </p>
-            <Button ref={submitRef} block onClick={submit} disabled={!canSubmit || isSubmitting}>
+          )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={isSubmitting}>
+                Annuler
+              </Button>
+            </DialogClose>
+            <Button onClick={submit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
               ) : (
                 <Send aria-hidden="true" />
               )}
-              Envoyer le dossier à la CAF
+              Confirmer l’envoi
             </Button>
-            {error && (
-              <p role="alert" className="text-body-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -917,9 +1188,29 @@ export default function PersonalizedDossierPage() {
 
   // Ref to the submit button so the voice assistant can click it
   const submitButtonRef = useRef<HTMLButtonElement>(null);
+  // "Revoir mes documents", depuis la modale de cohérence : la modale se ferme
+  // et la page remonte sur le bloc où les pièces se corrigent.
+  const documentsSectionRef = useRef<HTMLElement>(null);
+  const [estimationOpen, setEstimationOpen] = useState(false);
 
-  // Ref to the civil status card to fill birthDate and NIR
-  const civilStatusRef = useRef<CivilStatusCardRef>(null);
+  const scrollToDocuments = useCallback(() => {
+    documentsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Progression séquentielle des trois étapes. `completenessChecked` n'est levé
+  // que dans le `.then` de l'étape 1 : une vérification en erreur ne déverrouille
+  // rien. `coherenceResult` porte le verdict de l'étape 2, dont l'étape 3 dépend.
+  const [completenessChecked, setCompletenessChecked] = useState(false);
+  const [coherenceResult, setCoherenceResult] = useState<CoherenceResult | null>(null);
+
+  // Le verdict de cohérence ne vaut que pour le jeu de pièces analysé : déposer
+  // ou retirer un document après coup le périme. Sans cette remise à zéro, un
+  // citoyen pourrait passer l'étape 2, ajouter une pièce contradictoire, et
+  // transmettre malgré tout sur une analyse qui ne l'a jamais vue.
+  const documentsSignature = documents.map((doc) => doc.id).sort().join('|');
+  useEffect(() => {
+    setCoherenceResult(null);
+  }, [documentsSignature]);
 
   const refreshDossier = useCallback(() => dossierService.getDossier().then(setDossier), []);
 
@@ -1065,18 +1356,56 @@ export default function PersonalizedDossierPage() {
 
   const groups = useMemo(() => (dossier ? groupByCategory(dossier.items) : []), [dossier]);
 
-  // Submission gating: the administration needs civil status, so the NIR and the
-  // birth date must be on file before the dossier can be transmitted.
-  const civilStatusComplete = Boolean(profile?.hasSocialSecurityNumber && profile?.birthDate);
+  // L'unique source de vérité des deux barres de progression : les compteurs de
+  // pièces *obligatoires* renvoyés par le serveur, ceux-là mêmes qui décident de
+  // la complétude du dossier. Les deux barres lisent cet objet, elles ne peuvent
+  // donc plus afficher deux chiffres différents. Le total reste variable — la
+  // checklist est regénérée depuis le profil à chaque lecture du dossier.
+  const checklistProgress = useMemo(
+    () => ({
+      receivedCount: dossier?.requiredReceivedCount ?? 0,
+      totalCount: dossier?.requiredDocumentCount ?? 0,
+    }),
+    [dossier],
+  );
+
+  // La catégorie ouverte au chargement : la première à laquelle il manque une
+  // pièce. Sur mobile, aucune — la colonne y est empilée sous le dépôt, on
+  // évite d'y déployer une liste avant que le citoyen la demande.
+  const isDesktop = useIsDesktop();
+  const firstIncompleteCategory = useMemo(
+    () =>
+      isDesktop
+        ? groups.find((group) => group.items.some((item) => item.status === 'missing'))?.categorie
+        : undefined,
+    [groups, isDesktop],
+  );
+
+  // The civil-status gate was removed with the card that fed it: it was the only
+  // place to enter the NIR and birth date, so keeping the check would have left
+  // the dossier permanently unsubmittable. `submit_application` (backend) never
+  // enforced either field, so submission works without them — but the agent now
+  // receives a dossier carrying no NIR, which is what identifies an allocataire
+  // on the CAF side.
   const requiredComplete =
     !!dossier && dossier.requiredReceivedCount >= dossier.requiredDocumentCount;
-  const canSubmit = civilStatusComplete && !review?.submitted;
 
-  const blockingReason = !civilStatusComplete
-    ? 'Renseignez votre état civil (numéro de sécurité sociale et date de naissance) pour transmettre le dossier.'
-    : !requiredComplete
-      ? 'Certaines pièces obligatoires manquent encore. Vous pouvez transmettre le dossier, mais l’agent verra son taux de complétude.'
-      : null;
+  // Étape 3 : ouverte seulement si l'analyse de cohérence a tourné *et* n'a rien
+  // relevé. `a_revoir` compte comme un écart — c'est précisément le cas où un
+  // agent trouverait quelque chose, donc le laisser passer viderait l'étape 2
+  // de son sens.
+  const coherenceClear = coherenceResult?.statutGlobal === 'coherent';
+  const canSubmit = completenessChecked && coherenceClear && !review?.submitted;
+
+  const blockingReason = !completenessChecked
+    ? 'Lancez d’abord la vérification de complétude (étape 1) : elle relit vos pièces côté serveur avant l’envoi.'
+    : !coherenceResult
+      ? 'Lancez le test des incohérences (étape 2) avant de transmettre.'
+      : !coherenceClear
+        ? `L’analyse a relevé ${coherenceResult.incoherences.length} écart${coherenceResult.incoherences.length > 1 ? 's' : ''} entre vos déclarations et vos pièces. Corrigez-les avant de transmettre.`
+        : !requiredComplete
+          ? 'Certaines pièces obligatoires manquent encore. Vous pouvez transmettre le dossier, mais l’agent verra son taux de complétude.'
+          : null;
 
   const profileSnapshot = useMemo(
     () => (profile ? profilPartielToSnapshot(profile.profile as never) : {}),
@@ -1092,7 +1421,6 @@ export default function PersonalizedDossierPage() {
         ? `Votre dossier est actuellement ${dossier.status === 'complete' ? 'complet' : 'incomplet'} : ` +
           `${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount} fournies. `
         : '') +
-      (!civilStatusComplete ? 'Votre état civil est incomplet. Veuillez renseigner votre numéro de sécurité sociale et votre date de naissance. ' : '') +
       (review?.submitted ? 'Votre dossier a déjà été transmis.' : 'Vous pouvez envoyer votre dossier à la CAF.'),
     actions: [
       {
@@ -1103,30 +1431,33 @@ export default function PersonalizedDossierPage() {
         sensitive: true,
       },
     ],
-    fields: [
-      {
-        fieldId: 'birthdate',
-        labels: ['date de naissance', 'naissance'],
-        setValue: (val) => civilStatusRef.current?.setBirthDate(val),
-      },
-      {
-        fieldId: 'nir',
-        labels: ['numero de securite sociale', 'securite sociale', 'secu', 'nir'],
-        setValue: (val) => civilStatusRef.current?.setNir(val),
-      },
-    ],
+    // No dictatable fields left on this page: the birth-date and NIR entries
+    // pointed at the removed civil-status card.
+    fields: [],
     actionCallbacks: {
       submit_dossier: () => submitButtonRef.current?.click(),
     },
   });
 
   return (
-    <div className="mx-auto max-w-container">
+    <div className="dossier-scope mx-auto max-w-container">
       <PageHeader
-        eyebrow={<CitizenBackButton fallbackTo={ROUTES.portal} />}
         title="Déposer un dossier"
         description="Vos pièces justificatives adaptées à votre situation, jusqu’à la transmission à l’administration."
+        actions={
+          // Hors parcours : l'estimation ne dépend d'aucune pièce déposée, elle
+          // reste donc joignable en un clic à n'importe quel moment du dépôt.
+          <Button
+            className={citizenButton({ variant: 'marianne' })}
+            onClick={() => setEstimationOpen(true)}
+          >
+            <Calculator aria-hidden="true" />
+            Estimer mon aide
+          </Button>
+        }
       />
+
+      <EstimationDialog open={estimationOpen} onOpenChange={setEstimationOpen} />
 
       {isLoading && (
         <div className="space-y-gutter">
@@ -1149,152 +1480,107 @@ export default function PersonalizedDossierPage() {
       )}
 
       {!isLoading && !error && dossier && profile && (
+        // Une seule colonne, dans l'ordre du parcours réel : déposer, puis
+        // vérifier, puis transmettre. La checklist et le dépôt ne sont plus deux
+        // blocs à confronter du regard, ils sont le même bloc.
         <div className="space-y-10">
-          <CivilStatusCard ref={civilStatusRef} profile={profile} onSaved={setProfile} />
-
-          {/* 1 — The checklist. Always on screen: it is the reference a citizen
-              reads while gathering papers, so hiding it behind a button made the
-              page unusable for its main job. */}
-          <section className="space-y-gutter" aria-labelledby="etape-pieces">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 id="etape-pieces" className="text-headline-md text-on-surface">
-                Les pièces attendues
-              </h2>
-              <Badge tone={dossier.status === 'complete' ? 'success' : 'info'}>
-                {dossier.requiredReceivedCount}/{dossier.requiredDocumentCount} pièces obligatoires
-              </Badge>
-            </div>
-
-            <Progress
-              value={
-                dossier.requiredDocumentCount
-                  ? (dossier.requiredReceivedCount / dossier.requiredDocumentCount) * 100
-                  : 0
-              }
-              aria-label={`${dossier.requiredReceivedCount} pièces obligatoires sur ${dossier.requiredDocumentCount}`}
-            />
-
-            {!dossier.profileComplete && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-l-primary bg-primary-fixed p-4 text-body-sm">
-                <p className="flex items-center gap-2 text-on-surface-variant">
-                  <UserRound className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  Complétez votre profil pour personnaliser davantage la liste des pièces.
-                </p>
-                <Button variant="outline-primary" size="sm" asChild>
-                  <Link to={ROUTES.profile}>Compléter mon profil</Link>
-                </Button>
-              </div>
-            )}
-
-            {checklistError && (
-              <p role="alert" className="text-body-sm text-destructive">
-                {checklistError}
-              </p>
-            )}
-
-            {dossier.items.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="Aucune pièce requise pour le moment"
-                description="Complétez votre profil pour générer la liste de vos justificatifs."
-              />
-            ) : (
-              <div className="grid gap-gutter md:grid-cols-2">
-                {groups.map((group) => (
-                  <Card key={group.categorie}>
-                    <CardHeader>
-                      <SectionHeader title={DOSSIER_CATEGORY_LABEL[group.categorie]} as="h3" />
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3">
-                        {group.items.map((item) => (
-                          <ChecklistRow
-                            key={item.documentType}
-                            item={item}
-                            disabled={Boolean(review?.submitted)}
-                            isRemoving={removingItemKeys.has(item.documentType)}
-                            onUncheck={() => handleUncheckItem(item)}
-                          />
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 2 — Deposit. */}
-          <section className="space-y-gutter" aria-labelledby="etape-depot">
-            <h2 id="etape-depot" className="text-headline-md text-on-surface">
-              Déposer vos pièces
-            </h2>
-            <PendingFilesColumn
+          <section ref={documentsSectionRef} aria-labelledby="section-documents">
+            <DocumentsSection
               uploads={uploads}
               disabled={Boolean(review?.submitted)}
               onFilesAdded={handleFilesAdded}
               onRetry={handleRetry}
               onRemove={handleRemoveUpload}
+              progress={checklistProgress}
+              groups={groups}
+              openByDefault={firstIncompleteCategory}
+              removingItemKeys={removingItemKeys}
+              onUncheck={handleUncheckItem}
+              hasItems={dossier.items.length > 0}
+              profileComplete={dossier.profileComplete}
+              checklistError={checklistError}
             />
           </section>
 
-          {/* 3 — Three actions, each optional and independent: none is a
-              prerequisite of the others, so they sit side by side rather than
-              in a wizard. */}
-          <section className="space-y-gutter" aria-labelledby="etape-actions">
+          <section className="space-y-gutter" aria-labelledby="section-verifier">
             <div>
-              <h2 id="etape-actions" className="text-headline-md text-on-surface">
+              <h2
+                id="section-verifier"
+                className="text-headline-lg-mobile text-primary md:text-headline-lg"
+              >
                 Vérifier et transmettre
               </h2>
               <p className="mt-1 text-body-sm text-on-surface-variant">
-                Trois actions indépendantes, à lancer dans l’ordre que vous voulez.
+                Suivez ces trois étapes dans l’ordre : vérifiez d’abord la complétude de vos
+                pièces, testez ensuite les incohérences, puis envoyez votre dossier à la CAF.
               </p>
             </div>
 
-            <div className="grid gap-gutter lg:grid-cols-3">
-              <div className="flex flex-col gap-3">
-                <SectionHeader title="1 · Complétude du dossier" as="h3" />
-                <CompletudeCard
-                  applicationId={dossier.applicationId}
-                  status={dossier.status}
-                  requiredReceivedCount={dossier.requiredReceivedCount}
-                  requiredDocumentCount={dossier.requiredDocumentCount}
-                  onRefreshed={refreshDossier}
-                />
-              </div>
+            <Card>
+              <CardContent className="pt-6">
+                <ol className="space-y-0">
+                  <StepperStep
+                    index={1}
+                    isLast={false}
+                    title="Complétude"
+                    state={`${checklistProgress.receivedCount}/${checklistProgress.totalCount} reçues`}
+                    tone={dossier.status === 'complete' ? 'success' : 'info'}
+                  >
+                    <CompletudeStep
+                      applicationId={dossier.applicationId}
+                      onRefreshed={refreshDossier}
+                      onChecked={() => setCompletenessChecked(true)}
+                    />
+                  </StepperStep>
 
-              <div className="flex flex-col gap-3">
-                <SectionHeader title="2 · Test des incohérences" as="h3" />
-                <CoherenceCard profileSnapshot={profileSnapshot} documents={documents} />
-              </div>
+                  <StepperStep
+                    index={2}
+                    isLast={false}
+                    title="Incohérences"
+                    state={
+                      documents.length === 0
+                        ? 'Aucune pièce à analyser'
+                        : `${documents.length} pièce${documents.length > 1 ? 's' : ''} déposée${documents.length > 1 ? 's' : ''}`
+                    }
+                  >
+                    <CoherenceStep
+                      profileSnapshot={profileSnapshot}
+                      documents={documents}
+                      onRevoirDocuments={scrollToDocuments}
+                      locked={!completenessChecked}
+                      onResult={setCoherenceResult}
+                    />
+                  </StepperStep>
 
-              <div className="flex flex-col gap-3">
-                <SectionHeader title="3 · Envoyer à l’agent CAF" as="h3" />
-                <SubmissionCard
-                  submitRef={submitButtonRef}
-                  applicationId={dossier.applicationId}
-                  requiredReceivedCount={dossier.requiredReceivedCount}
-                  requiredDocumentCount={dossier.requiredDocumentCount}
-                  review={review}
-                  canSubmit={canSubmit}
-                  blockingReason={blockingReason}
-                  profileSnapshot={profileSnapshot}
-                  onSubmitted={() => {
-                    refreshDossier();
-                    refreshReview();
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Kept from the previous layout — not one of the three actions above,
-              but the only place the citizen can get an indicative amount. */}
-          <section className="space-y-gutter" aria-labelledby="etape-estimation">
-            <h2 id="etape-estimation" className="text-headline-md text-on-surface">
-              Estimation indicative de l’aide
-            </h2>
-            <EstimationCard />
+                  <StepperStep
+                    index={3}
+                    isLast
+                    title="Envoyer à la CAF"
+                    state={
+                      review?.submitted
+                        ? 'Transmis'
+                        : requiredComplete
+                          ? 'Prêt à envoyer'
+                          : 'Pièces manquantes'
+                    }
+                    tone={review?.submitted || requiredComplete ? 'success' : 'warning'}
+                  >
+                    <SubmissionStep
+                      submitRef={submitButtonRef}
+                      applicationId={dossier.applicationId}
+                      review={review}
+                      canSubmit={canSubmit}
+                      blockingReason={blockingReason}
+                      profileSnapshot={profileSnapshot}
+                      onSubmitted={() => {
+                        refreshDossier();
+                        refreshReview();
+                      }}
+                    />
+                  </StepperStep>
+                </ol>
+              </CardContent>
+            </Card>
           </section>
         </div>
       )}

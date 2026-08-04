@@ -51,7 +51,11 @@ function scoreTone(score: number) {
     return { chip: 'bg-success-surface text-success', bar: 'bg-success', accent: 'success' } as const;
   if (score >= 33)
     return { chip: 'bg-brand-soft text-brand', bar: 'bg-brand', accent: 'brand' } as const;
-  return { chip: 'bg-warning-surface text-warning', bar: 'bg-warning', accent: 'warning' } as const;
+  return {
+    chip: 'bg-warning-surface text-warning-foreground',
+    bar: 'bg-warning',
+    accent: 'warning',
+  } as const;
 }
 
 function OfferCard({ offer }: { offer: JobOffer }) {
