@@ -1,10 +1,11 @@
 import { CircleEllipsis, HomeIcon, Pencil, UserRound, UsersRound } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { PageHeader, EmptyState } from '@/components/shared';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CitizenAlert } from '@/components/citizen/CitizenAlert';
+import { citizenButton } from '@/components/citizen/citizenButton';
+import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
+import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import {
   Dialog,
   DialogContent,
@@ -238,68 +239,83 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-container">
-      <PageHeader
+      <CitizenPageHeader
+        eyebrow="Votre espace"
         title="Mon profil citoyen"
-        description="Gérez vos informations personnelles et vos préférences"
+        description="Gérez vos informations personnelles et vos préférences."
         actions={
-          <Button type="button" onClick={handleSave} disabled={isLoading || isSaving || identityInvalid}>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isLoading || isSaving || identityInvalid}
+            className={citizenButton()}
+          >
             {isSaving ? 'Enregistrement…' : 'Enregistrer les modifications'}
-          </Button>
+          </button>
         }
       />
 
       {loadError && (
-        <Alert tone="error" className="mb-gutter">
-          <AlertDescription>{loadError}</AlertDescription>
-        </Alert>
+        <CitizenAlert tone="error" className="mb-6">
+          {loadError}
+        </CitizenAlert>
       )}
       {feedback && (
-        <Alert tone={feedback.tone} className="mb-gutter">
-          <AlertDescription>{feedback.message}</AlertDescription>
-        </Alert>
+        <CitizenAlert tone={feedback.tone} className="mb-6">
+          {feedback.message}
+        </CitizenAlert>
       )}
 
       <ProfilageAssistantPanel />
 
-      <div className="grid gap-gutter lg:grid-cols-3">
-        <ProfileCard
-          title="Informations personnelles"
-          icon={UserRound}
-          action={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Modifier les informations personnelles"
-              onClick={openEditDialog}
-              disabled={isLoading}
-            >
-              <Pencil aria-hidden="true" />
-            </Button>
-          }
-        >
-          {isLoading ? (
-            <IdentitySkeleton />
-          ) : (
-            <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <ChampAffiche label="Nom" valeur={nomAffiche} />
-              <ChampAffiche label="Prénom" valeur={prenomAffiche} />
-              <ChampAffiche
-                label="Numéro de sécurité sociale"
-                valeur={persisted?.socialSecurityNumberMasked ?? undefined}
-              />
-              <ChampAffiche label="Date de naissance" valeur={formatDateFr(form.birthDate || persisted?.birthDate)} />
-              <ChampAffiche label="Adresse e-mail" valeur={persisted?.email} />
-            </dl>
-          )}
-        </ProfileCard>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <CitizenCard className="min-h-[260px]">
+          <CitizenCardHeader
+            title="Informations personnelles"
+            icon={UserRound}
+            action={
+              <button
+                type="button"
+                aria-label="Modifier les informations personnelles"
+                onClick={openEditDialog}
+                disabled={isLoading}
+                className={citizenButton({ variant: 'ghost', size: 'icon' })}
+              >
+                <Pencil aria-hidden="true" />
+              </button>
+            }
+          />
+          <CitizenCardBody>
+            {isLoading ? (
+              <IdentitySkeleton />
+            ) : (
+              <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <ChampAffiche label="Nom" valeur={nomAffiche} />
+                <ChampAffiche label="Prénom" valeur={prenomAffiche} />
+                <ChampAffiche
+                  label="Numéro de sécurité sociale"
+                  valeur={persisted?.socialSecurityNumberMasked ?? undefined}
+                />
+                <ChampAffiche label="Date de naissance" valeur={formatDateFr(form.birthDate || persisted?.birthDate)} />
+                <ChampAffiche label="Adresse e-mail" valeur={persisted?.email} />
+              </dl>
+            )}
+          </CitizenCardBody>
+        </CitizenCard>
 
-        <ProfileCard title="Composition du foyer" icon={UsersRound}>
-          {champsFoyer.length ? <ChampsProgressifs champs={champsFoyer} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
-        </ProfileCard>
+        <CitizenCard className="min-h-[260px]">
+          <CitizenCardHeader title="Composition du foyer" icon={UsersRound} />
+          <CitizenCardBody>
+            {champsFoyer.length ? <ChampsProgressifs champs={champsFoyer} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
+          </CitizenCardBody>
+        </CitizenCard>
 
-        <ProfileCard title="Détails du logement" icon={HomeIcon}>
-          {champsLogement.length ? <ChampsProgressifs champs={champsLogement} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
-        </ProfileCard>
+        <CitizenCard className="min-h-[260px]">
+          <CitizenCardHeader title="Détails du logement" icon={HomeIcon} />
+          <CitizenCardBody>
+            {champsLogement.length ? <ChampsProgressifs champs={champsLogement} dernierChamp={dernierChampRempli} /> : <EmptyProfileSection />}
+          </CitizenCardBody>
+        </CitizenCard>
       </div>
 
       <EditIdentityDialog
@@ -361,7 +377,7 @@ function EditIdentityDialog({
               onChange={(e) => set({ birthDate: e.target.value })}
             />
             {birthDateInvalid && (
-              <p role="alert" className="text-body-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive">
                 {birthDateInvalid}
               </p>
             )}
@@ -377,7 +393,7 @@ function EditIdentityDialog({
               onChange={(e) => set({ socialSecurityNumber: e.target.value })}
             />
             {nirInvalid && (
-              <p role="alert" className="text-body-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive">
                 {nirInvalid}
               </p>
             )}
@@ -385,17 +401,18 @@ function EditIdentityDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" onClick={() => onOpenChange(false)} disabled={Boolean(birthDateInvalid) || Boolean(nirInvalid)}>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={Boolean(birthDateInvalid) || Boolean(nirInvalid)}
+            className={citizenButton()}
+          >
             Appliquer
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-}
-
-function ProfileCard({ title, icon: Icon, action, children }: { title: string; icon: typeof UserRound; action?: ReactNode; children: ReactNode }) {
-  return <Card className="min-h-[260px] overflow-hidden"><CardHeader className="flex-row items-center justify-between border-b border-border px-5 py-4"><span className="flex items-center gap-3"><Icon className="size-5 text-ai" aria-hidden="true" /><h2 className="text-label-md text-on-surface">{title}</h2></span>{action}</CardHeader><CardContent className="p-5">{children}</CardContent></Card>;
 }
 
 function IdentitySkeleton() {
@@ -412,13 +429,48 @@ function IdentitySkeleton() {
 }
 
 function EmptyProfileSection() {
-  return <EmptyState icon={CircleEllipsis} size="compact" title="" description="Aucune information pour le moment — répondez aux questions de l’assistant pour compléter cette section." className="min-h-[170px] justify-center [&_h3]:hidden" />;
+  return (
+    <CitizenEmptyState
+      icon={CircleEllipsis}
+      size="compact"
+      title="Section à compléter"
+      description="Répondez aux questions de l’assistant pour compléter cette section."
+      className="min-h-[170px] justify-center"
+    />
+  );
 }
 
 function ChampsProgressifs({ champs, dernierChamp }: { champs: ChampProgressif[]; dernierChamp: string | null }) {
-  return <dl className="grid gap-5">{champs.map((champ) => <ChampAffiche key={champ.cle} {...champ} nouveau={champ.cle === dernierChamp} />)}</dl>;
+  return (
+    <dl className="grid gap-5">
+      {champs.map((champ) => (
+        <ChampAffiche key={champ.cle} {...champ} nouveau={champ.cle === dernierChamp} />
+      ))}
+    </dl>
+  );
 }
 
 function ChampAffiche({ label, valeur, nouveau = false }: Omit<ChampProgressif, 'cle'> & { nouveau?: boolean }) {
-  return <div className={cn('transition-all duration-500 ease-standard', nouveau && 'animate-in fade-in slide-in-from-bottom-2 rounded-lg bg-primary-fixed p-2 -m-2')}><dt className="mb-1 text-label-sm text-on-surface-variant">{label}</dt><dd className="text-body-sm text-on-surface">{valeur === undefined || valeur === '' ? <><span aria-hidden="true">—</span><span className="sr-only">Non renseigné</span></> : String(valeur)}</dd></div>;
+  return (
+    <div
+      className={cn(
+        'transition-all duration-500 ease-standard',
+        nouveau && 'animate-in fade-in slide-in-from-bottom-2 -m-2 rounded-lg bg-brand-soft p-2',
+      )}
+    >
+      <dt className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="text-sm text-ink">
+        {valeur === undefined || valeur === '' ? (
+          <>
+            <span aria-hidden="true">—</span>
+            <span className="sr-only">Non renseigné</span>
+          </>
+        ) : (
+          String(valeur)
+        )}
+      </dd>
+    </div>
+  );
 }

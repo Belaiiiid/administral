@@ -15,7 +15,6 @@ import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { ConversationHistory } from '@/features/chatbot/components/ConversationHistory';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
@@ -48,7 +47,6 @@ import { useVoiceComposer } from '@/features/voice/hooks/useVoiceComposer';
  */
 export function FloatingChatbot() {
   const isOpen = useChatbotUiStore((state) => state.isOpen);
-  const toggle = useChatbotUiStore((state) => state.toggle);
   const close = useChatbotUiStore((state) => state.close);
   const pendingQuestion = useChatbotUiStore((state) => state.pendingQuestion);
   const consumePendingQuestion = useChatbotUiStore((state) => state.consumePendingQuestion);
@@ -60,7 +58,9 @@ export function FloatingChatbot() {
   // keyboard or screen-reader user who opens it lands inside it, Escape
   // closes it from anywhere in the panel, and closing it (by any means)
   // hands focus back to the launcher instead of dropping it into the void.
-  const launcherRef = useRef<HTMLButtonElement>(null);
+  // The launcher itself now lives in `FloatingActionBubbles` (the Mistral
+  // bubble, bottom-left) — found by id rather than a shared ref, since the
+  // two components don't otherwise know about each other.
   const panelRef = useRef<HTMLDivElement>(null);
   const wasOpenRef = useRef(false);
 
@@ -145,7 +145,7 @@ export function FloatingChatbot() {
     } else if (wasOpenRef.current) {
       // Panel just closed — the launcher is the only thing that reopens it,
       // so that's where focus belongs, not lost on <body>.
-      launcherRef.current?.focus();
+      document.getElementById('assistant-launcher-bubble')?.focus();
     }
     wasOpenRef.current = isOpen;
   }, [isOpen]);
@@ -159,21 +159,6 @@ export function FloatingChatbot() {
 
   return (
     <>
-      {/* Launcher — hidden while the panel is open so it never overlaps it. */}
-      <button
-        ref={launcherRef}
-        type="button"
-        onClick={toggle}
-        aria-label={isOpen ? 'Fermer l’assistant' : 'Ouvrir l’assistant'}
-        aria-expanded={isOpen}
-        className={cn(
-          'fixed bottom-5 right-5 z-40 flex size-14 items-center justify-center rounded-full bg-ai text-primary-foreground shadow-soft transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ai focus-visible:ring-offset-2',
-          isOpen && 'hidden',
-        )}
-      >
-        <MessageCircle aria-hidden="true" />
-      </button>
-
       {/* Panel */}
       {isOpen && (
         <div

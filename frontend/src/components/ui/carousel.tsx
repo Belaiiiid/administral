@@ -123,6 +123,9 @@ const Carousel = React.forwardRef<
         className={cn('relative', className)}
         role="region"
         aria-roledescription="carousel"
+        // A `region` landmark must be named, or screen readers announce a bare
+        // "region" with no way to tell carousels apart.
+        aria-label="Carrousel"
         {...props}
       >
         {children}

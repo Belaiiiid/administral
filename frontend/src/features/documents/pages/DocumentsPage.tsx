@@ -3,19 +3,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
-import { EmptyState, PageHeader, SectionHeader, StatusBadge } from '@/components/shared';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { citizenButton } from '@/components/citizen/citizenButton';
+import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
+import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
+import { CitizenStatusBadge } from '@/components/citizen/CitizenStatusBadge';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { documentService } from '@/services/documentService';
@@ -42,6 +37,7 @@ export default function DocumentsPage() {
   // Wired to the FastAPI citizen module: the list is the real persisted state,
   // refetched on delete so the table stays in sync with PostgreSQL.
   const [documents, setDocuments] = useState<CitizenDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [docQuestion, setDocQuestion] = useState('');
   const askAssistant = useChatbotUiStore((state) => state.ask);
@@ -58,7 +54,7 @@ export default function DocumentsPage() {
     documentService.listDocuments().then(setDocuments).catch(() => undefined);
 
   useEffect(() => {
-    refresh();
+    refresh().finally(() => setIsLoading(false));
   }, []);
 
   // Register page content for the voice assistant
@@ -93,52 +89,63 @@ export default function DocumentsPage() {
 
   return (
     <div className="mx-auto max-w-container">
-      <PageHeader
+      <CitizenPageHeader
+        eyebrow="Vos pièces"
         title="Mes documents"
         description="Retrouvez vos pièces justificatives et la documentation officielle."
         actions={
-          <Button asChild>
-            <Link to={ROUTES.dossier}>
-              <Upload aria-hidden="true" />
-              Déposer un document
-            </Link>
-          </Button>
+          <Link to={ROUTES.dossier} className={citizenButton()}>
+            <Upload aria-hidden="true" />
+            Déposer un document
+          </Link>
         }
       />
 
       <Tabs defaultValue="files">
-        <TabsList>
-          <TabsTrigger value="files">Mes pièces</TabsTrigger>
-          <TabsTrigger value="docs">Documentation</TabsTrigger>
+        <TabsList className="border-border/60">
+          <TabsTrigger
+            value="files"
+            className="text-sm font-semibold text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
+          >
+            Mes pièces
+          </TabsTrigger>
+          <TabsTrigger
+            value="docs"
+            className="text-sm font-semibold text-muted-foreground data-[state=active]:border-brand data-[state=active]:text-brand"
+          >
+            Documentation
+          </TabsTrigger>
         </TabsList>
 
         {/* Uploaded documents */}
         <TabsContent value="files">
-          <Card>
-            <CardHeader>
-              <SectionHeader title="Pièces déposées" as="h2" />
-            </CardHeader>
-            <CardContent className="px-0">
-              {documents.length > 0 ? (
-                <Table>
+          <CitizenCard>
+            <CitizenCardHeader title="Pièces déposées" icon={FileText} />
+            {isLoading ? (
+              <CitizenCardBody>
+                <DocumentsSkeleton />
+              </CitizenCardBody>
+            ) : documents.length > 0 ? (
+              <div className="w-full overflow-x-auto">
+                <table className="w-full caption-bottom border-collapse">
                   <caption className="sr-only">
                     Liste de vos pièces justificatives avec leur statut d’analyse
                   </caption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead>
+                  <thead className="border-b border-border/60">
+                    <tr>
+                      <Th>Document</Th>
+                      <Th>Type</Th>
+                      <Th>Date</Th>
+                      <Th>Statut</Th>
+                      <Th>
                         <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                      </Th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
                     {documents.map((doc) => (
-                      <TableRow key={doc.id}>
-                        <TableCell>
+                      <tr key={doc.id} className="transition-colors hover:bg-surface">
+                        <td className="px-4 py-4 sm:px-6">
                           <button
                             type="button"
                             onClick={() =>
@@ -148,59 +155,61 @@ export default function DocumentsPage() {
                                 'noopener,noreferrer',
                               )
                             }
-                            className="flex items-center gap-3 text-left text-primary hover:underline"
+                            className="flex items-center gap-3 text-left text-sm font-semibold text-brand hover:underline"
                           >
-                            <FileText className="size-5 shrink-0" aria-hidden="true" />
+                            <FileText className="size-4 shrink-0" aria-hidden="true" />
                             {doc.fileName}
                           </button>
-                        </TableCell>
-                        <TableCell className="text-on-surface-variant">{doc.mimeType}</TableCell>
-                        <TableCell className="text-on-surface-variant">
+                        </td>
+                        <td className="px-4 py-4 sm:px-6 text-sm text-muted-foreground">{doc.mimeType}</td>
+                        <td className="px-4 py-4 sm:px-6 text-sm text-muted-foreground">
                           {formatDate(doc.uploadedAt)}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={ANALYSIS_STATUS_TO_PROCESS[doc.status]} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                        </td>
+                        <td className="px-4 py-4 sm:px-6">
+                          <CitizenStatusBadge status={ANALYSIS_STATUS_TO_PROCESS[doc.status]} />
+                        </td>
+                        <td className="px-4 py-4 sm:px-6 text-right">
+                          <button
+                            type="button"
                             aria-label={`Supprimer ${doc.fileName}`}
                             disabled={deletingId === doc.id}
                             onClick={() => handleDelete(doc.id)}
+                            className={citizenButton({ variant: 'ghost', size: 'icon' })}
                           >
                             <Trash2 aria-hidden="true" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                          </button>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <EmptyState
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <CitizenCardBody>
+                <CitizenEmptyState
                   icon={FileText}
                   title="Aucune pièce déposée"
                   description="Déposez vos justificatifs pour les retrouver ici et suivre leur analyse."
                   actions={
-                    <Button asChild>
-                      <Link to={ROUTES.dossier}>
-                        <Upload aria-hidden="true" />
-                        Déposer un document
-                      </Link>
-                    </Button>
+                    <Link to={ROUTES.dossier} className={citizenButton()}>
+                      <Upload aria-hidden="true" />
+                      Déposer un document
+                    </Link>
                   }
                 />
-              )}
-            </CardContent>
-          </Card>
+              </CitizenCardBody>
+            )}
+          </CitizenCard>
         </TabsContent>
 
         {/* Documentation centre */}
         <TabsContent value="docs">
-          <div className="flex flex-col gap-gutter">
-            <div className="rounded-xl bg-primary-container p-8 text-white">
-              <h2 className="mb-2 text-headline-lg">Centre de documentation</h2>
-              <p className="max-w-2xl text-body-md text-white/80">
+          <div className="flex flex-col gap-6">
+            <div className="rounded-2xl bg-marianne p-8 text-marianne-foreground">
+              <h2 className="font-display text-2xl font-extrabold leading-tight">
+                Centre de documentation
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-marianne-foreground/80">
                 Posez votre question à l’assistant : il répond à partir des sources officielles
                 (service-public.fr, caf.fr) et cite ses références.
               </p>
@@ -210,15 +219,17 @@ export default function DocumentsPage() {
                 and "FAQ" placeholders were removed: there is no admin-content
                 backend to fill them, and the RAG assistant already answers from
                 the official corpus. */}
-            <Card className="border-l-4 border-l-ai bg-ai-surface">
-              <CardContent className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
+            <CitizenCard className="border-l-4 border-l-brand bg-brand-soft">
+              <div className="flex flex-col gap-4 p-6 md:flex-row md:items-center">
                 <div className="flex-1">
-                  <p className="mb-1 flex items-center gap-2 text-label-sm uppercase tracking-widest text-ai">
-                    <BookOpen className="size-4" aria-hidden="true" />
+                  <p className="eyebrow flex items-center gap-2">
+                    <BookOpen className="size-3.5" aria-hidden="true" />
                     Assistance
                   </p>
-                  <h2 className="text-headline-md text-on-surface">Besoin d’une réponse rapide ?</h2>
-                  <p className="text-body-sm text-on-surface-variant">
+                  <h2 className="mt-2 font-display text-lg font-bold text-ink">
+                    Besoin d’une réponse rapide ?
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                     Posez votre question à l’assistant.
                   </p>
                 </div>
@@ -231,18 +242,50 @@ export default function DocumentsPage() {
                     value={docQuestion}
                     onChange={(event) => setDocQuestion(event.target.value)}
                     placeholder="Posez votre question…"
-                    className="md:w-64"
+                    className="bg-card md:w-64"
                   />
-                  <Button type="submit" disabled={docQuestion.trim().length === 0}>
+                  <button
+                    type="submit"
+                    disabled={docQuestion.trim().length === 0}
+                    className={citizenButton()}
+                  >
                     <Send aria-hidden="true" />
                     <span className="sr-only sm:not-sr-only">Poser</span>
-                  </Button>
+                  </button>
                 </form>
-              </CardContent>
-            </Card>
+              </div>
+            </CitizenCard>
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th
+      scope="col"
+      className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground sm:px-6"
+    >
+      {children}
+    </th>
+  );
+}
+
+function DocumentsSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Skeleton className="size-9 shrink-0 rounded-lg" />
+          <div className="flex-1">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-2 h-3 w-32" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+      ))}
     </div>
   );
 }

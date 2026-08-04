@@ -1,8 +1,7 @@
 import { AlertTriangle, Gavel, Loader2, ScrollText, Send } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { citizenButton } from '@/components/citizen/citizenButton';
 import {
   Select,
   SelectContent,
@@ -31,6 +30,16 @@ import {
  * Only shown once a decision exists (the parent gates on `review.decision`),
  * because there is nothing to contest before one.
  */
+
+/** Administral equivalents of the `Badge` tones `CONTESTATION_STATUS_META` names. */
+const STATUS_PILL: Record<string, string> = {
+  neutral: 'bg-surface text-muted-foreground',
+  info: 'bg-brand-soft text-brand',
+  success: 'bg-emerald-50 text-emerald-700',
+  warning: 'bg-amber-50 text-amber-700',
+  error: 'bg-destructive/10 text-destructive',
+  accent: 'bg-brand-soft text-brand',
+};
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -97,34 +106,41 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
     const meta = CONTESTATION_STATUS_META[existing.status];
     const resolved = existing.status === 'ACCEPTED' || existing.status === 'REJECTED';
     return (
-      <div className="rounded-lg border border-border p-4 text-body-sm">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 text-label-md text-on-surface">
+      <div className="rounded-2xl border border-border/60 bg-card p-6 text-sm shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 font-display text-sm font-bold text-ink">
             <ScrollText className="size-4 shrink-0" aria-hidden="true" />
             Contestation déposée
           </span>
-          <Badge tone={meta.tone}>{meta.label}</Badge>
+          <span
+            className={cn(
+              'inline-flex rounded-full px-3 py-1 text-xs font-semibold',
+              STATUS_PILL[meta.tone] ?? 'bg-surface text-muted-foreground',
+            )}
+          >
+            {meta.label}
+          </span>
         </div>
-        <p className="text-on-surface-variant">
-          <span className="text-on-surface">Motif :</span> {existing.reasonLabel}
+        <p className="text-muted-foreground">
+          <span className="font-semibold text-ink">Motif :</span> {existing.reasonLabel}
         </p>
-        <p className="mt-1 text-on-surface-variant">{existing.description}</p>
-        <p className="mt-2 text-label-sm uppercase tracking-wider text-on-surface-variant">
+        <p className="mt-1 leading-relaxed text-muted-foreground">{existing.description}</p>
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Déposée le {formatDate(existing.createdAt)}
         </p>
         {resolved && existing.resolutionComment && (
           <div
             className={cn(
-              'mt-3 rounded-lg border-l-4 p-3',
+              'mt-4 rounded-xl border-l-4 p-4',
               existing.status === 'ACCEPTED'
-                ? 'border-l-success bg-success-surface'
-                : 'border-l-destructive bg-destructive-surface',
+                ? 'border-l-emerald-500 bg-emerald-50'
+                : 'border-l-destructive bg-destructive/5',
             )}
           >
-            <p className="text-label-md text-on-surface">
+            <p className="font-display text-sm font-bold text-ink">
               Réponse de l’agent{existing.reviewedBy ? ` — ${existing.reviewedBy}` : ''}
             </p>
-            <p className="mt-1 text-on-surface-variant">{existing.resolutionComment}</p>
+            <p className="mt-1 leading-relaxed text-muted-foreground">{existing.resolutionComment}</p>
           </div>
         )}
       </div>
@@ -134,13 +150,13 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
   // 2. The form to file a challenge.
   if (formOpen) {
     return (
-      <form onSubmit={submit} className="rounded-lg border border-border p-4">
-        <p className="mb-3 flex items-center gap-2 text-label-md text-on-surface">
+      <form onSubmit={submit} className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+        <p className="mb-4 flex items-center gap-2 font-display text-sm font-bold text-ink">
           <Gavel className="size-4 shrink-0" aria-hidden="true" />
           Contester la décision
         </p>
 
-        <label htmlFor="contestation-reason" className="mb-1 block text-body-sm text-on-surface-variant">
+        <label htmlFor="contestation-reason" className="mb-1 block text-sm text-muted-foreground">
           Motif de la contestation
         </label>
         <Select value={reason} onValueChange={(value) => setReason(value as ContestationReason)}>
@@ -156,7 +172,7 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
           </SelectContent>
         </Select>
 
-        <label htmlFor="contestation-description" className="mb-1 block text-body-sm text-on-surface-variant">
+        <label htmlFor="contestation-description" className="mb-1 block text-sm text-muted-foreground">
           Expliquez pourquoi vous contestez cette décision
         </label>
         <Textarea
@@ -168,23 +184,32 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
         />
 
         {error && (
-          <p role="alert" className="mt-2 text-body-sm text-destructive">
+          <p role="alert" className="mt-2 text-sm text-destructive">
             {error}
           </p>
         )}
 
-        <div className="mt-3 flex gap-2">
-          <Button type="submit" disabled={!reason || description.trim().length < 10 || isSubmitting}>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="submit"
+            disabled={!reason || description.trim().length < 10 || isSubmitting}
+            className={citizenButton()}
+          >
             {isSubmitting ? (
               <Loader2 className="animate-spin" aria-hidden="true" />
             ) : (
               <Send aria-hidden="true" />
             )}
             Envoyer la contestation
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={isSubmitting}>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormOpen(false)}
+            disabled={isSubmitting}
+            className={citizenButton({ variant: 'outline' })}
+          >
             Annuler
-          </Button>
+          </button>
         </div>
       </form>
     );
@@ -192,9 +217,13 @@ export function DecisionContestation({ applicationNumber }: DecisionContestation
 
   // 3. The entry point.
   return (
-    <Button variant="outline" block onClick={() => setFormOpen(true)}>
+    <button
+      type="button"
+      onClick={() => setFormOpen(true)}
+      className={citizenButton({ variant: 'outline', className: 'w-full' })}
+    >
       <AlertTriangle aria-hidden="true" />
       Contester cette décision
-    </Button>
+    </button>
   );
 }

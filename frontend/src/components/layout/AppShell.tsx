@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FloatingActionBubbles } from '@/features/chatbot/components/FloatingActionBubbles';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
@@ -83,7 +84,12 @@ export function AppShell({
         <Footer />
       </div>
 
-      {role === 'citizen' && <FloatingChatbot />}
+      {role === 'citizen' && (
+        <>
+          <FloatingChatbot />
+          <FloatingActionBubbles offsetForSidebar={!hideSidebar} />
+        </>
+      )}
     </div>
       </VoiceAssistantProvider>
     </VoicePageProvider>

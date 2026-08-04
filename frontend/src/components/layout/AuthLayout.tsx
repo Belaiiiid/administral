@@ -33,7 +33,7 @@ export function AuthLayout() {
                 </span>
               </Link>
               <p className="text-body-md text-on-surface-variant">{APP_CONFIG.tagline}</p>
-              <PartnerLogos className="gap-6" logoClassName="h-14" />
+              <PartnerLogos className="gap-6" logoClassName="h-14" mistralMark="wordmark" />
             </div>
 
             <main id="main-content" tabIndex={-1} className="focus:outline-none">

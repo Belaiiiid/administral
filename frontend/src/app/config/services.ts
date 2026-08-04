@@ -53,6 +53,7 @@ export const SERVICES: ServiceDefinition[] = [
       'Visualisation de vos avis d’imposition et aide au calcul du revenu fiscal de référence.',
     basePath: '/impots',
     status: 'coming_soon',
+    logoUrl: '/impots.jpg',
     photoUrl: '/impots.jpg',
   },
 ];

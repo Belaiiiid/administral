@@ -64,16 +64,25 @@ export function LandingServices() {
         </div>
 
         <div className="mt-14">
-          <Carousel opts={{ loop: true, align: 'start' }} setApi={setApi} className="mx-auto max-w-6xl">
+          <Carousel
+            opts={{ loop: true, align: 'start' }}
+            setApi={setApi}
+            aria-label="Services principaux"
+            className="mx-auto max-w-6xl"
+          >
             <CarouselContent className="-ml-6">
-              {SERVICES.map((service) => {
+              {SERVICES.map((service, index) => {
                 const isAvailable = service.status === 'available';
                 const Icon = ADMINISTRATION_ICONS[service.id];
                 const accentSolid = 'bg-[#132a6e]';
                 const panelTint = isAvailable ? 'bg-brand-soft' : 'bg-destructive-surface';
 
                 return (
-                  <CarouselItem key={service.id} className="pl-6 sm:basis-1/2 lg:basis-1/3">
+                  <CarouselItem
+                    key={service.id}
+                    aria-label={`${index + 1} sur ${SERVICES.length} : ${service.name}`}
+                    className="pl-6 sm:basis-1/2 lg:basis-1/3"
+                  >
                     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg">
                       <div className={cn('relative h-56 w-full shrink-0', panelTint)}>
                         {service.photoUrl ? (
@@ -147,6 +156,7 @@ export function LandingServices() {
                   type="button"
                   onClick={() => api?.scrollTo(i)}
                   aria-label={`Aller au groupe ${i + 1}`}
+                  aria-current={i === current}
                   className={cn(
                     'h-1.5 rounded-full transition-all duration-300',
                     i === current ? 'w-6 bg-brand' : 'w-1.5 bg-brand/20 hover:bg-brand/40',

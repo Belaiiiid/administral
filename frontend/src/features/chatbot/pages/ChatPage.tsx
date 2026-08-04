@@ -1,5 +1,6 @@
-import { SectionHeader } from '@/components/shared';
-import { Card, CardContent } from '@/components/ui/card';
+import { FileClock, LibraryBig } from 'lucide-react';
+
+import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
@@ -36,29 +37,29 @@ export default function ChatPage() {
   const controller = useChatbot();
 
   return (
-    <div className="mx-auto grid max-w-container gap-gutter lg:grid-cols-3">
+    <div className="mx-auto grid max-w-container gap-6 lg:grid-cols-3">
       <ChatWindow controller={controller} />
 
       {/* Context panel */}
-      <aside className="flex flex-col gap-gutter">
-        <Card>
-          <CardContent className="p-6">
-            <SectionHeader title="Statut actuel" as="h2" className="mb-4" />
-            <p className="text-body-sm text-on-surface-variant">
+      <aside className="flex flex-col gap-6">
+        <CitizenCard>
+          <CitizenCardHeader title="Statut actuel" icon={FileClock} />
+          <CitizenCardBody>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Aucun dossier en cours. Le contexte de votre demande s’affichera ici pour éclairer les
               réponses de l’assistant.
             </p>
-          </CardContent>
-        </Card>
+          </CitizenCardBody>
+        </CitizenCard>
 
-        <Card>
-          <CardContent className="p-6">
-            <SectionHeader title="Portail documentation" as="h2" className="mb-4" />
-            <p className="text-body-sm text-on-surface-variant">
+        <CitizenCard>
+          <CitizenCardHeader title="Portail documentation" icon={LibraryBig} />
+          <CitizenCardBody>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               Les ressources utiles à votre conversation apparaîtront ici.
             </p>
-          </CardContent>
-        </Card>
+          </CitizenCardBody>
+        </CitizenCard>
 
         <WhatsAppQrCard />
       </aside>

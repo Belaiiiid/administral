@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import heroImage from '@/assets/hero-republique.png';
+import { cn } from '@/lib/utils';
 
 type HeroSlide =
   | { type: 'vision' }
@@ -73,7 +74,7 @@ export function LandingHero({ onStart }: LandingHeroProps) {
           <span className="inline-flex rounded-full bg-brand-soft px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
             Bienvenue sur Administral
           </span>
-          <h1 className="mt-6 max-w-2xl text-4xl font-extrabold leading-[1.08] text-[#091431] sm:text-5xl lg:text-6xl">
+          <h1 className="mt-6 max-w-2xl font-display text-4xl font-extrabold leading-[1.08] text-ink sm:text-5xl lg:text-6xl">
             Une plateforme unique pour vos démarches et services publics.
           </h1>
           <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground">
@@ -112,15 +113,15 @@ export function LandingHero({ onStart }: LandingHeroProps) {
             >
               {current.type === 'vision' ? (
                 <div>
-                  <h2 className="font-display text-3xl font-extrabold text-[#5381be] lg:text-4xl">
+                  <h2 className="font-display text-3xl font-extrabold text-ink lg:text-4xl">
                     RÉPUBLIQUE 5.0
                   </h2>
-                  <p className="mt-3 font-display text-lg font-semibold leading-snug text-[#5381be]">
+                  <p className="mt-3 font-display text-lg font-semibold leading-snug text-brand">
                     Connectée. Inclusive.
                     <br />
                     Intelligente. Humaine.
                   </p>
-                  <p className="mt-4 text-sm leading-relaxed text-foreground/70">
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                     Une République augmentée par la technologie au service de tous les citoyens,
                     pour une administration plus simple, plus rapide et plus juste.
                   </p>
@@ -139,22 +140,30 @@ export function LandingHero({ onStart }: LandingHeroProps) {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="flex flex-col items-center py-6 text-center">
                   <span
-                    className={`flex size-16 items-center justify-center rounded-full text-marianne-foreground shadow-md ring-8 ${
-                      current.tone === 'teal' ? 'bg-chart-2 ring-chart-2/10' : 'bg-brand ring-brand/10'
-                    }`}
+                    className={cn(
+                      'flex size-14 shrink-0 items-center justify-center rounded-xl',
+                      current.tone === 'teal'
+                        ? 'bg-teal-50 text-chart-2'
+                        : 'bg-brand-soft text-brand',
+                    )}
                   >
-                    <current.icon className="size-8" aria-hidden="true" />
+                    <current.icon className="size-7" aria-hidden="true" />
                   </span>
-                  <p
-                    className={`mt-6 font-display text-5xl font-extrabold tabular-nums sm:text-6xl ${
-                      current.tone === 'teal' ? 'text-chart-2' : 'text-[#5381be]'
-                    }`}
-                  >
+                  <p className="eyebrow mt-5">Chiffres clés</p>
+
+                  <p className="mt-4 font-display text-5xl font-extrabold leading-none tabular-nums text-ink sm:text-6xl">
                     {current.value}
                   </p>
-                  <p className="mt-4 max-w-xs text-sm font-semibold leading-snug text-muted-foreground">
+                  <span
+                    className={cn(
+                      'mt-5 block h-1 w-12 rounded-full',
+                      current.tone === 'teal' ? 'bg-chart-2' : 'bg-brand',
+                    )}
+                    aria-hidden="true"
+                  />
+                  <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted-foreground">
                     {current.label}
                   </p>
                 </div>

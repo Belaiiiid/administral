@@ -7,6 +7,7 @@ import { CitizenHeader } from '@/components/layout/CitizenHeader';
 import { CitizenSidebar } from '@/components/layout/CitizenSidebar';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FloatingActionBubbles } from '@/features/chatbot/components/FloatingActionBubbles';
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
@@ -76,6 +77,7 @@ export function CitizenAppShell({ variant = 'full' }: { variant?: 'full' | 'mini
           </div>
 
           <FloatingChatbot />
+          <FloatingActionBubbles offsetForSidebar={!hideChrome} />
         </div>
       </VoiceAssistantProvider>
     </VoicePageProvider>

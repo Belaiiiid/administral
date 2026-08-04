@@ -23,7 +23,9 @@ export function CitizenFooter({ className }: { className?: string }) {
         className="h-1 w-full bg-gradient-to-r from-brand via-chart-2 to-violet-600"
         aria-hidden="true"
       />
-      <div className="mx-auto max-w-7xl px-6 py-10">
+      {/* pb reserves the strip the fixed action bubbles occupy (bottom-5 + two
+          size-14 bubbles + gap), so they never sit on top of footer content. */}
+      <div className="mx-auto max-w-7xl px-6 pb-36 pt-10">
         <div className="space-y-4 border-b border-marianne-foreground/10 pb-8">
           <h5 className="text-xs font-bold uppercase tracking-widest text-marianne-foreground/60">
             Références administratives

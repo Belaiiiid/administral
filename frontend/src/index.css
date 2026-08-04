@@ -151,7 +151,14 @@
    * the new citizen shell — never at :root.
    */
   :root {
-    --admtl-brand: oklch(0.55 0.19 258);
+    /*
+     * `brand` and `text-muted` sit one notch darker than the reference's
+     * 0.55 / 0.554: at the reference values, brand-on-brand-soft (4.18) and
+     * muted-on-brand-soft (4.01) both fall short of WCAG AA for body text,
+     * and both pairings occur (assistant panels, documentation callouts).
+     * 0.52 clears 4.5 on every surface used while staying visually the same blue.
+     */
+    --admtl-brand: oklch(0.52 0.19 258);
     --admtl-brand-soft: oklch(0.94 0.03 250);
     --admtl-marianne: oklch(0.32 0.13 265);
     --admtl-marianne-foreground: oklch(0.99 0.005 250);
@@ -173,9 +180,15 @@
     --background: oklch(1 0 0);
     --surface: oklch(0.985 0.008 250);
     --border-subtle: oklch(0.929 0.013 255.508);
-    --text-muted: oklch(0.554 0.046 257.417);
+    --text-muted: oklch(0.52 0.046 257.417);
     --font-sans: 'DM Sans';
     --font-display: 'Plus Jakarta Sans';
+  }
+
+  /* The global ring uses `--primary`, which `.citizen-scope` deliberately does
+     not override; without this the citizen area focuses in the agent navy. */
+  .citizen-scope :focus-visible {
+    @apply ring-brand;
   }
 
   /* Uppercase eyebrow label — section kickers across the Administral redesign. */

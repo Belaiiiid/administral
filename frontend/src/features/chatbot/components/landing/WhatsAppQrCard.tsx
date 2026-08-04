@@ -2,8 +2,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { MessageCircle } from 'lucide-react';
 
 import { APP_CONFIG } from '@/app/config/app';
-import { SectionHeader } from '@/components/shared';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
 
 /**
  * "Continuer sur WhatsApp" — a dedicated, reusable section (not a floating
@@ -21,19 +20,16 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
  */
 export function WhatsAppQrCard() {
   return (
-    <Card>
-      <CardHeader>
-        <SectionHeader title="Continuer sur WhatsApp" as="h2" />
-      </CardHeader>
-      <CardContent className="flex flex-col items-center gap-3 text-center">
-        <div className="rounded-xl border border-border bg-surface-lowest p-3">
+    <CitizenCard>
+      <CitizenCardHeader title="Continuer sur WhatsApp" icon={MessageCircle} />
+      <CitizenCardBody className="flex flex-col items-center gap-4 text-center">
+        <div className="rounded-xl border border-border/60 bg-card p-3">
           <QRCodeSVG value={APP_CONFIG.whatsappBotUrl} size={112} />
         </div>
-        <p className="flex items-center gap-2 text-body-sm text-on-surface-variant">
-          <MessageCircle className="size-4 shrink-0 text-success" aria-hidden="true" />
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Scannez pour poursuivre votre accompagnement depuis WhatsApp.
         </p>
-      </CardContent>
-    </Card>
+      </CitizenCardBody>
+    </CitizenCard>
   );
 }

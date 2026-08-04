@@ -4,6 +4,7 @@ import { CitizenFooter } from '@/components/layout/CitizenFooter';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
+import { FloatingActionBubbles } from '@/features/chatbot/components/FloatingActionBubbles';
 import { useChatbot } from '@/features/chatbot/hooks/useChatbot';
 import { useChatbotUiStore } from '@/features/chatbot/store/chatbotUiStore';
 import { LandingAI } from '@/features/chatbot/components/landing/LandingAI';
@@ -160,6 +161,10 @@ function LandingContent() {
       </main>
 
       <CitizenFooter />
+
+      {/* Hidden once the embedded assistant is showing: the Mistral bubble
+          would then just re-trigger what is already on screen. */}
+      <FloatingActionBubbles hidden={started} onAssistantClick={() => handleStart('text')} />
     </div>
   );
 }

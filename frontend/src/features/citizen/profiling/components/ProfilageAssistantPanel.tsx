@@ -1,7 +1,7 @@
 import { ChevronRight, Loader2, PartyPopper, Send, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
+import { citizenButton } from '@/components/citizen/citizenButton';
 import { Input } from '@/components/ui/input';
 import { useProfilageStore } from '@/features/citizen/profiling/store/profilageStore';
 
@@ -44,14 +44,16 @@ export function ProfilageAssistantPanel() {
   if (profilComplet) {
     return (
       <section
-        className="mb-8 rounded-xl border border-success/30 border-l-4 border-l-success bg-success-surface p-5 shadow-soft"
+        className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm"
         aria-label="Assistant de profilage APL"
       >
         <div className="flex gap-3">
-          <PartyPopper className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
+          <PartyPopper className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
           <div>
-            <p className="text-label-md text-on-surface">Profil de demande APL complété</p>
-            <p className="mt-1 text-body-sm text-on-surface-variant">
+            <p className="font-display text-sm font-bold text-ink">
+              Profil de demande APL complété
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               Vos réponses ont été ajoutées à votre profil.
             </p>
           </div>
@@ -64,24 +66,24 @@ export function ProfilageAssistantPanel() {
 
   return (
     <section
-      className="mb-8 overflow-hidden rounded-2xl border border-ai/15 bg-ai-surface shadow-soft"
+      className="mb-8 overflow-hidden rounded-2xl border border-border/60 bg-brand-soft shadow-sm"
       aria-label="Assistant de profilage APL"
       aria-live="polite"
     >
-      <div className="flex items-center gap-3 border-b border-ai/10 bg-surface-lowest px-5 py-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ai text-primary-foreground">
+      <div className="flex items-center gap-3 border-b border-border/60 bg-card px-5 py-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand text-white">
           <Sparkles className="size-5" aria-hidden="true" />
         </span>
         <div className="flex-1">
-          <p className="text-label-md text-on-surface">Assistant CAF</p>
-          <p className="flex items-center gap-1.5 text-label-sm text-success">
-            <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
+          <p className="font-display text-sm font-bold text-ink">Assistant CAF</p>
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+            <span className="size-1.5 rounded-full bg-emerald-600" aria-hidden="true" />
             En ligne
           </p>
         </div>
         {questionActuelle && (
           <div
-            className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-container"
+            className="h-1.5 w-24 overflow-hidden rounded-full bg-border"
             role="progressbar"
             aria-valuenow={nombreTours}
             aria-valuemin={0}
@@ -89,7 +91,7 @@ export function ProfilageAssistantPanel() {
             aria-label="Progression du profilage"
           >
             <div
-              className="h-full rounded-full bg-ai transition-all"
+              className="h-full rounded-full bg-brand transition-all"
               style={{ width: `${progression}%` }}
             />
           </div>
@@ -100,10 +102,10 @@ export function ProfilageAssistantPanel() {
         <div className="min-w-0 flex-1">
           {questionActuelle ? (
             <>
-              <p className="text-label-sm uppercase tracking-wider text-ai">
+              <p className="eyebrow">
                 Question {nombreTours}/{limiteTours}
               </p>
-              <h2 className="mt-1 text-headline-md text-on-surface">
+              <h2 className="mt-1 font-display text-lg font-bold leading-snug text-ink">
                 {questionActuelle.question}
               </h2>
 
@@ -115,17 +117,17 @@ export function ProfilageAssistantPanel() {
                       type="button"
                       disabled={isLoading}
                       onClick={() => choisir(option)}
-                      className="flex min-h-11 w-full items-center justify-between rounded-xl border border-border bg-surface-lowest px-4 py-3 text-left text-body-sm text-on-surface transition-colors hover:border-ai hover:bg-primary-fixed disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex min-h-11 w-full items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3 text-left text-sm text-ink transition-colors hover:border-brand/40 hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <span>{option}</span>
-                      <ChevronRight className="size-4 shrink-0 text-on-surface-variant" aria-hidden="true" />
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     </button>
                   ))}
                 </div>
               )}
             </>
           ) : (
-            <div className="flex items-center gap-2 text-body-sm text-on-surface-variant">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               Préparation de votre parcours personnalisé…
             </div>
@@ -141,26 +143,25 @@ export function ProfilageAssistantPanel() {
               onChange={(event) => setSaisie(event.target.value)}
               disabled={isLoading || !questionActuelle}
               placeholder="Ou répondez avec vos propres mots…"
-              className="bg-surface-lowest"
+              className="bg-card"
             />
-            <Button
+            <button
               type="submit"
-              size="icon"
               aria-label="Envoyer votre réponse"
               disabled={isLoading || !saisie.trim() || !questionActuelle}
-              className="shrink-0 bg-ai hover:bg-ai/90"
+              className={citizenButton({ variant: 'primary', size: 'icon', className: 'shrink-0' })}
             >
               {isLoading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
-            </Button>
+            </button>
           </form>
 
           {erreur && (
-            <p role="alert" className="mt-3 text-body-sm text-destructive">
+            <p role="alert" className="mt-3 text-sm text-destructive">
               {erreur}
             </p>
           )}
           {messageAssistant && (
-            <p role="status" className="mt-3 rounded-lg bg-surface-lowest px-3 py-2 text-body-sm text-on-surface-variant">
+            <p role="status" className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
               {messageAssistant}
             </p>
           )}
