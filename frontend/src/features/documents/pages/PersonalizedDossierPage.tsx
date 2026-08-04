@@ -823,16 +823,13 @@ function CoherenceStep({
   profileSnapshot,
   documents,
   onRevoirDocuments,
-  locked,
   onResult,
 }: {
   profileSnapshot: Record<string, unknown>;
   documents: CitizenDocument[];
   /** Referme la modale et ramène le citoyen sur ses pièces. */
   onRevoirDocuments: () => void;
-  /** Étape 1 pas encore lancée — voir `completenessChecked` dans la page. */
-  locked: boolean;
-  /** Remonte le verdict : l'étape 3 n'ouvre que sur un `coherent`. */
+  /** Remonte le verdict, à titre d'information — il ne conditionne plus l'envoi. */
   onResult: (result: CoherenceResult) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -880,24 +877,16 @@ function CoherenceStep({
         Compare ce que vous avez déclaré à ce que disent vos pièces, et signale les écarts avant
         qu’un agent ne les découvre.
       </p>
-      {/* Le verrou d'étape passe avant le manque de pièces : sinon le citoyen
-          lit « déposez une pièce », en dépose une, et le bouton reste grisé
-          sans que rien n'explique pourquoi. */}
-      {locked ? (
+      {/* Seule condition restante : il faut quelque chose à analyser. */}
+      {analysable.length === 0 && (
         <p className="text-body-sm text-on-surface-variant">
-          Lancez d’abord la vérification de complétude (étape 1).
+          Déposez au moins une pièce pour lancer l’analyse.
         </p>
-      ) : (
-        analysable.length === 0 && (
-          <p className="text-body-sm text-on-surface-variant">
-            Déposez au moins une pièce pour lancer l’analyse.
-          </p>
-        )
       )}
       <Button
         className={citizenButton({ variant: 'marianne' })}
         onClick={ouvrirEtLancer}
-        disabled={locked || analysable.length === 0}
+        disabled={analysable.length === 0}
       >
         <ScanSearch aria-hidden="true" />
         Tester les incohérences
@@ -1390,21 +1379,24 @@ export default function PersonalizedDossierPage() {
   const requiredComplete =
     !!dossier && dossier.requiredReceivedCount >= dossier.requiredDocumentCount;
 
-  // Étape 3 : ouverte seulement si l'analyse de cohérence a tourné *et* n'a rien
-  // relevé. `a_revoir` compte comme un écart — c'est précisément le cas où un
-  // agent trouverait quelque chose, donc le laisser passer viderait l'étape 2
-  // de son sens.
+  // Les trois outils sont indépendants : ni la complétude ni la cohérence ne
+  // conditionnent l'envoi. `submit_application` (backend) n'a jamais rien exigé
+  // d'autre que l'application elle-même, et bloquer la transmission sur une
+  // analyse qui n'a pas tourné revenait à retenir un dossier que
+  // l'administration accepte — c'est à l'agent d'instruire, pas au navigateur
+  // de refuser. Les écarts restent affichés, mais comme un avertissement.
   const coherenceClear = coherenceResult?.statutGlobal === 'coherent';
-  const canSubmit = completenessChecked && coherenceClear && !review?.submitted;
+  const canSubmit = !review?.submitted;
 
-  const blockingReason = !completenessChecked
-    ? 'Lancez d’abord la vérification de complétude (étape 1) : elle relit vos pièces côté serveur avant l’envoi.'
-    : !coherenceResult
-      ? 'Lancez le test des incohérences (étape 2) avant de transmettre.'
-      : !coherenceClear
-        ? `L’analyse a relevé ${coherenceResult.incoherences.length} écart${coherenceResult.incoherences.length > 1 ? 's' : ''} entre vos déclarations et vos pièces. Corrigez-les avant de transmettre.`
-        : !requiredComplete
-          ? 'Certaines pièces obligatoires manquent encore. Vous pouvez transmettre le dossier, mais l’agent verra son taux de complétude.'
+  // Informatif, plus bloquant : ce que le citoyen doit savoir avant d'envoyer,
+  // par ordre de gravité, sans jamais lui interdire de le faire.
+  const blockingReason =
+    coherenceResult && !coherenceClear
+      ? `L’analyse a relevé ${coherenceResult.incoherences.length} écart${coherenceResult.incoherences.length > 1 ? 's' : ''} entre vos déclarations et vos pièces. Vous pouvez transmettre malgré tout, mais l’agent les verra.`
+      : !requiredComplete
+        ? 'Certaines pièces obligatoires manquent encore. Vous pouvez transmettre le dossier, mais l’agent verra son taux de complétude.'
+        : !completenessChecked || !coherenceResult
+          ? 'Les vérifications ci-dessus sont facultatives — elles vous évitent un aller-retour avec l’agent, mais rien ne vous oblige à les lancer avant d’envoyer.'
           : null;
 
   const profileSnapshot = useMemo(
@@ -1511,8 +1503,9 @@ export default function PersonalizedDossierPage() {
                 Vérifier et transmettre
               </h2>
               <p className="mt-1 text-body-sm text-on-surface-variant">
-                Suivez ces trois étapes dans l’ordre : vérifiez d’abord la complétude de vos
-                pièces, testez ensuite les incohérences, puis envoyez votre dossier à la CAF.
+                Trois outils indépendants, à lancer dans l’ordre que vous voulez. Les deux
+                premiers vous évitent un aller-retour avec l’agent ; aucun n’est obligatoire
+                pour transmettre.
               </p>
             </div>
 
@@ -1547,7 +1540,6 @@ export default function PersonalizedDossierPage() {
                       profileSnapshot={profileSnapshot}
                       documents={documents}
                       onRevoirDocuments={scrollToDocuments}
-                      locked={!completenessChecked}
                       onResult={setCoherenceResult}
                     />
                   </StepperStep>
