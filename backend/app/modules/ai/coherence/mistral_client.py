@@ -26,6 +26,7 @@ substance of the module:
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -48,6 +49,13 @@ portant le même nom. Tolère les variantes d'orthographe et d'ordre des noms.
 Interprète les montants écrits en lettres ou en chiffres. Distingue le loyer
 hors charges, les charges et le total mensuel. Distingue salaire brut, salaire
 net et retenues. Pour les dates, tiens compte de la période concernée.
+
+La date du jour t'est donnée dans le champ "date_analyse" des données. C'est ta
+SEULE référence temporelle : ne juge jamais une date « future », « périmée » ou
+« trop ancienne » d'après tes propres connaissances, qui sont plus anciennes que
+"date_analyse". Une date n'est future que si elle est postérieure à
+"date_analyse" ; toute date antérieure appartient au passé, même si elle te
+paraît lointaine.
 
 Recherche notamment les incohérences suivantes : identité (nom, prénom, date
 de naissance), numéro CIN, numéro de passeport et expiration, adresse et zone,
@@ -168,6 +176,9 @@ def verifier_coherence_llm(profil: dict, documents: list[dict]) -> list[dict]:
         ]
 
     payload = {
+        # Without this the model dates "today" from its own training data and
+        # reports perfectly valid recent documents as bearing a future date.
+        "date_analyse": datetime.now(UTC).date().isoformat(),
         "profil_declare": profil,
         "documents_extraits": documents,
         "sources_externes": sources,
