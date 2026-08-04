@@ -82,6 +82,7 @@ export default function CitizenDashboardPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <CitizenPageHeader
+        backTo={ROUTES.administrations}
         eyebrow="Espace citoyen"
         title="Mes services"
         description={
@@ -149,6 +150,11 @@ export default function CitizenDashboardPage() {
                   )}
                 </div>
                 <p className="mt-4 font-display text-lg font-extrabold text-ink">{service.name}</p>
+                {service.fullName && (
+                  <p className="mt-1 text-xs font-semibold leading-snug text-brand">
+                    {service.fullName}
+                  </p>
+                )}
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{service.description}</p>
               </div>
               <span

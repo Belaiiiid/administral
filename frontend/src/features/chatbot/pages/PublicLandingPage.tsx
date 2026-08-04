@@ -1,3 +1,4 @@
+import { ArrowLeft, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { CitizenFooter } from '@/components/layout/CitizenFooter';
@@ -13,6 +14,7 @@ import { LandingHeader } from '@/features/chatbot/components/landing/LandingHead
 import { LandingHero } from '@/features/chatbot/components/landing/LandingHero';
 import { LandingServices } from '@/features/chatbot/components/landing/LandingServices';
 import { LandingTrust } from '@/features/chatbot/components/landing/LandingTrust';
+import { Reveal } from '@/features/chatbot/components/landing/Reveal';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
 import { VoiceStatusStrip } from '@/features/voice/components/VoiceStatusStrip';
 import { VoicePageProvider, useVoicePage } from '@/features/voice/context/VoicePageContext';
@@ -111,6 +113,19 @@ function LandingContent() {
     setStarted(true);
   };
 
+  /**
+   * Leaves the embedded assistant and puts the landing page back.
+   *
+   * `/` renders the assistant in place instead of navigating, so browser Back
+   * would leave the site entirely rather than close it — this is the only way
+   * out, and without it a visitor who clicked the Mistral bubble was stuck.
+   */
+  const handleClose = () => {
+    disableVoiceMode();
+    stopSpeaking();
+    setStarted(false);
+  };
+
   // ── Consume queued questions from the voice assistant ─────────────
   const pendingQuestion = useChatbotUiStore((s) => s.pendingQuestion);
   const consumePendingQuestion = useChatbotUiStore((s) => s.consumePendingQuestion);
@@ -129,8 +144,25 @@ function LandingContent() {
       <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">
         {started ? (
           <div className="mx-auto flex w-full max-w-container flex-col px-margin-mobile py-8 md:px-gutter">
-            <div className="mb-6 text-center">
-              <h1 className="font-display text-2xl font-extrabold text-ink">
+            <div className="relative mb-6 text-center">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-muted-foreground transition-colors hover:text-brand sm:absolute sm:left-0 sm:top-1"
+              >
+                <ArrowLeft className="size-4" aria-hidden="true" />
+                Retour à l’accueil
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label="Fermer l’assistant"
+                className="absolute right-0 top-0 hidden size-9 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-surface hover:text-ink sm:inline-flex"
+              >
+                <X className="size-5" aria-hidden="true" />
+              </button>
+
+              <h1 className="mt-4 font-display text-2xl font-extrabold text-ink sm:mt-0">
                 Comment pouvons-nous vous aider ?
               </h1>
               <p className="mx-auto mt-2 max-w-form text-muted-foreground">
@@ -149,13 +181,21 @@ function LandingContent() {
         ) : (
           <>
             <LandingHero onStart={() => handleStart('text')} />
-            <LandingServices />
-            <LandingFeatures
-              onStartChat={() => handleStart('text')}
-              onStartVoice={() => handleStart('voice')}
-            />
-            <LandingAI />
-            <LandingTrust />
+            <Reveal>
+              <LandingServices />
+            </Reveal>
+            <Reveal>
+              <LandingFeatures
+                onStartChat={() => handleStart('text')}
+                onStartVoice={() => handleStart('voice')}
+              />
+            </Reveal>
+            <Reveal>
+              <LandingAI />
+            </Reveal>
+            <Reveal>
+              <LandingTrust />
+            </Reveal>
           </>
         )}
       </main>

@@ -183,6 +183,11 @@ const config: Config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        // Sweeping bar used by the landing "Génération en cours…" panel.
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(300%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 200ms cubic-bezier(0.4, 0, 0.2, 1)',

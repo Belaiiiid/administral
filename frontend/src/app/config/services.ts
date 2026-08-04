@@ -13,9 +13,10 @@ export const SERVICES: ServiceDefinition[] = [
   {
     id: 'caf',
     name: 'CAF',
+    fullName: 'Caisse d’Allocations Familiales',
     administration: 'CAF',
     description:
-      'Gestion simplifiée de vos aides au logement et simulations de droits en temps réel.',
+      'L’organisme qui verse les aides au logement, familiales et de solidarité. Ici : simulez vos droits et suivez vos aides au logement.',
     // The only administration wired up today — opens its own services hub
     // (`/portal`) rather than a service directly, since CAF itself offers
     // several (APL, AF, ALF, Prime d'activité).
@@ -27,9 +28,10 @@ export const SERVICES: ServiceDefinition[] = [
   {
     id: 'france-travail',
     name: 'France Travail',
+    fullName: 'Service public de l’emploi (ex-Pôle emploi)',
     administration: 'France Travail',
     description:
-      'Analysez une offre d’emploi : compétences requises, pièces à préparer et vos chances d’obtenir le poste.',
+      'L’organisme qui accompagne la recherche d’emploi et l’indemnisation. Ici : analysez une offre — compétences requises et pièces à préparer.',
     basePath: '/france-travail',
     status: 'available',
     logoUrl: '/france-travail-logo.svg',
@@ -38,8 +40,10 @@ export const SERVICES: ServiceDefinition[] = [
   {
     id: 'assurance-maladie',
     name: 'Assurance Maladie',
+    fullName: 'CPAM — Caisse Primaire d’Assurance Maladie, en ligne sur Ameli',
     administration: 'Ameli',
-    description: 'Centralisation de vos remboursements et documents Ameli pour vos dossiers.',
+    description:
+      'L’organisme qui rembourse vos frais de santé et gère votre carte Vitale. Ici : retrouvez vos remboursements et attestations pour vos dossiers.',
     basePath: '/assurance-maladie',
     status: 'coming_soon',
     logoUrl: '/assurance-maladie-logo.svg',
@@ -48,9 +52,10 @@ export const SERVICES: ServiceDefinition[] = [
   {
     id: 'impots',
     name: 'Impôts',
+    fullName: 'DGFiP — Direction Générale des Finances Publiques',
     administration: 'DGFiP',
     description:
-      'Visualisation de vos avis d’imposition et aide au calcul du revenu fiscal de référence.',
+      'L’administration qui gère votre déclaration de revenus et le calcul de vos impôts. Ici : consultez vos avis d’imposition et votre revenu fiscal de référence (RFR).',
     basePath: '/impots',
     status: 'coming_soon',
     logoUrl: '/impots.jpg',

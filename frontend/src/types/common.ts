@@ -15,6 +15,12 @@ export interface ServiceDefinition {
   id: AdministrationId;
   /** Public-facing service name, e.g. « APL à l'Aide ». */
   name: string;
+  /**
+   * What the abbreviated `name` stands for, e.g. « Caisse d'Allocations
+   * Familiales » for CAF. Shown under the name so a citizen who does not
+   * already know the administration can tell what it is.
+   */
+  fullName?: string;
   administration: string;
   description: string;
   /** Route prefix owned by this service module, e.g. `/apl`. */

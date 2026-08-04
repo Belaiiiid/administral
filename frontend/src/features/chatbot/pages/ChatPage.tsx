@@ -1,5 +1,7 @@
 import { FileClock, LibraryBig } from 'lucide-react';
 
+import { ROUTES } from '@/app/router/paths';
+import { CitizenBackButton } from '@/components/citizen/CitizenBackButton';
 import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { ChatWindow } from '@/features/chatbot/components/ChatWindow';
@@ -37,32 +39,36 @@ export default function ChatPage() {
   const controller = useChatbot();
 
   return (
-    <div className="mx-auto grid max-w-container gap-6 lg:grid-cols-3">
-      <ChatWindow controller={controller} />
+    <div className="mx-auto max-w-container">
+      <CitizenBackButton fallbackTo={ROUTES.portal} className="mb-6" />
 
-      {/* Context panel */}
-      <aside className="flex flex-col gap-6">
-        <CitizenCard>
-          <CitizenCardHeader title="Statut actuel" icon={FileClock} />
-          <CitizenCardBody>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Aucun dossier en cours. Le contexte de votre demande s’affichera ici pour éclairer les
-              réponses de l’assistant.
-            </p>
-          </CitizenCardBody>
-        </CitizenCard>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <ChatWindow controller={controller} />
 
-        <CitizenCard>
-          <CitizenCardHeader title="Portail documentation" icon={LibraryBig} />
-          <CitizenCardBody>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Les ressources utiles à votre conversation apparaîtront ici.
-            </p>
-          </CitizenCardBody>
-        </CitizenCard>
+        {/* Context panel */}
+        <aside className="flex flex-col gap-6">
+          <CitizenCard>
+            <CitizenCardHeader title="Statut actuel" icon={FileClock} />
+            <CitizenCardBody>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Aucun dossier en cours. Le contexte de votre demande s’affichera ici pour éclairer
+                les réponses de l’assistant.
+              </p>
+            </CitizenCardBody>
+          </CitizenCard>
 
-        <WhatsAppQrCard />
-      </aside>
+          <CitizenCard>
+            <CitizenCardHeader title="Portail documentation" icon={LibraryBig} />
+            <CitizenCardBody>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Les ressources utiles à votre conversation apparaîtront ici.
+              </p>
+            </CitizenCardBody>
+          </CitizenCard>
+
+          <WhatsAppQrCard />
+        </aside>
+      </div>
     </div>
   );
 }

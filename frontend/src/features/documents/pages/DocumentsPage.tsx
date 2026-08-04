@@ -90,6 +90,7 @@ export default function DocumentsPage() {
   return (
     <div className="mx-auto max-w-container">
       <CitizenPageHeader
+        backTo={ROUTES.portal}
         eyebrow="Vos pièces"
         title="Mes documents"
         description="Retrouvez vos pièces justificatives et la documentation officielle."

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImper
 import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
+import { CitizenBackButton } from '@/components/citizen/CitizenBackButton';
 import { Dropzone, EmptyState, PageHeader, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -892,6 +893,7 @@ export default function PersonalizedDossierPage() {
   return (
     <div className="mx-auto max-w-container">
       <PageHeader
+        eyebrow={<CitizenBackButton fallbackTo={ROUTES.portal} />}
         title="Déposer un dossier"
         description="Vos pièces justificatives adaptées à votre situation, jusqu’à la transmission à l’administration."
       />

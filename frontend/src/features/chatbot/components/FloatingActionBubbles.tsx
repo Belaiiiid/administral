@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
@@ -42,6 +43,48 @@ function BubbleButton({ id, label, iconSrc, onClick, className }: BubbleButtonPr
 }
 
 /**
+ * How far to raise the bubbles so they rest on top of the footer instead of
+ * covering it.
+ *
+ * The alternative — reserving a permanent ~144px band at the bottom of the
+ * footer — made the footer a third taller on every page for a collision that
+ * only happens once the page is scrolled to the very end.
+ */
+function useFooterLift(): number {
+  const [lift, setLift] = useState(0);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const footer = document.querySelector('footer');
+    if (!footer) {
+      setLift(0);
+      return;
+    }
+
+    const update = () => {
+      const visibleFooter = window.innerHeight - footer.getBoundingClientRect().top;
+      // Never push them past the top of the viewport on a short screen.
+      const ceiling = Math.max(0, window.innerHeight - 200);
+      setLift(Math.min(Math.max(0, visibleFooter), ceiling));
+    };
+
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+  }, [pathname]);
+
+  return lift;
+}
+
+/**
  * Two floating bubbles, bottom-left, on every citizen page — WhatsApp
  * (redirects to the real bot number) and Mistral (opens the assistant panel,
  * `FloatingChatbot`, via the same `chatbotUiStore` it already toggles from
@@ -72,13 +115,15 @@ export function FloatingActionBubbles({
   const isOpen = useChatbotUiStore((state) => state.isOpen);
   const toggle = useChatbotUiStore((state) => state.toggle);
   const location = useLocation();
+  const lift = useFooterLift();
 
   if (hidden || isOpen || location.pathname === ROUTES.chat) return null;
 
   return (
     <div
+      style={{ transform: `translateY(-${lift}px)` }}
       className={cn(
-        'fixed bottom-5 left-5 z-40 flex flex-col gap-3',
+        'fixed bottom-5 left-5 z-40 flex flex-col gap-3 transition-transform duration-150 ease-out',
         offsetForSidebar && 'lg:left-[calc(theme(spacing.sidebar)+1.25rem)]',
       )}
     >

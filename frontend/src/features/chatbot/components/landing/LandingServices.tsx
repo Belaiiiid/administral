@@ -50,7 +50,10 @@ export function LandingServices() {
   }, [api]);
 
   return (
-    <section id="services" className="bg-surface">
+    // `bg-neutral-50` rather than `bg-surface`: the `--surface` token carries a
+    // slight blue chroma (oklch hue 250), which read as a blue tint over a full
+    // section. This is a genuinely neutral light grey.
+    <section id="services" className="bg-neutral-50">
       <div className="mx-auto max-w-7xl px-6 py-20">
         <div className="mx-auto max-w-3xl text-center">
           <p className="eyebrow text-base">Services principaux</p>
@@ -70,7 +73,9 @@ export function LandingServices() {
             aria-label="Services principaux"
             className="mx-auto max-w-6xl"
           >
-            <CarouselContent className="-ml-6">
+            {/* `group/cards` lets a hovered card dim its siblings — the highlight
+                reads as "this one" rather than just "something moved". */}
+            <CarouselContent className="group/cards -ml-6 py-2">
               {SERVICES.map((service, index) => {
                 const isAvailable = service.status === 'available';
                 const Icon = ADMINISTRATION_ICONS[service.id];
@@ -83,14 +88,23 @@ export function LandingServices() {
                     aria-label={`${index + 1} sur ${SERVICES.length} : ${service.name}`}
                     className="pl-6 sm:basis-1/2 lg:basis-1/3"
                   >
-                    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-lg">
+                    <article
+                      className={cn(
+                        'group/card flex h-full flex-col overflow-hidden rounded-sm border-2 border-border/60 bg-card shadow-sm',
+                        'transition-all duration-300 ease-out',
+                        // Siblings recede while any card in the row is hovered…
+                        'group-hover/cards:scale-[0.97] group-hover/cards:opacity-50',
+                        // …and the hovered one wins both back, plus a brand border.
+                        'hover:!scale-[1.03] hover:!opacity-100 hover:border-brand hover:shadow-2xl hover:shadow-brand/10',
+                      )}
+                    >
                       <div className={cn('relative h-56 w-full shrink-0', panelTint)}>
                         {service.photoUrl ? (
                           <img
                             src={service.photoUrl}
                             alt=""
                             aria-hidden="true"
-                            className="absolute inset-0 size-full object-cover"
+                            className="absolute inset-0 size-full object-cover transition-transform duration-500 ease-out group-hover/card:scale-105"
                           />
                         ) : service.logoUrl ? (
                           <img
@@ -118,7 +132,12 @@ export function LandingServices() {
                         <p className="line-clamp-2 font-display text-xl font-bold text-ink">
                           {service.name}
                         </p>
-                        <p className="mt-2 line-clamp-3 flex-1 text-base leading-relaxed text-muted-foreground">
+                        {service.fullName && (
+                          <p className="mt-1 text-sm font-semibold leading-snug text-brand">
+                            {service.fullName}
+                          </p>
+                        )}
+                        <p className="mt-2 line-clamp-6 flex-1 text-base leading-relaxed text-muted-foreground sm:line-clamp-4">
                           {service.description}
                         </p>
 
@@ -169,7 +188,7 @@ export function LandingServices() {
           <div className="mt-10 flex justify-center">
             <Link
               to={ROUTES.administrations}
-              className="inline-flex items-center gap-3 rounded-md bg-marianne px-7 py-4 text-base font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-3 rounded-sm bg-marianne px-7 py-4 text-base font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
             >
               Voir tous les services
             </Link>

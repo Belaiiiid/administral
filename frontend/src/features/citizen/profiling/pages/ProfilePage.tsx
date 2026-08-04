@@ -1,6 +1,7 @@
 import { CircleEllipsis, HomeIcon, Pencil, UserRound, UsersRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
+import { ROUTES } from '@/app/router/paths';
 import { CitizenAlert } from '@/components/citizen/CitizenAlert';
 import { citizenButton } from '@/components/citizen/citizenButton';
 import { CitizenCard, CitizenCardBody, CitizenCardHeader } from '@/components/citizen/CitizenCard';
@@ -240,6 +241,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-container">
       <CitizenPageHeader
+        backTo={ROUTES.portal}
         eyebrow="Votre espace"
         title="Mon profil citoyen"
         description="Gérez vos informations personnelles et vos préférences."

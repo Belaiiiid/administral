@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { CitizenBackButton } from '@/components/citizen/CitizenBackButton';
 import { cn } from '@/lib/utils';
 
 export interface CitizenPageHeaderProps {
@@ -7,6 +8,9 @@ export interface CitizenPageHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  /** Shows a "Retour" control above the eyebrow, falling back to this route
+   *  when the tab has no history to pop. */
+  backTo?: string;
   className?: string;
 }
 
@@ -20,11 +24,13 @@ export function CitizenPageHeader({
   title,
   description,
   actions,
+  backTo,
   className,
 }: CitizenPageHeaderProps) {
   return (
     <div className={cn('mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between', className)}>
       <div>
+        {backTo && <CitizenBackButton fallbackTo={backTo} className="mb-4" />}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="mt-2 font-display text-2xl font-extrabold leading-tight text-ink sm:text-3xl">
           {title}

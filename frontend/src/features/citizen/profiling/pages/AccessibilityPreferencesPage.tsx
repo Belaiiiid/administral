@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '@/app/config/app';
+import { ROUTES } from '@/app/router/paths';
 import { CitizenAlert } from '@/components/citizen/CitizenAlert';
 import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { ACCESSIBILITY_OPTIONS } from '@/features/citizen/profiling/utils/accessibilityOptions';
@@ -18,6 +19,7 @@ export default function AccessibilityPreferencesPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <CitizenPageHeader
+        backTo={ROUTES.profile}
         eyebrow="Confort de lecture"
         title="Préférences d’accessibilité"
         description="Personnalisez l’interface selon vos besoins. Ces réglages sont conservés sur cet appareil."

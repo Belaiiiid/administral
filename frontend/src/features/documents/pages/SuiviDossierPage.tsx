@@ -292,6 +292,7 @@ export default function SuiviDossierPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <CitizenPageHeader
+        backTo={ROUTES.portal}
         eyebrow="Où en êtes-vous"
         title="Suivre un dossier déposé"
         description="L’état d’avancement de votre dossier transmis à la CAF."

@@ -69,31 +69,35 @@ export function LandingHero({ onStart }: LandingHeroProps) {
       <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-background via-background/80 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-[1.15fr_0.85fr] lg:py-28">
-        <div>
+      {/* Fills the viewport below the 5rem header and centres its content, so
+          the hero reads as a full first screen rather than a top-aligned band. */}
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 py-14 lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[1.15fr_0.85fr] lg:py-16">
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
           <span className="inline-flex rounded-full bg-brand-soft px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
             Bienvenue sur Administral
           </span>
-          <h1 className="mt-6 max-w-2xl font-display text-4xl font-extrabold leading-[1.08] text-ink sm:text-5xl lg:text-6xl">
-            Une plateforme unique pour vos démarches et services publics.
+          <h1 className="mt-6 max-w-2xl font-display text-3xl font-extrabold leading-[1.1] text-ink sm:text-4xl lg:text-5xl">
+            Simplifiez vos démarches. Centralisez vos services.
           </h1>
-          <p className="mt-6 max-w-lg text-base leading-relaxed text-muted-foreground">
-            Administral simplifie vos démarches administratives et vous accompagne au quotidien
-            grâce à l’intelligence artificielle et à des services accessibles partout, à tout
-            moment.
+          {/* `text-ink/85` rather than `muted-foreground`: this paragraph sits on
+              the photo, where the muted grey lost too much contrast. */}
+          <p className="mt-5 max-w-xl text-base font-medium leading-relaxed text-ink/85 sm:text-lg">
+            Administral centralise vos démarches administratives au sein d’un espace unique. Accédez
+            facilement aux services de la CAF, de l’APL, de France Travail et à de nombreux autres
+            services publics, avec un accompagnement intelligent disponible partout et à tout moment.
           </p>
           <div className="mt-9 flex flex-wrap gap-4">
             <button
               type="button"
               onClick={onStart}
-              className="inline-flex items-center gap-2 rounded-md bg-marianne px-6 py-3.5 text-sm font-semibold text-marianne-foreground transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-sm bg-marianne px-6 py-3.5 text-sm font-semibold text-marianne-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-marianne/25"
             >
               <MessageCircle className="size-4" aria-hidden="true" />
               Commencer ma démarche
             </button>
             <Link
               to={ROUTES.register}
-              className="inline-flex items-center gap-2 rounded-md border border-brand/40 bg-background px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-soft"
+              className="inline-flex items-center gap-2 rounded-sm border border-brand/40 bg-background px-6 py-3.5 text-sm font-semibold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:border-brand hover:bg-brand-soft hover:shadow-lg"
             >
               <UserPlus className="size-4" aria-hidden="true" />
               Créer un compte
@@ -101,8 +105,8 @@ export function LandingHero({ onStart }: LandingHeroProps) {
           </div>
         </div>
 
-        <div className="lg:pt-6">
-          <div className="relative min-h-[24rem] overflow-hidden rounded-2xl border border-brand/20 bg-white/90 p-6 shadow-lg backdrop-blur-sm sm:p-8">
+        <div className="animate-in fade-in slide-in-from-right-6 duration-700 lg:pt-6">
+          <div className="relative min-h-[24rem] overflow-hidden rounded-sm border border-brand/20 bg-white/90 p-6 shadow-lg backdrop-blur-sm transition-shadow duration-500 hover:shadow-2xl sm:p-8">
             <div className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-brand/5 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-14 -left-10 size-36 rounded-full bg-chart-2/5 blur-3xl" />
 
@@ -126,8 +130,8 @@ export function LandingHero({ onStart }: LandingHeroProps) {
                     pour une administration plus simple, plus rapide et plus juste.
                   </p>
 
-                  <div className="mt-8 flex gap-4 rounded-xl bg-brand-soft/60 p-5">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-background text-brand shadow-sm">
+                  <div className="mt-8 flex gap-4 rounded-sm bg-brand-soft/60 p-5">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-background text-brand shadow-sm">
                       <Sparkles className="size-5" aria-hidden="true" />
                     </span>
                     <div>
@@ -143,7 +147,7 @@ export function LandingHero({ onStart }: LandingHeroProps) {
                 <div className="flex flex-col items-center py-6 text-center">
                   <span
                     className={cn(
-                      'flex size-14 shrink-0 items-center justify-center rounded-xl',
+                      'flex size-14 shrink-0 items-center justify-center rounded-sm',
                       current.tone === 'teal'
                         ? 'bg-teal-50 text-chart-2'
                         : 'bg-brand-soft text-brand',

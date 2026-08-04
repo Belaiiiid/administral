@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { SERVICES } from '@/app/config/services';
+import { ROUTES } from '@/app/router/paths';
 import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
@@ -47,6 +48,7 @@ export default function AdministrationsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       <CitizenPageHeader
+        backTo={ROUTES.home}
         eyebrow="Bienvenue sur Administral"
         title="Choisissez une administration"
         description="Sélectionnez l’administration avec laquelle vous souhaitez interagir. D’autres seront progressivement disponibles."
@@ -84,6 +86,11 @@ export default function AdministrationsPage() {
                   )}
                 </div>
                 <p className="mt-4 font-display text-lg font-extrabold text-ink">{service.name}</p>
+                {service.fullName && (
+                  <p className="mt-1 text-xs font-semibold leading-snug text-brand">
+                    {service.fullName}
+                  </p>
+                )}
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{service.description}</p>
               </div>
               <span

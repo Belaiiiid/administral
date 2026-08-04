@@ -1,6 +1,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { useEffect } from 'react';
 
+import { ROUTES } from '@/app/router/paths';
 import { CitizenNotificationList } from '@/components/citizen/CitizenNotificationList';
 import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -31,6 +32,7 @@ export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <CitizenPageHeader
+        backTo={ROUTES.portal}
         eyebrow="Suivi en temps réel"
         title="Centre de notifications"
         description="Le suivi de vos démarches, dès qu’il y a du nouveau."

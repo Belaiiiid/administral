@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { APP_CONFIG, FOOTER_LINKS } from '@/app/config/app';
@@ -23,10 +23,10 @@ export function CitizenFooter({ className }: { className?: string }) {
         className="h-1 w-full bg-gradient-to-r from-brand via-chart-2 to-violet-600"
         aria-hidden="true"
       />
-      {/* pb reserves the strip the fixed action bubbles occupy (bottom-5 + two
-          size-14 bubbles + gap), so they never sit on top of footer content. */}
-      <div className="mx-auto max-w-7xl px-6 pb-36 pt-10">
-        <div className="space-y-4 border-b border-marianne-foreground/10 pb-8">
+      {/* No bottom reserve for the floating bubbles: they lift themselves over
+          the footer instead (see `useFooterLift` in FloatingActionBubbles). */}
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="space-y-3 border-b border-marianne-foreground/10 pb-6">
           <h5 className="text-xs font-bold uppercase tracking-widest text-marianne-foreground/60">
             Références administratives
           </h5>
@@ -51,9 +51,19 @@ export function CitizenFooter({ className }: { className?: string }) {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-between gap-4 pt-8 text-center text-xs text-marianne-foreground/50 sm:flex-row sm:text-left">
-          <p>
-            © {new Date().getFullYear()} Administral — {APP_CONFIG.administration}.
+        <div className="flex flex-col items-center justify-between gap-3 pt-6 text-center text-xs text-marianne-foreground/50 sm:flex-row sm:text-left">
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-start">
+            <span>
+              © {new Date().getFullYear()} Administral — {APP_CONFIG.administration}.
+            </span>
+            {/*
+              AI Act (Règlement (UE) 2024/1689, art. 50) transparency notice,
+              kept to a single line beside the copyright.
+            */}
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+              Contenus générés par intelligence artificielle.
+            </span>
           </p>
           <nav aria-label="Liens de pied de page" className="flex flex-wrap items-center justify-center gap-6">
             {FOOTER_LINKS.map((link) => (
