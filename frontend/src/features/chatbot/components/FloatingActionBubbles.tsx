@@ -150,7 +150,7 @@ export function FloatingActionBubbles({
   const isOpen = useChatbotUiStore((state) => state.isOpen);
   const toggle = useChatbotUiStore((state) => state.toggle);
   const location = useLocation();
-  const lift = useFooterLift();
+  const isFinePointer = useFinePointer();
 
   if (hidden || isOpen || location.pathname === ROUTES.chat) return null;
 
