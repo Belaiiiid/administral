@@ -335,7 +335,9 @@ function InnovationCard({ item }: { item: Innovation }) {
         'group-hover/cards:opacity-60 hover:!opacity-100 hover:-translate-y-1 hover:border-brand hover:shadow-soft-hover',
       )}
     >
-      <div className={cn('relative aspect-[4/3] w-full overflow-hidden', item.panel)}>
+      {/* Vignette carrée plutôt que `4/3` : elle gagne un tiers de hauteur sans
+          changer la largeur de la carte — c'est l'image qui porte la section. */}
+      <div className={cn('relative aspect-square w-full overflow-hidden', item.panel)}>
         {item.imageUrl ? (
           <img
             src={item.imageUrl}

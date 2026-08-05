@@ -7,19 +7,16 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
-  Target,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { CitizenCard } from '@/components/citizen/CitizenCard';
 import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
 import { citizenButton } from '@/components/citizen/citizenButton';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { FranceTravailShell } from '@/features/france-travail/components/FranceTravailShell';
-import heroImage from '@/assets/ft-recherche-emploi.avif';
 import {
-  FtAside,
   FtCard,
   FtReveal,
   FtSectionHeading,
@@ -44,6 +41,18 @@ import type { JobOffer, JobSearchResult } from '@/types';
 
 const EXAMPLE_PROMPT =
   'Je suis ingénieur en IA générative et je veux trouver les jobs disponibles à Paris';
+
+/**
+ * Amorces cliquables — quatre phrases entières, pas des mots-clés : le champ
+ * attend une description, et un exemple qui ne s'écrit pas comme la réponse
+ * attendue apprend la mauvaise chose.
+ */
+const EXAMPLE_PROMPTS = [
+  EXAMPLE_PROMPT,
+  'Je cherche un poste de vendeur en CDI à Lyon',
+  'Aide-soignante, temps partiel, autour de Nantes',
+  'Développeur web junior, télétravail possible',
+];
 
 /** Vert au-dessus de 66 %, bleu de marque au-dessus de 33 %, ambre en dessous. */
 function scoreTone(score: number) {
@@ -172,108 +181,95 @@ export default function JobSearchPage() {
   }, [result, contract]);
 
   return (
-    <FranceTravailShell
-      eyebrow="Recherche d'offres"
-      title="Les offres qui correspondent vraiment à votre profil."
-      description="Décrivez ce que vous cherchez en une phrase — métier, ville, tout autre détail — et retrouvez de vraies offres France Travail actuellement ouvertes, classées par pertinence."
-      image={heroImage}
-      // Contre-plongée : l'intérêt graphique est haut, vers le ciel et les
-      // arêtes des tours.
-      imagePosition="center 35%"
-      aside={
-        <FtAside
-          icon={Target}
-          tone="chart"
-          value={result?.available ? result.offres.length : undefined}
-          title={result?.available ? 'Offres ouvertes aujourd’hui' : 'Aucune recherche lancée'}
-          description={
-            result?.available
-              ? 'Toutes réellement ouvertes chez France Travail, classées par pertinence.'
-              : 'Décrivez ce que vous cherchez ci-dessous pour voir vos offres.'
-          }
-        >
-          {result?.motsCles && (
-            <p className="inline-flex rounded-full bg-brand-soft px-3 py-1.5 text-label-sm text-brand">
-              {result.motsCles}
-              {result.departement ? ` · ${result.departement}` : ''}
-            </p>
-          )}
-        </FtAside>
-      }
-    >
+    <div className="mx-auto max-w-container pb-24">
+      {/* En-tête sur fond clair, même grammaire que « Analyser une offre » et
+          « Coach CV » : une pastille, un titre, un sous-titre. */}
+      <div className="mb-8">
+        <span className="inline-flex items-center gap-2 rounded-full bg-[#f6fbff] px-3 py-1.5 text-label-sm font-semibold uppercase tracking-wide text-[#3158b0]">
+          <Search className="size-3.5" aria-hidden="true" />
+          Recherche d’offres
+        </span>
+        <h1 className="mt-4 font-display text-headline-lg-mobile font-bold leading-tight text-[#102a74] sm:text-4xl">
+          Les offres qui correspondent vraiment à votre profil.
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Décrivez ce que vous cherchez en une phrase — métier, ville, tout autre détail — et
+          retrouvez de vraies offres France Travail, classées par pertinence.
+        </p>
+      </div>
+
       <div className="space-y-gutter">
-        <FtCard accent="brand" className="p-6">
-          <p className="eyebrow">Votre recherche</p>
-          <h2 className="mt-3 font-display text-headline-md text-ink">
-            Décrivez ce que vous cherchez
+        <CitizenCard className="p-6">
+          <h2 className="flex items-center gap-3 font-sans text-headline-md font-bold text-[#373848]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#f6fbff] text-[#3158b0]">
+              <Search className="size-4" aria-hidden="true" />
+            </span>
+            Décrivez ce que vous cherchez, comme à un conseiller
           </h2>
 
-          <div className="mt-6 space-y-3">
-            <Label htmlFor="job-search-prompt">En une phrase, comme à un conseiller</Label>
-            <Textarea
-              id="job-search-prompt"
-              rows={4}
-              placeholder={EXAMPLE_PROMPT}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              disabled={isSearching}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  void search();
-                }
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void search()}
-                disabled={!prompt.trim() || isSearching}
-                className={citizenButton({ variant: 'marianne' })}
-              >
-                {isSearching ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <Search aria-hidden="true" />
-                )}
-                {isSearching ? 'Recherche en cours…' : 'Rechercher'}
-              </button>
-              {!prompt && (
-                <button
-                  type="button"
-                  onClick={() => setPrompt(EXAMPLE_PROMPT)}
-                  className="text-label-sm text-brand underline-offset-4 hover:underline"
-                >
-                  Essayer un exemple
-                </button>
-              )}
-            </div>
-          </div>
+          <Textarea
+            id="job-search-prompt"
+            aria-label="Décrivez ce que vous cherchez"
+            rows={4}
+            placeholder={EXAMPLE_PROMPT}
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            disabled={isSearching}
+            className="mt-5 resize-none"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                void search();
+              }
+            }}
+          />
 
-          {contracts.length > 1 && (
-            <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border pt-5">
-              <span className="mr-1 inline-flex items-center gap-1.5 text-label-sm uppercase tracking-wide text-brand">
-                <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-                Contrat
-              </span>
-              {contracts.map((item) => (
+          {/* Exemples : des boutons de même hauteur dans une rangée qui se
+              replie, jamais un lien texte au milieu de boutons. */}
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {EXAMPLE_PROMPTS.map((example) => (
+              <li key={example}>
                 <button
-                  key={item}
                   type="button"
-                  onClick={() => setContract(item)}
-                  aria-pressed={item === contract}
-                  className={`rounded-full px-3.5 py-1.5 text-label-sm transition-all duration-200 ${
-                    item === contract
-                      ? 'bg-brand text-marianne-foreground shadow-soft'
-                      : 'bg-brand-soft text-brand hover:bg-brand-soft'
-                  }`}
+                  onClick={() => setPrompt(example)}
+                  disabled={isSearching}
+                  className="inline-flex h-9 items-center rounded-full bg-[#f6fbff] px-4 text-label-sm text-[#3158b0] transition-colors hover:bg-[#e6f0fb] disabled:opacity-50"
                 >
-                  {item}
+                  {example}
                 </button>
-              ))}
-            </div>
-          )}
-        </FtCard>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() => void search()}
+              disabled={!prompt.trim() || isSearching}
+              className={cn(
+                citizenButton(),
+                'bg-[#102c6d] px-8 text-white hover:opacity-90',
+              )}
+            >
+              {isSearching ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Search aria-hidden="true" />
+              )}
+              {isSearching ? 'Recherche en cours…' : 'Rechercher'}
+            </button>
+          </div>
+        </CitizenCard>
+
+        {/* L'emplacement des résultats, annoncé tant qu'il est vide : les offres
+            s'affichent ici même, il n'y a pas d'autre page à atteindre. */}
+        {!result && !error && !isSearching && (
+          <p className="flex items-start gap-3 rounded-2xl bg-[#f6fbff] p-5 text-body-sm text-muted-foreground">
+            <Info className="mt-0.5 size-4 shrink-0 text-[#3158b0]" aria-hidden="true" />
+            Aucune recherche lancée pour le moment — vos offres correspondantes apparaîtront ici,
+            classées par pertinence.
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="text-body-sm text-destructive">
@@ -315,6 +311,34 @@ export default function JobSearchPage() {
               }
             />
 
+            {/* Filtre par contrat : il vit avec les résultats qu'il trie, plus
+                dans la carte de recherche — il n'y avait rien à filtrer avant
+                d'avoir cherché. Purement client, aucune requête relancée. */}
+            {contracts.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 inline-flex items-center gap-1.5 text-label-sm uppercase tracking-wide text-[#3158b0]">
+                  <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+                  Contrat
+                </span>
+                {contracts.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setContract(item)}
+                    aria-pressed={item === contract}
+                    className={cn(
+                      'inline-flex h-9 items-center rounded-full px-4 text-label-sm transition-colors duration-200',
+                      item === contract
+                        ? 'bg-[#102c6d] text-white'
+                        : 'bg-[#f6fbff] text-[#3158b0] hover:bg-[#e6f0fb]',
+                    )}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="grid gap-6 lg:grid-cols-2">
               {visible.map((offer, index) => (
                 <FtReveal key={offer.id} index={index} className="h-full">
@@ -325,6 +349,6 @@ export default function JobSearchPage() {
           </div>
         )}
       </div>
-    </FranceTravailShell>
+    </div>
   );
 }

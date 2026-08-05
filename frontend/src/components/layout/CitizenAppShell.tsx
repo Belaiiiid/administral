@@ -40,7 +40,8 @@ export function CitizenAppShell({ variant = 'full' }: { variant?: 'full' | 'mini
    * Le pied de page disparaît avec le défilement : il n'a plus de place où
    * s'afficher, et le retenir rognerait la conversation sur chaque écran.
    */
-  const isConversationRoute = location.pathname === ROUTES.chat;
+  const isConversationRoute =
+    location.pathname === ROUTES.chat || location.pathname === ROUTES.franceTravailCvCoach;
 
   return (
     <VoicePageProvider>

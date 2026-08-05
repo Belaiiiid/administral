@@ -100,16 +100,6 @@ export function CitizenFooter({ className }: { className?: string }) {
               Toutes vos démarches administratives au même endroit, sans chercher
               le bon guichet.
             </p>
-
-            {/* Mention de transparence IA — Règlement (UE) 2024/1689, art. 50.
-                Posée sous la promesse de marque : l'assistant est annoncé là où
-                le service se présente, pas noyé dans la barre légale. */}
-            <img
-              src="https://digital-strategy.ec.europa.eu/sites/default/files/2026-06/AI%20LABELS_3x2_AI%20GENERATED_black.png?destination=/media/10207/edit"
-              alt="Contenu généré par l'IA — icône officielle de l'UE"
-              className="h-9 w-auto rounded-md bg-white px-1.5 py-0.5"
-              loading="lazy"
-            />
           </div>
 
           {/* ── Références ─────────────────────────────────────────────── */}
@@ -160,6 +150,13 @@ export function CitizenFooter({ className }: { className?: string }) {
               <span>© {new Date().getFullYear()} {APP_CONFIG.administration}</span>
               <span aria-hidden="true" className="text-white/30">·</span>
               <span>Tous droits réservés</span>
+              {/* Mention de transparence IA — Règlement (UE) 2024/1689, art. 50 */}
+              <img
+                src="https://digital-strategy.ec.europa.eu/sites/default/files/2026-06/AI%20LABELS_3x2_AI%20GENERATED_black.png?destination=/media/10207/edit"
+                alt="Contenu généré par l'IA — icône officielle de l'UE"
+                className="ml-1 h-7 w-auto rounded-md bg-white px-1.5 py-0.5"
+                loading="lazy"
+              />
             </p>
 
             <nav

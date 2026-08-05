@@ -54,6 +54,20 @@ interface SizeTokens {
   logo: string;
 }
 
+/**
+ * Largeur du bouton, indépendante du reste du gabarit.
+ *
+ * Le carrousel de l'accueil montre trois cartes larges : un bouton pleine
+ * largeur y devient une barre, hors de proportion avec le texte qu'il porte.
+ * Il se cale donc sur son libellé, centré sous la carte. La grille
+ * `/administrations` garde le bouton pleine largeur : les tuiles y sont
+ * étroites et le bord à bord fait le rythme de la grille.
+ */
+const CTA_WIDTHS: Record<ServiceCardSize, string> = {
+  default: 'w-fit px-5',
+  compact: 'w-full px-4',
+};
+
 const SIZES: Record<ServiceCardSize, SizeTokens> = {
   default: {
     // Taller panel, tighter body: the artwork gains the room that the padding
@@ -219,12 +233,13 @@ export function ServiceCard({
           {description}
         </p>
 
-        <div className="mt-4">
+        <div className="mt-4 flex justify-center">
           {available ? (
             <Link
               to={to}
               className={cn(
-                'inline-flex w-full items-center justify-center gap-2 rounded-sm bg-brand px-4 font-semibold text-white shadow-soft',
+                'inline-flex items-center justify-center gap-2 rounded-sm bg-brand font-semibold text-white shadow-soft',
+                CTA_WIDTHS[size],
                 'transition-colors duration-200 hover:bg-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
                 // Stretches the hit area over the whole card — see the component note.
                 'after:absolute after:inset-0 after:content-[""]',
@@ -237,7 +252,8 @@ export function ServiceCard({
           ) : (
             <span
               className={cn(
-                'inline-flex w-full items-center justify-center gap-2 rounded-sm border border-border/60 bg-surface-container px-4 font-semibold text-muted-foreground',
+                'inline-flex items-center justify-center gap-2 rounded-sm border border-border/60 bg-surface-container font-semibold text-muted-foreground',
+                CTA_WIDTHS[size],
                 s.cta,
               )}
             >

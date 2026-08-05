@@ -1,33 +1,32 @@
 import {
+  Check,
   CheckCircle2,
   ClipboardList,
   FileCheck2,
   FileText,
   Info,
   Loader2,
-  Sparkles,
   Target,
   X,
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { CitizenCard } from '@/components/citizen/CitizenCard';
 import { CitizenEmptyState } from '@/components/citizen/CitizenEmptyState';
+import { CitizenPageHeader } from '@/components/citizen/CitizenPageHeader';
 import { citizenButton } from '@/components/citizen/citizenButton';
 import { Dropzone } from '@/components/shared';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { FranceTravailShell } from '@/features/france-travail/components/FranceTravailShell';
-import heroImage from '@/assets/ft-analyse-offre.webp';
 import {
-  FtAside,
   FtCard,
   FtReveal,
   FtScore,
   FtSectionHeading,
-  FtStep,
 } from '@/features/france-travail/components/FtVisuals';
 import { jobMatchService } from '@/services/jobMatchService';
 import type { JobMatchAnalysis } from '@/types';
@@ -39,11 +38,11 @@ import type { JobMatchAnalysis } from '@/types';
  * score. Stateless by design — nothing is saved, a new offer just replaces
  * the previous result on screen.
  *
- * La page est un parcours en deux temps, elle est donc présentée comme tel :
- * étapes numérotées reliées par un rail, qui se cochent à mesure qu'elles
- * sont remplies. L'ancienne version alignait deux cartes identiques sans dire
- * qu'il fallait les deux pour lancer l'analyse — le bouton se contentait de
- * rester grisé.
+ * Reprend le gabarit des pages citoyen (« Déposer un dossier », « Suivre un
+ * dossier ») : une colonne, en-tête sur fond clair, progression, puis l'action.
+ * Le bandeau photo et l'encart latéral « Ce dont vous avez besoin » ont disparu
+ * — ce dernier ne faisait que redire, en liste, ce que la barre de progression
+ * et les pastilles numérotées portent déjà.
  */
 
 function SkillChips({
@@ -173,6 +172,37 @@ function ResultPanel({ result }: { result: JobMatchAnalysis }) {
   );
 }
 
+/**
+ * La pastille numérotée posée au-dessus de chaque carte : contour vide tant que
+ * le champ est vide, pleine et cochée dès qu'il est rempli. Même bascule que la
+ * barre de progression, à un endroit où le regard est déjà.
+ */
+function StepMarker({ index, done }: { index: number; done: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex size-7 shrink-0 items-center justify-center rounded-full text-label-sm font-semibold transition-colors duration-200 ease-standard',
+        // Fond `#f6fbff` dans les deux états : c'est le cercle qui reste
+        // constant, et la coche qui marque le passage à « rempli ».
+        'bg-[#f6fbff]',
+        done ? 'text-[#3158b0]' : 'border border-[#3158b0]/30 text-[#3158b0]',
+      )}
+    >
+      {done ? <Check className="size-4" strokeWidth={3} /> : index}
+    </span>
+  );
+}
+
+function StepLabel({ index, done, children }: { index: number; done: boolean; children: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-3">
+      <StepMarker index={index} done={done} />
+      <h2 className="font-sans text-headline-md font-bold text-[#102a74]">{children}</h2>
+    </div>
+  );
+}
+
 export default function JobMatchPage() {
   useDocumentTitle('Analyser une offre — France Travail');
 
@@ -200,136 +230,149 @@ export default function JobMatchPage() {
     }
   };
 
+  const hasCv = cvFile !== null;
+  const completed = (hasOffer ? 1 : 0) + (hasCv ? 1 : 0);
+
   return (
-    <FranceTravailShell
-      eyebrow="Analyse de candidature"
-      title="Votre candidature confrontée à l’offre, avant de postuler."
-      description="Collez une offre et votre CV : compétences requises, ce qu’il vous manque, les documents à préparer, et une estimation prudente de vos chances."
-      image={heroImage}
-      // Les visages sont dans le tiers haut : sans ce décalage, le recadrage
-      // panoramique ne garderait que les chaises.
-      imagePosition="center 38%"
-      aside={
-        <FtAside
-          icon={Target}
-          title="Ce dont vous avez besoin"
-          description="Rien n’est enregistré : une nouvelle analyse remplace la précédente."
-        >
-          <ul className="space-y-3">
-            {[
-              { label: 'Le texte de l’offre', done: hasOffer },
-              { label: 'Votre CV', done: cvFile !== null },
-            ].map((item) => (
-              <li key={item.label} className="flex items-center gap-3 text-body-md">
-                <span
-                  className={`flex size-6 shrink-0 items-center justify-center rounded-full transition-colors duration-200 ease-standard ${
-                    item.done
-                      ? 'bg-chart-2 text-marianne-foreground'
-                      : 'border border-border-strong text-muted-foreground'
-                  }`}
-                >
-                  {item.done ? (
-                    <CheckCircle2 className="size-4" aria-hidden="true" />
-                  ) : (
-                    <span className="size-1.5 rounded-full bg-current" />
-                  )}
-                </span>
-                <span className={item.done ? 'text-ink' : 'text-muted-foreground'}>
-                  {item.label}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </FtAside>
-      }
-    >
-      <div className="space-y-gutter">
-        <FtStep index={1} eyebrow="Étape 1" title="L’offre d’emploi" done={hasOffer}>
-          <div className="space-y-3">
-            <Label htmlFor="offer-text">Texte de l’offre</Label>
+    <div className="mx-auto max-w-container pb-24">
+      <CitizenPageHeader
+        eyebrow="Analyse de candidature"
+        title="Votre candidature confrontée à l’offre, avant de postuler."
+        description="Compétences requises, ce qu’il vous manque, documents à préparer, et une estimation prudente de vos chances."
+        // Même recette que « Déposer un dossier » / « Suivre un dossier
+        // déposé » : police sans, taille `display`, bleu #102a74 — sinon les
+        // titres du même parcours n'ont ni la même police ni la même taille.
+        titleClassName="font-sans text-[#102a74] sm:text-display"
+        className="mb-8"
+      />
+
+      {/* Progression globale — le même compteur que les pastilles numérotées,
+          dérivé des deux mêmes booléens : les deux ne peuvent pas diverger. */}
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <p className="text-label-md text-on-surface">Progression</p>
+          <p className="text-label-md tabular-nums text-muted-foreground">{completed}/2</p>
+        </div>
+        <Progress
+          value={(completed / 2) * 100}
+          className="h-[5px]"
+          aria-label={`${completed} élément sur 2 complété`}
+        />
+      </div>
+
+      {/* `items-stretch` par défaut sur une grille : les deux cartes prennent la
+          hauteur de la plus haute, sans hauteur fixe à maintenir. */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <section className="flex flex-col">
+          <StepLabel index={1} done={hasOffer}>
+            L’offre d’emploi
+          </StepLabel>
+          <CitizenCard className="flex flex-1 flex-col p-6">
             <Textarea
               id="offer-text"
-              rows={8}
+              aria-label="Texte de l’offre d’emploi"
+              rows={10}
               placeholder="Collez ici le texte de l'offre d'emploi (intitulé, missions, compétences demandées, profil recherché…)"
               value={offerText}
               onChange={(event) => setOfferText(event.target.value)}
               disabled={isAnalyzing}
+              // Une annonce entière dépasse la carte : le champ garde sa
+              // hauteur et défile, plutôt que de repousser le bouton hors écran.
+              className="flex-1 resize-none overflow-y-auto"
             />
-            <p className="flex items-center gap-2 text-body-sm text-muted-foreground">
-              <ClipboardList className="size-3.5 shrink-0 text-brand" aria-hidden="true" />
+            <p className="mt-3 flex items-start gap-2 text-body-sm text-muted-foreground">
+              <ClipboardList className="mt-0.5 size-3.5 shrink-0 text-[#3158b0]" aria-hidden="true" />
               Copiez l’annonce entière — plus elle est complète, plus l’analyse est juste.
             </p>
-          </div>
-        </FtStep>
+          </CitizenCard>
+        </section>
 
-        <FtStep index={2} eyebrow="Étape 2" title="Votre CV" done={cvFile !== null} isLast>
-          {cvFile ? (
-            <div className="flex items-center gap-4 rounded-lg border border-brand bg-brand-soft p-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand text-marianne-foreground">
-                <FileText className="size-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-label-md text-ink">{cvFile.name}</p>
-                <p className="text-body-sm text-muted-foreground">
-                  {(cvFile.size / 1024).toFixed(0)} Ko
-                </p>
+        <section className="flex flex-col">
+          <StepLabel index={2} done={hasCv}>
+            Votre CV
+          </StepLabel>
+          <CitizenCard className="flex flex-1 flex-col p-6">
+            {cvFile ? (
+              <div className="flex flex-1 items-center gap-4 rounded-lg border border-brand bg-brand-soft p-4">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand text-marianne-foreground">
+                  <FileText className="size-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  {/* `truncate` : un nom de fichier à rallonge coupe au lieu
+                      d'élargir la carte et de désaligner les deux colonnes. */}
+                  <p className="truncate text-label-md text-ink">{cvFile.name}</p>
+                  <p className="text-body-sm text-muted-foreground">
+                    {(cvFile.size / 1024).toFixed(0)} Ko
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Retirer le CV"
+                  disabled={isAnalyzing}
+                  onClick={() => setCvFile(null)}
+                >
+                  <X aria-hidden="true" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Retirer le CV"
+            ) : (
+              <Dropzone
+                title="Glissez votre CV ici"
+                hint="Ou parcourez votre ordinateur — PDF, JPG, PNG"
                 disabled={isAnalyzing}
-                onClick={() => setCvFile(null)}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            </div>
-          ) : (
-            <Dropzone
-              title="Glissez votre CV ici"
-              hint="Ou cliquez pour parcourir votre ordinateur — PDF, JPG, PNG"
-              disabled={isAnalyzing}
-              onFilesSelected={(files) => setCvFile(files[0] ?? null)}
-            />
-          )}
-        </FtStep>
-
-        {/* Action collante : le bouton reste atteignable pendant qu'on remplit. */}
-        <div className="sticky bottom-4 z-10 sm:pl-16">
-          <div className="rounded-xl border border-border bg-card p-3 shadow-soft backdrop-blur">
-            <button
-              type="button"
-              onClick={() => void analyze()}
-              disabled={!canAnalyze}
-              className={citizenButton({ variant: 'marianne', className: 'w-full' })}
-            >
-              {isAnalyzing ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Sparkles aria-hidden="true" />
-              )}
-              {isAnalyzing ? 'Analyse en cours…' : 'Analyser ma candidature'}
-            </button>
-            {!canAnalyze && !isAnalyzing && (
-              <p className="mt-2 text-center text-body-sm text-muted-foreground">
-                {!hasOffer && !cvFile
-                  ? 'Complétez les deux étapes ci-dessus'
-                  : !hasOffer
-                    ? 'Il manque le texte de l’offre'
-                    : 'Il manque votre CV'}
-              </p>
+                onFilesSelected={(files) => setCvFile(files[0] ?? null)}
+                // Le bouton « Sélectionner des fichiers » appartient à
+                // `Dropzone`, qui n'expose pas son style : on l'atteint par un
+                // variant descendant plutôt que d'ouvrir une prop pour un seul
+                // appelant.
+                className="flex-1 [&_svg]:text-[#3158b0] [&_button]:bg-[#102c6d] [&_button]:text-white [&_button:hover]:opacity-90"
+              />
             )}
-          </div>
-        </div>
-
-        {error && (
-          <p role="alert" className="text-body-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        {result && <ResultPanel result={result} />}
+          </CitizenCard>
+        </section>
       </div>
-    </FranceTravailShell>
+
+      <div className="mt-8 flex flex-col items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void analyze()}
+          disabled={!canAnalyze}
+          // `cn` et non l'argument `className` de `cva` : ce dernier concatène,
+          // `bg-brand` restait donc dans la liste et gagnait selon l'ordre des
+          // règles CSS. `cn` (tailwind-merge) écarte la classe remplacée.
+          className={cn(
+            citizenButton(),
+            'w-full bg-[#102c6d] px-8 text-white hover:opacity-90 sm:w-auto',
+          )}
+        >
+          {isAnalyzing && <Loader2 className="animate-spin" aria-hidden="true" />}
+          {isAnalyzing ? 'Analyse en cours…' : 'Analyser ma candidature'}
+        </button>
+
+        {!isAnalyzing &&
+          (canAnalyze ? (
+            <p className="flex items-center gap-2 text-body-sm text-success">
+              <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
+              Tout est prêt — lancez l’analyse.
+            </p>
+          ) : (
+            <p className="text-body-sm text-muted-foreground">
+              Complétez les deux éléments ci-dessus
+            </p>
+          ))}
+      </div>
+
+      {error && (
+        <p role="alert" className="mt-6 text-body-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {result && (
+        <div className="mt-10">
+          <ResultPanel result={result} />
+        </div>
+      )}
+    </div>
   );
 }
