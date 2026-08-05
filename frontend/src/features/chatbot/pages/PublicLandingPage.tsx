@@ -208,7 +208,7 @@ function LandingContent() {
 
       {/* Hidden once the embedded assistant is showing: the Mistral bubble
           would then just re-trigger what is already on screen. */}
-      <FloatingActionBubbles orbit hidden={started} onAssistantClick={() => handleStart('text')} />
+      <FloatingActionBubbles hidden={started} onAssistantClick={() => handleStart('text')} />
     </div>
   );
 }

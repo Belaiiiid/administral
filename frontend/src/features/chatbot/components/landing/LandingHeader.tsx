@@ -4,6 +4,9 @@ import { Link } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import logo from '@/assets/administral-logo.png';
+
+/** La marque compacte prise une fois la page défilée — cf. `LandingHeader`. */
+const SCROLLED_LOGO = '/erasebg-transformed.png';
 import { cn } from '@/lib/utils';
 
 const NAV_LINKS = [
@@ -23,8 +26,10 @@ export function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
 
   // Sticky over a photo hero with no separation, the bar previously let content
-  // slide under it with nothing to anchor it. It stays transparent at the top
-  // and gains a frosted background + hairline once the page moves.
+  // slide under it with nothing to anchor it. It stays plain at the top and
+  // gains a frosted background once the page moves — sans filet de séparation :
+  // sur le fond clair du contenu il se lisait comme une ligne blanche parasite,
+  // l'ombre portée suffit à détacher la barre.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -37,30 +42,30 @@ export function LandingHeader() {
       className={cn(
         'sticky top-0 z-50 transition-all duration-300',
         scrolled
-          ? 'border-b border-border/60 bg-background/85 shadow-soft backdrop-blur-md'
-          : 'border-b border-transparent bg-background',
+          ? 'bg-background/85 shadow-soft backdrop-blur-md'
+          : 'bg-background',
       )}
     >
       <div
         className={cn(
           'mx-auto flex max-w-7xl items-center justify-between px-6 transition-all duration-300',
-          scrolled ? 'h-16' : 'h-20',
+          scrolled ? 'h-14' : 'h-16',
         )}
       >
         <Link to={ROUTES.home} className="flex items-center gap-3">
           <img
-            src={logo}
+            src={scrolled ? SCROLLED_LOGO : logo}
             alt="Administral"
             className={cn(
               'shrink-0 object-contain transition-all duration-300',
-              scrolled ? 'size-10' : 'size-12',
+              scrolled ? 'size-9' : 'size-11',
             )}
           />
-          <span className="leading-tight">
-            <span className="block font-display text-lg font-extrabold tracking-tight text-ink">
+          <span className="text-center leading-none">
+            <span className="block font-display text-lg font-extrabold leading-tight tracking-tight text-ink">
               ADMINISTRAL
             </span>
-            <span className="block text-lg text-muted-foreground">
+            <span className="mt-0.5 block text-sm leading-tight text-muted-foreground">
               République 5.0
             </span>
           </span>

@@ -132,8 +132,7 @@ const config: Config = {
         // swap in DM Sans / Plus Jakarta Sans for the Administral redesign
         // without touching `font-sans` / `font-display` anywhere else.
         sans: ['var(--font-sans)', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
-        display: ['var(--font-display)', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],
-      },
+        display: ['var(--font-display)', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],      },
 
       // Typographic scale from DESIGN.md — size / line-height / weight / tracking
       fontSize: {

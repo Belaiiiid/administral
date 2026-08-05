@@ -56,14 +56,17 @@ interface SizeTokens {
 
 const SIZES: Record<ServiceCardSize, SizeTokens> = {
   default: {
-    panel: 'h-56',
-    badge: 'size-14',
-    badgeIcon: 'size-6',
-    body: 'p-6 pt-8',
-    name: 'text-xl',
-    description: 'mt-2 line-clamp-6 text-base sm:line-clamp-4',
-    cta: 'py-3 text-base',
-    logo: 'max-h-24 max-w-[62%]',
+    // Taller panel, tighter body: the artwork gains the room that the padding
+    // and the description's extra clamped lines give up, so the card's overall
+    // height is unchanged.
+    panel: 'h-60',
+    badge: 'size-12',
+    badgeIcon: 'size-5',
+    body: 'p-4 pt-6',
+    name: 'text-lg',
+    description: 'mt-1.5 line-clamp-3 text-sm sm:line-clamp-2',
+    cta: 'py-2.5 text-sm',
+    logo: 'max-h-28 max-w-[70%]',
   },
   compact: {
     panel: 'h-36',
@@ -191,6 +194,18 @@ export function ServiceCard({
         >
           <Icon className={s.badgeIcon} aria-hidden="true" />
         </span>
+
+        {/* Service pas encore ouvert : un cadenas rouge posé sur la vignette,
+            visible avant même d'avoir lu le bas de la carte. Purement visuel —
+            le libellé « Bientôt disponible » du bouton porte déjà la mention. */}
+        {!available && (
+          <span
+            aria-hidden="true"
+            className="absolute right-3 top-3 z-10 flex size-6 items-center justify-center rounded-full bg-white shadow-soft ring-1 ring-black/5"
+          >
+            <Lock className="size-3 text-[#983743]" />
+          </span>
+        )}
       </div>
 
       <div className={cn('flex flex-1 flex-col', s.body)}>
