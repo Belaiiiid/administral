@@ -51,12 +51,12 @@ export default function AgentAssistantPage() {
       description="Recherche réglementaire et synthèse de dossiers."
     >
       <Card className="overflow-hidden">
-        {/* Chat header: the assistant's identity, carried by the Mistral
-            « Le Chat » mark that the platform already uses for its AI surfaces
+        {/* Chat header: the assistant's identity, carried by the Mistral "M"
+            mark the platform uses for all its AI surfaces
             (see components/layout/PartnerLogos). */}
         <div className="flex items-center gap-3 border-b border-border bg-surface-lowest px-6 py-4">
           <img
-            src="/logos/mistral.gif"
+            src="/mistral-logo.svg"
             alt=""
             aria-hidden="true"
             className="size-9 shrink-0 object-contain"
@@ -74,7 +74,7 @@ export default function AgentAssistantPage() {
               bound, and remains the empty state once one is. */}
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <img
-              src="/logos/mistral.gif"
+              src="/mistral-logo.svg"
               alt="Assistant Mistral AI"
               className="mb-5 size-24 object-contain"
             />

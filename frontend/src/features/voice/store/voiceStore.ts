@@ -22,7 +22,9 @@ export const useVoiceStore = create<VoiceState>()(
     }),
     {
       name: 'monparcours.voice',
+      // Persist only voice mode; do NOT persist hasSeenVoiceOnboarding so the dialog shows on every refresh
       storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({ modeVocal: state.modeVocal }),
     }
   )
 );

@@ -1,8 +1,6 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
 import { Footer } from '@/components/layout/Footer';
-import { ROUTES } from '@/app/router/paths';
-import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { Header } from '@/components/layout/Header';
 import { SkipLink } from '@/components/layout/SkipLink';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -42,13 +40,6 @@ export function AppShell({
   // The assistant is a citizen feature only — the agent portal shares this shell
   // but has its own Assistant IA page, so the launcher is never mounted there.
   const role = useSessionStore((state) => state.role);
-  const hasSeenVoiceOnboarding = useVoiceStore((state) => state.hasSeenVoiceOnboarding);
-  const location = useLocation();
-
-  // Voice onboarding guard: redirect if citizen hasn't seen the voice onboarding
-  if (role === 'citizen' && !hasSeenVoiceOnboarding && location.pathname !== ROUTES.voiceOnboarding) {
-    return <Navigate to={ROUTES.voiceOnboarding} replace />;
-  }
 
   return (
     <VoicePageProvider>

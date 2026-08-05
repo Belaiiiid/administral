@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import { ROUTES } from '@/app/router/paths';
 import { CitizenFooter } from '@/components/layout/CitizenFooter';
@@ -11,7 +11,6 @@ import { FloatingActionBubbles } from '@/features/chatbot/components/FloatingAct
 import { FloatingChatbot } from '@/features/chatbot/components/FloatingChatbot';
 import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssistantProvider';
 import { VoicePageProvider } from '@/features/voice/context/VoicePageContext';
-import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { cn } from '@/lib/utils';
 
 /**
@@ -29,12 +28,7 @@ import { cn } from '@/lib/utils';
  */
 export function CitizenAppShell({ variant = 'full' }: { variant?: 'full' | 'minimal' }) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const hasSeenVoiceOnboarding = useVoiceStore((state) => state.hasSeenVoiceOnboarding);
   const location = useLocation();
-
-  if (!hasSeenVoiceOnboarding && location.pathname !== ROUTES.voiceOnboarding) {
-    return <Navigate to={ROUTES.voiceOnboarding} replace />;
-  }
 
   const hideChrome = variant === 'minimal';
   /*

@@ -21,16 +21,22 @@ interface LandingHeroProps {
  * first" rationale).
  */
 export function LandingHero({ onStart }: LandingHeroProps) {
+  /* play video on each visit; no repeat */
   return (
     <section className="relative overflow-hidden">
-      <img
-        src={heroImage}
-        alt="Bureau institutionnel avec vue sur un bâtiment officiel français et le drapeau tricolore"
-        width={1080}
-        height={602}
+      {/* Background video, plays once per browser (localStorage) */}
+      <video
+        key="hero-bg"
         className="absolute inset-0 size-full object-cover"
-      />
-      <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-background via-background/85 to-transparent lg:w-3/5" />
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        poster={heroImage}
+      >
+        <source src="/hero_background.mp4" type="video/mp4" />
+      </video>
+      <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-background via-background/85 to-transparent lg:w-3/5 pointer-events-none" />
       <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
 
       {/* Full first screen: the viewport minus the 5rem header. */}
@@ -45,15 +51,10 @@ export function LandingHero({ onStart }: LandingHeroProps) {
 
           {/* The project's premise, stated once and early — everything below
               assumes the reader knows what "République 5.0" means. */}
-          <p className="mt-6 max-w-xl border-l-[3px] border-brand pl-4 text-base leading-relaxed text-ink/90 sm:text-lg">
-            <span className="font-display font-extrabold text-ink">République 5.0</span> — une
-            administration augmentée par le numérique et l’IA : plus simple, plus rapide, accessible
-            à tous.
-          </p>
 
           {/* `text-ink/85` rather than `muted-foreground`: this paragraph sits on
               the photo, where the muted grey lost too much contrast. */}
-          <p className="mt-5 max-w-xl text-base font-medium leading-relaxed text-ink/85">
+          <p className="mt-5 max-w-xl text-base font-medium leading-relaxed text-ink/85 text-justify">
             Administral centralise vos démarches administratives au sein d’un espace unique. Accédez
             facilement aux services de la CAF, de l’APL, de France Travail et à de nombreux autres
             services publics, avec un accompagnement intelligent disponible partout et à tout moment.

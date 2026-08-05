@@ -9,19 +9,19 @@ import { cn } from '@/lib/utils';
 export function PartnerLogos({
   className,
   logoClassName,
-  mistralMark = 'chat',
+  mistralMark = 'wordmark',
 }: {
   className?: string;
   /** Overrides each logo's default `h-6` — e.g. a larger size on the auth page. */
   logoClassName?: string;
   /**
    * Which Mistral mark to show:
-   * - `chat` — the "Le Chat" mascot (the default everywhere else);
-   * - `wordmark` — the company's own "M" logo, used on the auth page where the
-   *   marks read as corporate partners rather than as a product;
-   * - `brand` — the 2025 brand mark, used by the agent back-office rail: an
-   *   instruction desk is a working tool, and the animated mascot reads as
-   *   product marketing there where a still corporate mark does not.
+   * - `wordmark` — the company's own "M" logo, and the default everywhere: it
+   *   reads as a named corporate partner, which is what a « Propulsé par »
+   *   line means, where the mascot read as product marketing;
+   * - `brand` — the 2025 brand mark, kept for the agent back-office rail;
+   * - `chat` — the "Le Chat" mascot. No longer used by any surface, kept only
+   *   so a caller can opt back in deliberately.
    */
   mistralMark?: 'chat' | 'wordmark' | 'brand';
 }) {

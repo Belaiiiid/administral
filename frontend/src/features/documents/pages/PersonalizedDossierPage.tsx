@@ -738,25 +738,35 @@ function StepperStep({
  */
 function CompletudeStep({
   applicationId,
+  items,
   onRefreshed,
   onChecked,
 }: {
   applicationId: string;
+  /** Sert à nommer les pièces qui manquent : le compteur seul ne dit pas lesquelles. */
+  items: DossierChecklistItem[];
   onRefreshed: () => void;
-  /** Unlocks steps 2 and 3 — they stay disabled until this step has run once. */
+  /** Signale que l'étape a tourné au moins une fois (message d'accompagnement). */
   onChecked: () => void;
 }) {
   const [isChecking, setIsChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+  const [verdict, setVerdict] = useState<{ received: number; total: number } | null>(null);
 
   const verifier = () => {
     setIsChecking(true);
     setError(null);
     documentService
       .getApplicationStatus(applicationId)
-      .then(() => {
+      .then((status) => {
         onRefreshed();
+        // Le compte vient de la réponse du serveur, pas de l'état de la page :
+        // c'est tout l'intérêt de cette étape.
+        setVerdict({
+          received: status.requiredReceivedCount,
+          total: status.requiredDocumentCount,
+        });
         setCheckedAt(new Date());
         onChecked();
       })
@@ -765,6 +775,10 @@ function CompletudeStep({
       )
       .finally(() => setIsChecking(false));
   };
+
+  // Nommées au rendu, donc après le rafraîchissement déclenché ci-dessus.
+  const manquantes = items.filter((item) => item.required && item.status === 'missing');
+  const complet = verdict !== null && verdict.received >= verdict.total;
 
   return (
     <div className="space-y-2">
@@ -778,10 +792,52 @@ function CompletudeStep({
         </p>
       )}
 
-      {checkedAt && !error && (
-        <p className="text-label-sm text-on-surface-variant">
-          Vérifié à {checkedAt.toLocaleTimeString('fr-FR')}
-        </p>
+      {/*
+        Le résultat, en toutes lettres. Avant, un clic ne produisait qu'un
+        « Vérifié à 14:32:05 » : le citoyen apprenait que quelque chose s'était
+        passé, jamais ce que ça donnait. `role="status"` le fait annoncer aux
+        lecteurs d'écran, qui autrement ne voyaient rien changer non plus.
+      */}
+      {verdict && !error && (
+        <div
+          role="status"
+          className={cn(
+            'rounded-lg border-l-4 p-3 text-body-sm',
+            // `--warning-surface` est un fond soutenu prévu pour du texte blanc
+            // (cf. components/ui/badge) : l'utiliser ici donnait du texte
+            // sombre sur bordeaux. La barre latérale porte l'accent, le fond
+            // reste la surface neutre déjà employée par les encarts de la page.
+            complet
+              ? 'border-l-success bg-success-surface text-on-surface'
+              : 'border-l-warning bg-surface-container text-on-surface',
+          )}
+        >
+          <p className="flex items-start gap-2 text-label-md">
+            {complet ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+            ) : (
+              <Info className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+            )}
+            {complet
+              ? `Dossier complet — les ${verdict.total} pièces obligatoires ont été reçues.`
+              : `${verdict.received} pièce${verdict.received > 1 ? 's' : ''} sur ${verdict.total} reçue${verdict.received > 1 ? 's' : ''} : il en manque ${verdict.total - verdict.received}.`}
+          </p>
+
+          {!complet && manquantes.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-8 text-on-surface-variant">
+              {manquantes.map((item) => (
+                <li key={item.documentType}>{item.libelle}</li>
+              ))}
+            </ul>
+          )}
+
+          <p className="mt-2 text-label-sm text-on-surface-variant">
+            {complet
+              ? 'Vous pouvez transmettre votre dossier.'
+              : 'Vous pouvez transmettre malgré tout : l’agent verra le taux de complétude.'}{' '}
+            Vérifié à {checkedAt?.toLocaleTimeString('fr-FR')}.
+          </p>
+        </div>
       )}
 
       <Button
@@ -1521,6 +1577,7 @@ export default function PersonalizedDossierPage() {
                   >
                     <CompletudeStep
                       applicationId={dossier.applicationId}
+                      items={dossier.items}
                       onRefreshed={refreshDossier}
                       onChecked={() => setCompletenessChecked(true)}
                     />

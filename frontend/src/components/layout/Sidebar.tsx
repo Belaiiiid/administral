@@ -67,11 +67,11 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
       <div className="mb-6 flex flex-wrap items-center gap-2 px-2 text-label-sm text-on-surface-variant">
         <span>Propulsé par</span>
-        {/* The back-office wears the 2025 brand mark; France Travail shares
-            this rail and keeps the « Le Chat » mascot. */}
+        {/* The back-office wears the 2025 brand mark; everywhere else shows
+            the "M" wordmark, like the rest of the product. */}
         <PartnerLogos
           className="flex-wrap gap-3"
-          mistralMark={isAgentPath(pathname) ? 'brand' : 'chat'}
+          mistralMark={isAgentPath(pathname) ? 'brand' : 'wordmark'}
         />
       </div>
 

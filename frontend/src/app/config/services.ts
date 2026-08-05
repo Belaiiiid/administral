@@ -74,7 +74,7 @@ export const SERVICES: ServiceDefinition[] = [
       'L’organisme qui calcule et verse la retraite du régime général. Relevé de carrière, âge de départ et demande de retraite personnelle.',
     basePath: '/retraite',
     status: 'coming_soon',
-    photoUrl: '/administrations/illus-retraite.svg',
+    logoUrl: 'https://ville-parmain.fr/sites/parmain/files/styles/galerie_colorbox/public/image/cnav-la-caisse-nationale-dassurance-vieillesse.jpg?itok=hm9wUeHL',
   },
   {
     id: 'ants',
@@ -109,7 +109,7 @@ export const SERVICES: ServiceDefinition[] = [
       'Le guichet départemental du handicap. AAH, prestation de compensation, carte mobilité inclusion et reconnaissance RQTH.',
     basePath: '/mdph',
     status: 'coming_soon',
-    photoUrl: '/administrations/illus-mdph.svg',
+    logoUrl: 'https://www.bagneux92.fr/Files/a/c/csm_mdph_199640c76a.jpg',
   },
   {
     id: 'crous',
