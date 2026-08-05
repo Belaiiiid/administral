@@ -132,7 +132,7 @@ export function ChatWindow({
               est le sujet, pas un pictogramme dans une pastille de 64 px —
               ce composant partagé contraint la taille de son icône. */}
           <div className="flex flex-col items-center px-6 text-center">
-            <AssistantMascotGlyph className="-mb-2 w-72 max-w-full" />
+            <AssistantMascotGlyph className="-mb-2 w-56 max-w-full" />
             <h3 className="text-headline-md text-on-surface">Aucune conversation</h3>
             <p className="mt-2 max-w-md text-body-md text-on-surface-variant">
               Posez une question pour démarrer un échange avec l’assistant.
