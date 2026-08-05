@@ -424,6 +424,11 @@ def submit_application(
             # Both modules define the same status names; map by name.
             status=CaseDocumentStatus[doc.status.name],
             error_message=doc.error_message,
+            # Carried onto the case so the instructing agent can open the piece
+            # itself, not only read its metadata. Same path the C4 forensics
+            # below already consume — it is now persisted rather than only held
+            # in `doc_sources` for the duration of this call.
+            stored_path=doc.stored_path,
         )
         case_documents.append(case_doc)
         doc_sources.append((case_doc, doc.stored_path, doc.extracted_text_preview))

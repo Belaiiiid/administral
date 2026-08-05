@@ -64,6 +64,14 @@ class CitizenDocumentSchema(_Base):
     classification_error: str | None = Field(
         default=None, serialization_alias="classificationError"
     )
+    #: The checklist line this file satisfied, or None when the classifier could
+    #: not place it. Lifted out of `classification` because the UI needs it as a
+    #: fact, not as part of an opaque model output: it is what decides whether
+    #: the "Consulter" action is offered, and the download route enforces the
+    #: same condition server-side.
+    matched_checklist_item_id: str | None = Field(
+        default=None, serialization_alias="matchedChecklistItemId"
+    )
 
 
 class ChecklistDocumentSchema(_Base):

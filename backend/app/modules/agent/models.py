@@ -288,6 +288,16 @@ class CaseDocument(TimestampMixin, Base):
     #: Set once the extraction stage has read the file.
     extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    #: Where the uploaded bytes live, copied from the citizen document at
+    #: submission. This is what lets an instructing agent open the actual piece
+    #: rather than only its metadata — until it existed, the case carried the
+    #: file *name* but nothing that could resolve to the file.
+    #:
+    #: Nullable on purpose: cases created before this column, and seeded ones,
+    #: have no path. The agent endpoint answers 404 for those rather than
+    #: pretending the file is somewhere.
+    stored_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
     #: Agent C4 metadata forensics, computed by the pipeline before the agent
     #: sees the case (like the completeness and coherence reports). `fraud_analysis`
     #: holds the whole result; `fraud_risk` lifts out the level for a quick badge.

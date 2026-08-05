@@ -97,15 +97,34 @@ def get_classification(
 
 @router.get(
     "/documents/{document_id}/download",
-    summary="Télécharger / prévisualiser un document",
+    summary="Consulter une pièce déposée",
     description=(
-        "Renvoie le fichier stocké (inline) pour prévisualisation dans le "
-        "navigateur. Le nom sur disque est un UUID côté serveur — jamais une "
-        "entrée client — donc aucun risque de traversée de chemin."
+        "Renvoie le fichier stocké (inline) pour que l’usager relise la pièce "
+        "qu’il a déposée. Le nom sur disque est un UUID côté serveur — jamais "
+        "une entrée client — donc aucun risque de traversée de chemin.\n\n"
+        "Deux restrictions : la pièce est résolue **à travers son dossier** (un "
+        "identifiant appartenant à un autre dossier répond 404), et seule une "
+        "pièce **rattachée à une ligne de la checklist** est servie — un fichier "
+        "que le classifieur n’a pas su placer n’est pas encore une pièce du "
+        "dossier."
     ),
+    responses={
+        400: {"description": "Pièce non rattachée à la checklist"},
+        404: {"description": "Pièce inconnue, ou fichier absent du stockage"},
+    },
 )
-def download_document(document_id: str, db: Session = Depends(get_db)) -> FileResponse:
-    stored_path, mime_type, file_name = service.get_document_file(db, document_id)
+def download_document(
+    document_id: str,
+    application_id: str = _application_id,
+    db: Session = Depends(get_db),
+    # Previously unauthenticated: this route serves an allocataire's own
+    # justificatifs, so it belongs behind the citizen guard like every other
+    # dossier route in this module.
+    current_user: User = Depends(require_citizen),
+) -> FileResponse:
+    stored_path, mime_type, file_name = service.get_document_file(
+        db, application_id, document_id
+    )
     return FileResponse(
         stored_path,
         media_type=mime_type,

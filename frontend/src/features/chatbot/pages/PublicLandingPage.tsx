@@ -12,6 +12,7 @@ import { LandingAI } from '@/features/chatbot/components/landing/LandingAI';
 import { LandingFeatures } from '@/features/chatbot/components/landing/LandingFeatures';
 import { LandingHeader } from '@/features/chatbot/components/landing/LandingHeader';
 import { LandingHero } from '@/features/chatbot/components/landing/LandingHero';
+import { LandingInnovation } from '@/features/chatbot/components/landing/LandingInnovation';
 import { LandingStatsMarquee } from '@/features/chatbot/components/landing/LandingStatsMarquee';
 import { LandingServices } from '@/features/chatbot/components/landing/LandingServices';
 import { LandingTrust } from '@/features/chatbot/components/landing/LandingTrust';
@@ -193,6 +194,9 @@ function LandingContent() {
                 onStartChat={() => handleStart('text')}
                 onStartVoice={() => handleStart('voice')}
               />
+            </Reveal>
+            <Reveal>
+              <LandingInnovation />
             </Reveal>
             <Reveal>
               <LandingAI />

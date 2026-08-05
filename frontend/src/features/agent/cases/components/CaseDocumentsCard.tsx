@@ -1,10 +1,13 @@
-import { FileText, ShieldAlert } from 'lucide-react';
+import { Eye, FileText, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
 
 import { EmptyState, SectionHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils';
 import type { CaseDocument } from '@/types';
+import { CaseDocumentViewer } from '@/features/agent/cases/components/CaseDocumentViewer';
 import {
   DOCUMENT_STATUS_LABEL,
   DOCUMENT_STATUS_TONE,
@@ -14,16 +17,30 @@ import {
 
 export interface CaseDocumentsCardProps {
   documents: CaseDocument[];
+  /**
+   * Scopes the file requests: a piece is fetched through its case, never by id
+   * alone. Optional so a caller that only lists pieces can omit it — the
+   * "Consulter" action then does not render, rather than failing on click.
+   */
+  caseId?: string;
 }
 
 /**
  * Supporting documents attached to the case.
  *
- * Listing only. The status on each file was decided by the analysis pipeline
- * before the case reached this portal — no OCR, no re-validation and no
- * re-analysis is triggered from here.
+ * The status on each file was decided by the analysis pipeline before the case
+ * reached this portal — no OCR, no re-validation and no re-analysis is
+ * triggered from here. Opening a piece is likewise read-only: the agent sees
+ * the same bytes the pipeline saw, and the dossier is unchanged by the reading.
  */
-export function CaseDocumentsCard({ documents }: CaseDocumentsCardProps) {
+export function CaseDocumentsCard({ documents, caseId }: CaseDocumentsCardProps) {
+  /*
+   * The open piece, held here rather than in the viewer: one dialog is mounted
+   * for the whole list, so switching from one document to the next swaps the
+   * fetch instead of remounting — and only one object URL is ever alive.
+   */
+  const [openDocument, setOpenDocument] = useState<CaseDocument | null>(null);
+
   return (
     <Card>
       <CardHeader>
@@ -66,12 +83,34 @@ export function CaseDocumentsCard({ documents }: CaseDocumentsCardProps) {
                   <Badge tone={DOCUMENT_STATUS_TONE[document.status]}>
                     {DOCUMENT_STATUS_LABEL[document.status]}
                   </Badge>
+                  {caseId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOpenDocument(document)}
+                      // The label names the piece: with one button per row, a
+                      // bare "Consulter" repeated eight times tells a screen
+                      // reader nothing about which one it lands on.
+                      aria-label={`Consulter ${document.requirementLabel} — ${document.fileName}`}
+                    >
+                      <Eye aria-hidden="true" />
+                      Consulter
+                    </Button>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
         )}
       </CardContent>
+
+      {caseId && (
+        <CaseDocumentViewer
+          caseId={caseId}
+          document={openDocument}
+          onClose={() => setOpenDocument(null)}
+        />
+      )}
     </Card>
   );
 }
