@@ -27,6 +27,7 @@ from __future__ import annotations
 from datetime import UTC, date, datetime
 
 from app.database.session import SessionLocal
+from scripts.fixture_files import store_placeholder
 from app.modules.agent.models import (
     AnomalySeverity,
     Case,
@@ -467,7 +468,23 @@ def main() -> None:
             db.delete(citizen)
         db.commit()
 
-        db.add_all(build_cases())
+        citizens_to_seed = build_cases()
+
+        # Each fixture document gets a real file behind it, stamped « PIÈCE
+        # FICTIVE ». Without one, the agent portal's "Consulter" action has
+        # nothing to open on a seeded dossier — the document row carries a name
+        # and a size, but no bytes.
+        for citizen in citizens_to_seed:
+            for case in citizen.cases:
+                for document in case.documents:
+                    document.stored_path = store_placeholder(
+                        requirement_label=document.requirement_label,
+                        file_name=document.file_name,
+                        reference=case.application_number,
+                        mime_type=document.mime_type,
+                    )
+
+        db.add_all(citizens_to_seed)
         db.commit()
 
         citizens = db.query(Citizen).count()

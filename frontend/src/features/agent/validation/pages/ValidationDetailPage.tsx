@@ -92,7 +92,10 @@ export default function ValidationDetailPage() {
               <CoherenceReportCard report={caseRecord.coherenceReport} />
             </div>
 
-            <CaseDocumentsCard documents={caseRecord.documents} />
+            {/* The pieces are openable here above all: this is the screen where
+                the decision is signed, and an agent should be able to read the
+                evidence before the buttons are in reach. */}
+            <CaseDocumentsCard documents={caseRecord.documents} caseId={caseRecord.id} />
 
             <CaseFraudCard documents={caseRecord.documents} />
 

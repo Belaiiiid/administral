@@ -6,7 +6,7 @@ import type {
   PersonalizedChecklist,
   RequiredDocument,
 } from '@/types';
-import { apiClient, API_BASE_URL } from './apiClient';
+import { apiClient, requestBlob } from './apiClient';
 
 /** Result of submitting a dossier — the agent Case emitted from the Application. */
 export interface SubmitDossierResult {
@@ -83,8 +83,20 @@ export interface DocumentService {
   >;
   /** How the classifier matched one uploaded document against the checklist. */
   getClassification(documentId: string): Promise<DocumentClassification>;
-  /** Same-origin URL that opens the stored file inline (preview in a new tab). */
-  previewUrl(documentId: string): string;
+  /**
+   * The bytes of one deposited piece, so the citizen can re-read it.
+   *
+   * Returns the blob rather than a URL: the route is behind the citizen guard
+   * and the bearer token lives in a header, which no `src` attribute carries.
+   * Only a document matched to a checklist line is served — an unmatched file
+   * rejects with `VALIDATION_ERROR`.
+   *
+   * `applicationId` scopes the lookup, exactly like `dossierService.listDocuments`.
+   * Omitting it falls back to the server's demo dossier, so a caller reading a
+   * real application **must** pass the one it listed the documents with —
+   * otherwise the server refuses with "n'appartient pas à ce dossier".
+   */
+  getFile(documentId: string, applicationId?: string): Promise<{ blob: Blob; mimeType: string }>;
   listArticles(): Promise<DocumentationArticle[]>;
   getArticle(slug: string): Promise<DocumentationArticle>;
 }
@@ -138,8 +150,10 @@ export const documentService: DocumentService = {
       `/documents/${encodeURIComponent(documentId)}/classification`,
     ),
 
-  previewUrl: (documentId) =>
-    `${API_BASE_URL}/documents/${encodeURIComponent(documentId)}/download`,
+  getFile: (documentId, applicationId) =>
+    requestBlob(`/documents/${encodeURIComponent(documentId)}/download`, {
+      params: { applicationId },
+    }),
 
   // No structured field-extraction endpoint yet — the extracted text preview
   // lives on the document itself. Kept explicit rather than faked.

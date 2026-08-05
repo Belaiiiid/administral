@@ -8,6 +8,7 @@ a query nor a request handler.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -168,6 +169,43 @@ def _to_decision_schema(decision: CaseDecisionModel) -> CaseDecisionSchema:
         created_at=decision.created_at,
         decided_by=decision.decided_by,
     )
+
+
+def get_case_document_file(db: Session, case_id: str, document_id: str) -> tuple[str, str, str]:
+    """Resolve one case document's bytes, for an agent to read the piece itself.
+
+    Returns ``(stored_path, mime_type, file_name)``.
+
+    The document is looked up **through its case**, never by id alone: an agent
+    is authorised to read the dossiers in the queue, and scoping the lookup this
+    way means a document id belonging to another case cannot be fetched by
+    guessing it. The path returned is the server-generated name written by
+    ``citizen.storage.store`` — never client input — so serving it carries no
+    path-traversal risk.
+
+    ``NotFoundError`` covers all four ways this can fail (unknown case, document
+    not in that case, no stored path, file gone from storage) on purpose: an
+    agent gets one honest "cette pièce n'est pas consultable" either way, and
+    the distinction between them is a server-side concern.
+    """
+    case = repository.find_case_by_id(db, case_id)
+    if case is None:
+        raise NotFoundError(f"Aucun dossier ne correspond à l’identifiant « {case_id} ».")
+
+    document = next((doc for doc in case.documents if doc.id == document_id), None)
+    if document is None:
+        raise NotFoundError("Cette pièce n’appartient pas à ce dossier.")
+
+    if not document.stored_path:
+        raise NotFoundError(
+            "Le fichier de cette pièce n’a pas été conservé : le dossier a été "
+            "déposé avant que les pièces ne soient rattachées au dossier agent."
+        )
+
+    if not Path(document.stored_path).is_file():
+        raise NotFoundError("Le fichier de cette pièce est introuvable sur le stockage.")
+
+    return document.stored_path, document.mime_type, document.file_name
 
 
 def get_case(db: Session, case_id: str) -> CaseDetailSchema:

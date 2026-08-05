@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   CircleDashed,
   Clock,
+  Eye,
   FileCheck2,
   FileText,
   Info,
@@ -60,6 +61,7 @@ import {
   type CoherenceResult,
   type CoherenceStatus,
 } from '@/services/coherenceService';
+import { DocumentViewer } from '@/features/documents/components/DocumentViewer';
 import { dossierService } from '@/services/dossierService';
 import { documentService, type DossierReview } from '@/services/documentService';
 import {
@@ -131,12 +133,17 @@ function ChecklistRow({
   onFilesAdded,
   isRemoving,
   disabled,
+  matchedDocuments,
+  onViewDocument,
 }: {
   item: DossierChecklistItem;
   onUncheck: () => void;
   onFilesAdded: (files: File[]) => void;
   isRemoving: boolean;
   disabled: boolean;
+  /** The uploads that satisfied this line — usually one, sometimes several. */
+  matchedDocuments: CitizenDocument[];
+  onViewDocument: (document: CitizenDocument) => void;
 }) {
   const meta = DOSSIER_STATUS_META[item.status];
   const Icon = STATUS_ICON[item.status];
@@ -202,6 +209,32 @@ function ChecklistRow({
           </Tooltip>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {/*
+            A labelled button rather than an icon: this is the one action on the
+            row a citizen actively looks for, and « Consulter » next to the
+            unlabelled + and × is what makes it findable.
+
+            One button per matched upload, because a line can be satisfied by
+            several files (three bulletins de salaire). With a single file the
+            button just says « Consulter »; with more, each carries its own file
+            name, so there is never a choice made silently on the citizen's
+            behalf about which piece opens.
+          */}
+          {matchedDocuments.map((document) => (
+            <Button
+              key={document.id}
+              variant="outline"
+              size="sm"
+              onClick={() => onViewDocument(document)}
+              aria-label={`Consulter « ${document.fileName} »`}
+              className="max-w-[11rem]"
+            >
+              <Eye className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {matchedDocuments.length > 1 ? document.fileName : 'Consulter'}
+              </span>
+            </Button>
+          ))}
           <Badge tone={meta.tone}>{meta.label}</Badge>
           <input
             ref={inputRef}
@@ -264,6 +297,8 @@ function ChecklistAccordion({
   removingItemKeys,
   onUncheck,
   onFilesAdded,
+  documentsByType,
+  onViewDocument,
 }: {
   groups: { categorie: DossierCategory; items: DossierChecklistItem[] }[];
   openByDefault: DossierCategory | undefined;
@@ -271,6 +306,9 @@ function ChecklistAccordion({
   removingItemKeys: ReadonlySet<string>;
   onUncheck: (item: DossierChecklistItem) => void;
   onFilesAdded: (files: File[]) => void;
+  /** Uploads indexed by the checklist line they matched. */
+  documentsByType: ReadonlyMap<string, CitizenDocument[]>;
+  onViewDocument: (document: CitizenDocument) => void;
 }) {
   // Clé de remontage : quand le passage mobile/desktop change la valeur par
   // défaut, l'accordéon doit repartir de cet état plutôt que garder celui que
@@ -313,6 +351,8 @@ function ChecklistAccordion({
                       isRemoving={removingItemKeys.has(item.documentType)}
                       onUncheck={() => onUncheck(item)}
                       onFilesAdded={onFilesAdded}
+                      matchedDocuments={documentsByType.get(item.documentType) ?? []}
+                      onViewDocument={onViewDocument}
                     />
                   ))}
                 </ul>
@@ -469,6 +509,8 @@ function DocumentsSection({
   hasItems,
   profileComplete,
   checklistError,
+  documentsByType,
+  onViewDocument,
 }: {
   uploads: UploadEntry[];
   onFilesAdded: (files: File[]) => void;
@@ -483,6 +525,8 @@ function DocumentsSection({
   hasItems: boolean;
   profileComplete: boolean;
   checklistError: string | null;
+  documentsByType: ReadonlyMap<string, CitizenDocument[]>;
+  onViewDocument: (document: CitizenDocument) => void;
 }) {
   return (
     <Card>
@@ -549,6 +593,8 @@ function DocumentsSection({
             removingItemKeys={removingItemKeys}
             onUncheck={onUncheck}
             onFilesAdded={onFilesAdded}
+            documentsByType={documentsByType}
+            onViewDocument={onViewDocument}
           />
         )}
       </CardContent>
@@ -1230,6 +1276,10 @@ export default function PersonalizedDossierPage() {
   // loading state.
   const [removingItemKeys, setRemovingItemKeys] = useState<ReadonlySet<string>>(new Set());
   const [checklistError, setChecklistError] = useState<string | null>(null);
+  // The piece being read, or null. One dialog for the whole checklist: moving
+  // from one document to the next swaps the fetch rather than remounting, so a
+  // single object URL is alive at a time.
+  const [openDocument, setOpenDocument] = useState<CitizenDocument | null>(null);
 
   // Ref to the submit button so the voice assistant can click it
   const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -1328,6 +1378,27 @@ export default function PersonalizedDossierPage() {
   const handleRemoveUpload = useCallback((id: string) => {
     setUploads((current) => current.filter((u) => u.id !== id));
   }, []);
+
+  /*
+   * Uploads indexed by the checklist line they satisfied — the same key
+   * `handleUncheckItem` matches on, so a row's "consulter" links and its
+   * "décocher" act on exactly the same set of files.
+   *
+   * Only documents the classifier placed appear here, which is also the
+   * condition the download route enforces: a row can never offer a link the
+   * server would refuse.
+   */
+  const documentsByType = useMemo(() => {
+    const index = new Map<string, CitizenDocument[]>();
+    for (const document of documents) {
+      const key = document.classification?.matched_checklist_document_id;
+      if (!key) continue;
+      const bucket = index.get(key);
+      if (bucket) bucket.push(document);
+      else index.set(key, [document]);
+    }
+    return index;
+  }, [documents]);
 
   // "Décocher" an item: delete the document(s) that matched it — the item's
   // checked state is never a local flag, so unchecking has to remove the
@@ -1547,6 +1618,8 @@ export default function PersonalizedDossierPage() {
               hasItems={dossier.items.length > 0}
               profileComplete={dossier.profileComplete}
               checklistError={checklistError}
+              documentsByType={documentsByType}
+              onViewDocument={setOpenDocument}
             />
           </section>
 
@@ -1633,6 +1706,14 @@ export default function PersonalizedDossierPage() {
           </section>
         </div>
       )}
+
+      {/* Same dossier the documents were listed with — the server resolves the
+          file through it, so a mismatch is refused rather than served. */}
+      <DocumentViewer
+        document={openDocument}
+        applicationId={dossier?.applicationId}
+        onClose={() => setOpenDocument(null)}
+      />
     </div>
   );
 }

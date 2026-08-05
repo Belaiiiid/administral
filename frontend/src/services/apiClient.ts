@@ -164,6 +164,56 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   return (await response.json()) as T;
 }
 
+/**
+ * Fetches a binary response — a stored file, not JSON.
+ *
+ * Exists because the bearer token lives in a header, and a header cannot be
+ * attached to `<iframe src>` or `<img src>`. Rendering a protected file in the
+ * browser therefore means: fetch it authenticated, keep the bytes, and hand the
+ * element an object URL instead of the API path.
+ *
+ * Shares the token, the network-failure branch and `toApiError` with
+ * `request()`; only the success branch differs, since `.json()` on a PDF throws.
+ *
+ * **The caller owns the returned blob**: wrap it with `URL.createObjectURL` and
+ * call `URL.revokeObjectURL` when done, or the page leaks a blob per open.
+ */
+export async function requestBlob(
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; mimeType: string }> {
+  // `body` is destructured away and dropped: this is a GET, and leaving it in
+  // `init` would put `unknown` where `fetch` expects a `BodyInit`.
+  const { body: _body, params, headers, ...init } = options;
+  const token = getToken();
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}${buildQuery(params)}`, {
+      ...init,
+      method: 'GET',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
+    });
+  } catch (cause) {
+    throw new ApiClientError(0, {
+      code: 'NETWORK_ERROR',
+      message:
+        'Le serveur est injoignable. Vérifiez que l’API est démarrée (http://localhost:8000).',
+      details: { cause: [cause instanceof Error ? cause.message : String(cause)] },
+    });
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) clearToken();
+    throw new ApiClientError(response.status, await toApiError(response, Boolean(token)));
+  }
+
+  const blob = await response.blob();
+  // The response header wins over the blob's own type: FastAPI sends the mime
+  // type recorded at upload, which is what decides how the viewer renders it.
+  return { blob, mimeType: response.headers.get('Content-Type') ?? blob.type };
+}
+
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => request<T>(path, { ...options, method: 'GET' }),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>

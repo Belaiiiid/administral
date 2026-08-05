@@ -13,6 +13,7 @@ this portal now rests on.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -112,6 +113,35 @@ def list_cases(
 )
 def get_case(case_id: str, db: Session = Depends(get_db)) -> CaseDetailSchema:
     return service.get_case(db, case_id)
+
+
+@router.get(
+    "/cases/{case_id}/documents/{document_id}/file",
+    summary="Consulter une pièce du dossier",
+    description=(
+        "Renvoie le fichier déposé par l’usager (inline) pour que l’agent "
+        "instructeur lise la pièce elle-même et pas seulement ses métadonnées. "
+        "La pièce est résolue **à travers son dossier** : un identifiant de "
+        "document appartenant à un autre dossier répond 404. Comme toute la "
+        "route agent, l’accès est derrière `require_agent`.\n\n"
+        "404 également lorsque le dossier a été déposé avant que les pièces ne "
+        "soient rattachées au dossier agent — le fichier n’est alors pas "
+        "résoluble, et c’est dit plutôt que masqué."
+    ),
+    responses={404: {"description": "Pièce inconnue, ou fichier non conservé"}},
+)
+def get_case_document_file(
+    case_id: str, document_id: str, db: Session = Depends(get_db)
+) -> FileResponse:
+    stored_path, mime_type, file_name = service.get_case_document_file(db, case_id, document_id)
+    return FileResponse(
+        stored_path,
+        media_type=mime_type,
+        # `inline`: the agent portal renders the file in place (PDF in a frame,
+        # image in a tag). A download is a fallback the UI offers, not the
+        # default the server imposes.
+        headers={"Content-Disposition": f'inline; filename="{file_name}"'},
+    )
 
 
 @router.get(

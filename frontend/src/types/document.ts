@@ -36,6 +36,15 @@ export interface CitizenDocument {
   extractedTextPreview?: string;
   classification?: DocumentClassification;
   classificationError?: string;
+  /**
+   * The checklist line this file satisfied, absent when the classifier could not
+   * place it.
+   *
+   * This is what decides whether the piece can be re-read: only a matched
+   * document is a piece *of the dossier*, and the download route enforces the
+   * same condition — the UI hiding the action is a courtesy, not the guard.
+   */
+  matchedChecklistItemId?: string;
 }
 
 /** A field extracted from a document, with the model's confidence. */

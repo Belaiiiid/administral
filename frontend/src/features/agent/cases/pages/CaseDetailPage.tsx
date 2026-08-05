@@ -12,6 +12,7 @@ import {
   CaseAuditCard,
   CaseDocumentsCard,
   CaseFraudCard,
+  CaseFraudDetectionCard,
   CaseProfileCard,
   CoherenceReportCard,
   CompletenessReportCard,
@@ -101,9 +102,14 @@ export default function CaseDetailPage() {
               <CoherenceReportCard report={caseRecord.coherenceReport} />
             </div>
 
-            <CaseDocumentsCard documents={caseRecord.documents} />
+            <CaseDocumentsCard documents={caseRecord.documents} caseId={caseRecord.id} />
 
             <CaseFraudCard documents={caseRecord.documents} />
+
+            {/* Section statique — ne consomme pas `caseRecord`, voir le
+                composant. À retirer ou brancher quand l'agent C4 est appelé
+                depuis cet écran. */}
+            <CaseFraudDetectionCard />
 
             <CaseAuditCard applicationNumber={caseRecord.applicationNumber} />
           </div>

@@ -1,5 +1,5 @@
 import type { Case, CaseQueueStats, CaseSummary } from '@/types';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, requestBlob } from '@/services/apiClient';
 
 /**
  * Agent-side case access contract.
@@ -16,6 +16,15 @@ export interface AgentCaseService {
   getCase(id: string): Promise<Case>;
   /** Dashboard workload counters. Future endpoint: `GET /agent/cases/stats`. */
   getQueueStats(): Promise<CaseQueueStats>;
+  /**
+   * The bytes of one supporting document, so the agent can read the piece
+   * itself. `GET /agent/cases/{caseId}/documents/{documentId}/file`.
+   *
+   * Returns the blob rather than a URL: the endpoint is authenticated by a
+   * bearer header, which no `src` attribute can carry. Building the object URL
+   * — and revoking it — belongs to the component that renders it.
+   */
+  getDocumentFile(caseId: string, documentId: string): Promise<{ blob: Blob; mimeType: string }>;
 }
 
 /** Server-side filtering for the queue — never applied in the browser. */
@@ -61,4 +70,9 @@ export const httpAgentCaseService: AgentCaseService = {
   getCase: (id) => apiClient.get<Case>(`/agent/cases/${encodeURIComponent(id)}`),
 
   getQueueStats: () => apiClient.get<CaseQueueStats>('/agent/cases/stats'),
+
+  getDocumentFile: (caseId, documentId) =>
+    requestBlob(
+      `/agent/cases/${encodeURIComponent(caseId)}/documents/${encodeURIComponent(documentId)}/file`,
+    ),
 };
