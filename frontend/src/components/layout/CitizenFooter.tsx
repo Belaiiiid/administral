@@ -1,4 +1,4 @@
-import { ExternalLink, Sparkles } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { APP_CONFIG, FOOTER_LINKS } from '@/app/config/app';

@@ -240,7 +240,10 @@ export function FloatingActionBubbles({
     {
       id: 'assistant-launcher-bubble',
       label: 'Parler à l’assistant',
-      iconSrc: '/mistral-logo.svg',
+      // The mascot, deliberately, and the only surface that keeps it: this is a
+      // playful launcher, not a partner credit. Everywhere Mistral is named as
+      // a partner shows the "M" wordmark instead (see `PartnerLogos`).
+      iconSrc: '/logos/mistral.gif',
       onClick: onAssistantClick ?? toggle,
       className: 'border border-border/60 bg-surface-lowest',
     },

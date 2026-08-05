@@ -44,7 +44,6 @@ const CvCoachPage = lazy(() => import('@/features/france-travail/pages/CvCoachPa
 const JobSearchPage = lazy(() => import('@/features/france-travail/pages/JobSearchPage'));
 
 const ChatPage = lazy(() => import('@/features/chatbot/pages/ChatPage'));
-const VoiceOnboardingPage = lazy(() => import('@/features/voice/pages/VoiceOnboardingPage').then(m => ({ default: m.VoiceOnboardingPage })));
 const PublicLandingPage = lazy(() => import('@/features/chatbot/pages/PublicLandingPage'));
 const NotFoundPage = lazy(() => import('@/features/portal/pages/NotFoundPage'));
 
@@ -67,7 +66,6 @@ function HomeRoute() {
 
 const router = createBrowserRouter([
   { path: ROUTES.home, element: <HomeRoute /> },
-  { path: ROUTES.voiceOnboarding, element: <VoiceOnboardingPage /> },
   {
     // Entry journey — no application chrome.
     element: <AuthLayout />,

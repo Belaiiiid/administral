@@ -9,8 +9,9 @@ import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 import type { VoicePageAction } from '@/features/voice/types';
 
 /**
- * "Administrations" — the first choice a citizen makes, right after voice
- * onboarding (see `VoiceOnboardingPage`), before any account is required.
+ * "Administrations" — the first choice a citizen makes, and now the first
+ * screen after sign-in: the voice choice is offered by a dialog on the landing
+ * page, not by an interstitial standing between a citizen and their dossier.
  * CAF and France Travail are wired to real backends; the rest render as
  * locked tiles rather than pretending to be usable.
  */

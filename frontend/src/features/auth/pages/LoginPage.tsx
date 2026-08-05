@@ -16,7 +16,6 @@ import { Label } from '@/components/ui/label';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { authService } from '@/services/authService';
 import { useSessionStore } from '@/store/sessionStore';
-import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { useVoicePage } from '@/features/voice/context/VoicePageContext';
 
 interface LocationState {
@@ -54,14 +53,14 @@ export default function LoginPage() {
       } else if (role === 'agent') {
         navigate(ROUTES.agent, { replace: true });
       } else {
-        // After login, take citizens to voice onboarding if they haven't seen it yet,
-        // otherwise to the page they were headed to, or the administrations list by
+        // Straight to where they were headed, or the administrations list by
         // default — same destination `HomeRoute` sends an already-authenticated
         // visitor to, so "choose an administration, then see its services" is the
         // one consistent entry point rather than a shortcut straight to CAF's hub.
-        const hasSeenVoiceOnboarding = useVoiceStore.getState().hasSeenVoiceOnboarding;
+        // The voice choice is offered by `VoiceOnboardingDialog` on the landing
+        // page; it no longer stands between a citizen and their dossier.
         const from = (location.state as LocationState | null)?.from?.pathname || ROUTES.administrations;
-        navigate(hasSeenVoiceOnboarding ? from : ROUTES.voiceOnboarding, { replace: true });
+        navigate(from, { replace: true });
       }
     } catch {
       // error is in the store
