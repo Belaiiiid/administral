@@ -139,6 +139,59 @@ dépendance de routeur. À brancher avant tout déploiement partagé.
 
 ---
 
+## Déploiement de l'assistant citoyen
+
+`POST /api/citizen/chatbot/message` est le seul endpoint public dont chaque appel
+coûte de l'argent à un tiers. Trois réglages décident s'il est réellement borné,
+et leurs valeurs par défaut ne conviennent qu'en développement.
+
+### ⚠️ Un seul worker uvicorn
+
+Le magasin vectoriel embarqué (Qdrant) verrouille son dossier : un deuxième
+processus ne peut pas l'ouvrir et tourne silencieusement en BM25 seul. Les
+compteurs de débit (`core/rate_limit.py`) sont en mémoire et ont donc exactement
+la même portée : **`--workers 2` multiplie silencieusement toutes les limites par
+deux**, et le disjoncteur de dépense par autant.
+
+Le jour où Qdrant passera en mode serveur, ces compteurs devront déménager dans
+Redis **le même jour**, sinon la limitation devient décorative.
+
+### ⚠️ Le disjoncteur de dépense est éteint par défaut
+
+`CHATBOT_BUDGET_JETONS_PAR_JOUR` vaut `0` tant que personne ne le fixe, et `0`
+signifie *aucun plafond global*. Les quotas par appelant continuent de
+s'appliquer, mais ils bornent ce qu'UNE personne demande, pas le total : mille
+appelants dans leur droit coûtent mille fois le quota.
+
+Le défaut est délibéré — on n'arrête pas un service sur un seuil que personne n'a
+choisi — mais il faut donc le choisir. Laissez tourner quelques jours, lisez
+`assistant.jetons_jour` sur `GET /api/health`, et fixez le plafond au-dessus du
+maximum observé.
+
+### ⚠️ `TRUST_PROXY_HEADERS` doit correspondre à la topologie
+
+Il décide à qui l'on compte une requête anonyme, et les deux erreurs sont
+symétriques :
+
+| Réglage | Sans proxy devant | Derrière un proxy |
+|---|---|---|
+| `0` (défaut) | correct | toutes les requêtes portent l'IP du proxy : **les citoyens se bloquent mutuellement** |
+| `1` | `X-Forwarded-For` est un simple en-tête : **quota neuf à chaque requête** | correct |
+
+### Point de contrôle
+
+`GET /api/health` rend, sous `assistant` : `mode_recherche` (`hybride` /
+`bm25_seul` / `non_initialise`), `jetons_jour`, `appels_jour`, `budget`,
+`suspendu`. `mode_recherche` ne fait **pas** basculer le statut HTTP : en BM25
+seul l'assistant répond toujours, avec ses sources, simplement moins bien —
+retirer le service du trafic remplacerait des réponses dégradées par pas de
+réponse du tout. C'est à surveiller et à alerter, pas un signal de vie.
+
+Toutes les variables et leurs valeurs par défaut sont dans
+[`.env.example`](.env.example), section *Citizen AI Assistant*.
+
+---
+
 ## Contrat avec le frontend
 
 Le frontend déclarait l'API avant que ce backend existe
