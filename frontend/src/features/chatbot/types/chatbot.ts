@@ -53,9 +53,10 @@ export interface ChatbotPendingClarification {
   /**
    * Étape du dialogue, présente uniquement pour les questions posées par le code
    * et non par le modèle — la date d'une décision contestée se demande en deux
-   * temps. Le client la renvoie telle quelle, il n'a pas à l'interpréter.
+   * temps, et le profil déjà enregistré d'un citoyen connecté lui est relu avant
+   * d'être utilisé. Le client la renvoie telle quelle, il n'a pas à l'interpréter.
    */
-  step?: 'date_choix' | 'date_valeur' | 'date_valeur_2' | null;
+  step?: 'date_choix' | 'date_valeur' | 'date_valeur_2' | 'profil_confirmation' | null;
 }
 
 /**

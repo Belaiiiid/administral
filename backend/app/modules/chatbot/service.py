@@ -12,14 +12,20 @@ one of three intents and answers it:
 Deux points structurants, hérités des décisions du moteur (voir le CLAUDE.md
 d'`apl_rag`) :
 
-- **L'assistant est aveugle à l'authentification.** Le compte connecté ne sert
-  qu'à une chose ici : déterminer le RÔLE (citoyen ou agent), qui élargit le
-  corpus interrogeable. Aucun dossier, aucun `citizen_id`, aucun profil stocké
-  n'entre dans la conversation : le profil utilisé pour la checklist est
-  uniquement celui que la personne déclare pendant l'échange. Le comportement est
-  donc identique sur le portail web et sur un canal sans compte (WhatsApp), et
-  poser une question "pour mon fils étudiant" marche exactement comme pour soi.
-  Le suivi du dossier réel reste dans l'espace citoyen, qui n'est pas touché.
+- **Le compte ne sert qu'à deux choses, et elles sont énumérées ici.** D'abord le
+  RÔLE (citoyen ou agent). Ensuite, depuis l'ajout de `profil_enregistre`, le
+  profil DÉCLARATIF déjà saisi par le citoyen sur la plateforme
+  (`citizens.profile_data`) — et rien d'autre : ni dossier, ni pièces déposées,
+  ni décisions, ni identité. Ce profil n'est jamais utilisé en silence : il est
+  relu au citoyen, qui le confirme ou le rejette, avant que la moindre pièce en
+  soit déduite (voir `orchestrator.documents_necessaires_node`).
+
+  Sans compte, rien n'est lu et le comportement est exactement celui d'avant :
+  c'est ce qui laisse le même moteur servir un canal sans authentification
+  (WhatsApp). Et poser une question "pour mon fils étudiant" reste possible —
+  c'est le sens de l'option « C'est pour quelqu'un d'autre », qui rend la main à
+  l'entretien ordinaire. Le suivi du dossier réel reste dans l'espace citoyen,
+  qui n'est pas touché.
 - **Le backend ne garde aucune session.** L'historique ET l'état de clarification
   font l'aller-retour par le client (voir `schemas`).
 """
@@ -31,6 +37,7 @@ import time
 
 from app.core.logger import logger
 from app.modules.auth.models import Role, User
+from app.modules.chatbot import profil_enregistre
 from app.modules.chatbot.checklist_answer import render_checklist
 from app.modules.chatbot.rag import budget, orchestrator
 from app.modules.chatbot.schemas import (
@@ -142,7 +149,8 @@ def answer_question(
             "original_question": ctx.pending_clarification.original_question,
             "intent": ctx.pending_clarification.intent,
             # `step` n'existe que pour les questions posées par le code (la date d'une
-            # décision contestée) ; None pour celles écrites par le LLM.
+            # décision contestée, la confirmation du profil enregistré) ; None pour
+            # celles écrites par le LLM.
             "step": ctx.pending_clarification.step,
         }
         if ctx.pending_clarification
@@ -166,13 +174,20 @@ def answer_question(
     if budget.depasse():
         return _unavailable()
 
+    # Le profil déjà saisi par le citoyen sur la plateforme, s'il est connecté. Lu ICI,
+    # avant le graphe, dans une session brève qui se referme aussitôt : le tour ne doit
+    # pas retenir de connexion PostgreSQL pendant qu'il attend le modèle (voir
+    # `profil_enregistre`). Vaut None pour un visiteur anonyme, et l'entretien se
+    # déroule alors exactement comme avant.
+    profil_connu = profil_enregistre.pour(user)
+
     debut = time.perf_counter()
     try:
         state = _get_graph().invoke(
             {
                 "message": message,
                 "conversation_history": history,
-                "citizen_profile": None,
+                "citizen_profile": profil_connu,
                 "intent": None,
                 "response": None,
                 "response_options": None,

@@ -307,6 +307,59 @@ def _demander_champ(state: D4State, champ: str, reponses: dict, *, prefixe: str 
     }
 
 
+#: L'étape où l'on relit au citoyen connecté ce que son profil dit déjà de lui, avant
+#: de s'en servir. Bornée dans le contrat comme les étapes de la question de date, et
+#: pour la même raison : elle vient du client et pilote le comportement du nœud.
+ETAPE_CONFIRMATION_PROFIL = "profil_confirmation"
+
+OPTION_PROFIL_OK = "Oui, c'est ma situation"
+OPTION_PROFIL_CHANGE = "Ma situation a changé"
+OPTION_PROFIL_AUTRE = "C'est pour quelqu'un d'autre"
+
+EXPLICATION_PROFIL = (
+    "Vous avez déjà renseigné ces informations dans votre espace personnel. Plutôt que "
+    "de vous reposer les mêmes questions, je vous relis ce que j'y trouve : si c'est "
+    "toujours exact, j'établis directement la liste des pièces ; sinon je vous repose "
+    "les questions une par une."
+)
+
+
+def _confirmer_profil(state: D4State, connu: dict, *, prefixe: str = "") -> D4State:
+    """Relit le profil enregistré et demande s'il fait foi.
+
+    UNE question au lieu de quatre, et surtout : rien n'est utilisé sans être montré.
+    Se servir en silence d'un profil vieux de six mois produirait une liste de pièces
+    fausse que le citoyen n'aurait aucun moyen de repérer — l'erreur exacte que tout le
+    reste de ce moteur s'emploie à rendre impossible.
+
+    Le cas du tiers (« pour mon fils étudiant ») est tranché ICI, par le citoyen, et non
+    par une analyse des pronoms de son message : « mon logement » et « mon fils » sont
+    grammaticalement identiques et désignent deux dossiers différents. Lui poser la
+    question coûte un tour ; se tromper lui coûte un dossier incomplet."""
+    resume = ", ".join(profilage_documents.resume_profil(connu))
+    texte = (
+        f"{prefixe}D'après votre dossier : {resume}. Je pars là-dessus pour établir "
+        "la liste des pièces ?"
+    )
+    return {
+        **state,
+        "response": texte,
+        "answer": texte,
+        "sources": [],
+        "response_options": with_standard_options(
+            [OPTION_PROFIL_OK, OPTION_PROFIL_CHANGE, OPTION_PROFIL_AUTRE]
+        ),
+        "pending_clarification": {
+            # Aucune réponse encore acquise : ce qui est proposé n'est pas ce qui est
+            # retenu. L'état ne portera le profil qu'une fois le « oui » reçu.
+            "original_question": profilage_documents.encoder_etat({}),
+            "intent": "documents_necessaires",
+            "step": ETAPE_CONFIRMATION_PROFIL,
+        },
+        "collected_profile": None,
+    }
+
+
 def documents_necessaires_node(state: D4State) -> D4State:
     """Entretien de profilage MENÉ PAR LE CODE, sur le modèle d'`estimation_node`.
 
@@ -321,10 +374,28 @@ def documents_necessaires_node(state: D4State) -> D4State:
     pending = state.get("pending_clarification")
     en_cours = bool(pending) and pending.get("intent") == "documents_necessaires"
     is_reply = bool(state.get("clarification_reply")) and en_cours
+    etape = pending.get("step") if en_cours else None
     reponses = profilage_documents.decoder_etat(pending) if en_cours else {}
     message = state["message"]
 
-    if is_reply:
+    if etape == ETAPE_CONFIRMATION_PROFIL:
+        # Le citoyen répond au récapitulatif de son profil enregistré.
+        connu = profilage_documents.depuis_profil(state.get("citizen_profile"))
+        if is_reply and message == EXPLAIN_OPTION:
+            return _confirmer_profil(state, connu, prefixe=f"{EXPLICATION_PROFIL}\n\n")
+        if is_reply and message == OPTION_PROFIL_OK:
+            reponses = connu
+        # « Ma situation a changé », « C'est pour quelqu'un d'autre », « Passer cette
+        # question », ou n'importe quoi d'autre : on n'utilise PAS le profil et
+        # l'entretien se déroule normalement. Le défaut penche du côté de la question
+        # posée en trop, jamais de la donnée reprise à tort.
+    elif not en_cours:
+        # Premier tour sur cette intention : si le compte sait déjà quelque chose, on
+        # le relit avant de commencer à interroger.
+        connu = profilage_documents.depuis_profil(state.get("citizen_profile"))
+        if connu:
+            return _confirmer_profil(state, connu)
+    elif is_reply:
         champ = profilage_documents.prochain_champ(reponses)
         if champ is not None:
             if message == EXPLAIN_OPTION:

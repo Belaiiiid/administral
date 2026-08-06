@@ -9,11 +9,15 @@ déterministe, en repli). Ce module est le seul point de raccord entre les deux.
 
 Deux invariants tiennent ici :
 
-- **Le profil est DÉCLARATIF, jamais authentifié.** Il vient uniquement des
-  réponses données dans la conversation. Rien n'est lu depuis le compte connecté,
-  le dossier ou un `citizen_id` — l'assistant se comporte de façon identique pour
-  un citoyen connecté sur le portail web et pour un canal sans authentification
-  (WhatsApp). Le module `citizen`/`submission` n'est pas sollicité.
+- **Le profil est DÉCLARATIF, et il le reste même quand il est pré-rempli.** Il
+  vient des réponses données dans la conversation ; pour un citoyen connecté, il
+  peut aussi être pré-rempli à partir du profil qu'il a lui-même saisi sur la
+  plateforme (`citizens.profile_data`), mais seulement après qu'il l'a relu et
+  confirmé — voir `chatbot.profil_enregistre` et l'étape `profil_confirmation` de
+  `orchestrator.documents_necessaires_node`. Rien d'autre du compte n'est lu : ni
+  dossier, ni pièces, ni décisions. Sans compte, rien n'est lu du tout et le canal
+  sans authentification (WhatsApp) se comporte comme avant. Le module
+  `citizen`/`submission` n'est pas sollicité.
 - **Le LLM ne décide pas des documents.** Depuis le passage à un entretien
   déterministe (`rag.profilage_documents`), il n'en collecte même plus les faits :
   la correspondance situation → documents reste dans les règles MonParcours, et

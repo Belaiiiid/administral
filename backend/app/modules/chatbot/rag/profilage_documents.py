@@ -67,6 +67,12 @@ class Choix:
     #: Indispensable ici : l'assistant vocal renvoie une transcription (« je suis
     #: locataire »), qui ne sera jamais égale au libellé du bouton.
     mots_cles: tuple[str, ...] = field(default_factory=tuple)
+    #: Comment ce choix se dit dans un RÉCAPITULATIF, à la suite d'autres — « locataire,
+    #: salarié(e), seul(e) sans enfant à charge ». Le libellé du bouton ne convient pas :
+    #: il s'adresse à quelqu'un qui choisit (« Je suis locataire »), pas à quelqu'un à
+    #: qui l'on relit ce qu'on sait déjà de lui. Écrit ici plutôt que dérivé du libellé,
+    #: pour que les deux formulations restent lisibles indépendamment.
+    resume: str = ""
 
 
 @dataclass(frozen=True)
@@ -89,11 +95,11 @@ QUESTIONS: dict[str, Question] = {
         ),
         choix=(
             Choix("Je suis locataire", {"situation_logement": StatutLogement.locataire.value},
-                  ("locataire", "loyer", "louer", "bail")),
+                  ("locataire", "loyer", "louer", "bail"), resume="locataire"),
             Choix("Je suis propriétaire", {"situation_logement": StatutLogement.proprietaire.value},
-                  ("proprietaire", "pret", "credit", "achete")),
+                  ("proprietaire", "pret", "credit", "achete"), resume="propriétaire"),
             Choix("Je suis hébergé(e)", {"situation_logement": StatutLogement.heberge.value},
-                  ("heberge", "loge", "chez mes parents", "chez un proche")),
+                  ("heberge", "loge", "chez mes parents", "chez un proche"), resume="hébergé(e)"),
         ),
     ),
     "activite": Question(
@@ -105,17 +111,20 @@ QUESTIONS: dict[str, Question] = {
         ),
         choix=(
             Choix("Salarié(e)", {"statut_professionnel": StatutProfessionnel.salarie.value},
-                  ("salarie", "salariee", "cdi", "cdd", "employe", "travaille")),
+                  ("salarie", "salariee", "cdi", "cdd", "employe", "travaille"), resume="salarié(e)"),
             Choix("Étudiant(e)", {"statut_professionnel": StatutProfessionnel.etudiant.value},
-                  ("etudiant", "etudiante", "etudie", "fac", "universite", "ecole")),
+                  ("etudiant", "etudiante", "etudie", "fac", "universite", "ecole"), resume="étudiant(e)"),
             Choix("Apprenti(e) ou alternant(e)",
                   {"statut_professionnel": StatutProfessionnel.apprenti_alternant.value},
-                  ("apprenti", "apprentie", "alternant", "alternance", "apprentissage")),
+                  ("apprenti", "apprentie", "alternant", "alternance", "apprentissage"),
+                  resume="apprenti(e) ou alternant(e)"),
             Choix("Demandeur d'emploi",
                   {"statut_professionnel": StatutProfessionnel.demandeur_emploi.value},
-                  ("demandeur", "chomage", "chomeur", "sans emploi", "france travail", "pole emploi")),
+                  ("demandeur", "chomage", "chomeur", "sans emploi", "france travail", "pole emploi"),
+                  resume="demandeur d'emploi"),
             Choix("Indépendant(e)", {"statut_professionnel": StatutProfessionnel.independant.value},
-                  ("independant", "independante", "auto entrepreneur", "freelance", "liberal")),
+                  ("independant", "independante", "auto entrepreneur", "freelance", "liberal"),
+                  resume="indépendant(e)"),
         ),
     ),
     "foyer": Question(
@@ -131,11 +140,13 @@ QUESTIONS: dict[str, Question] = {
             Choix("Seul(e), sans enfant à charge",
                   {"statut_marital": StatutMarital.celibataire.value,
                    "a_des_enfants_a_charge": False},
-                  ("seul", "seule", "celibataire", "personne seule")),
+                  ("seul", "seule", "celibataire", "personne seule"),
+                  resume="seul(e) sans enfant à charge"),
             Choix("Seul(e), avec un ou des enfants à charge",
                   {"statut_marital": StatutMarital.celibataire.value,
                    "a_des_enfants_a_charge": True},
-                  ("seul avec", "seule avec", "monoparental", "parent isole")),
+                  ("seul avec", "seule avec", "monoparental", "parent isole"),
+                  resume="seul(e) avec enfant(s) à charge"),
             # `concubinage` = « en couple, sans que le mariage ou le PACS soit établi ».
             # C'est la seule valeur du vocabulaire qui n'affirme pas ce qu'on ignore : elle
             # n'ajoute par elle-même aucune pièce, et le cas marié/pacsé (livret de
@@ -143,11 +154,13 @@ QUESTIONS: dict[str, Question] = {
             Choix("En couple, sans enfant à charge",
                   {"statut_marital": StatutMarital.concubinage.value,
                    "a_des_enfants_a_charge": False},
-                  ("en couple", "marie", "mariee", "pacse", "pacsee", "conjoint", "concubinage")),
+                  ("en couple", "marie", "mariee", "pacse", "pacsee", "conjoint", "concubinage"),
+                  resume="en couple, sans enfant à charge"),
             Choix("En couple, avec un ou des enfants à charge",
                   {"statut_marital": StatutMarital.concubinage.value,
                    "a_des_enfants_a_charge": True},
-                  ("couple avec", "famille", "avec enfants", "nos enfants")),
+                  ("couple avec", "famille", "avec enfants", "nos enfants"),
+                  resume="en couple, avec enfant(s) à charge"),
         ),
     ),
     # --- Relances (une seule sera posée, voir `_relance_applicable`) ------------
@@ -161,12 +174,14 @@ QUESTIONS: dict[str, Question] = {
         choix=(
             Choix("Un logement ordinaire (vide ou meublé)",
                   {"type_location": TypeLocation.meublee.value},
-                  ("ordinaire", "classique", "meuble", "vide", "appartement", "studio", "colocation")),
+                  ("ordinaire", "classique", "meuble", "vide", "appartement", "studio", "colocation"),
+                  resume="logement ordinaire"),
             Choix("Une résidence étudiante, un foyer (CROUS...)",
                   {"type_location": TypeLocation.residence_etudiante.value},
-                  ("crous", "residence", "foyer", "cite universitaire", "ehpad")),
+                  ("crous", "residence", "foyer", "cite universitaire", "ehpad"),
+                  resume="résidence étudiante ou foyer"),
             Choix("Une sous-location", {"type_location": TypeLocation.sous_location.value},
-                  ("sous location", "sous loue", "souslocation")),
+                  ("sous location", "sous loue", "souslocation"), resume="sous-location"),
         ),
     ),
     "est_boursier": Question(
@@ -177,8 +192,9 @@ QUESTIONS: dict[str, Question] = {
         ),
         choix=(
             Choix("Oui, je suis boursier(ère)", {"est_boursier": True},
-                  ("oui", "boursier", "boursiere", "bourse", "crous")),
-            Choix("Non", {"est_boursier": False}, ("non", "pas de bourse", "aucune")),
+                  ("oui", "boursier", "boursiere", "bourse", "crous"), resume="boursier(ère)"),
+            Choix("Non", {"est_boursier": False}, ("non", "pas de bourse", "aucune"),
+                  resume="non boursier(ère)"),
         ),
     ),
     "percoit_are": Question(
@@ -189,8 +205,9 @@ QUESTIONS: dict[str, Question] = {
         ),
         choix=(
             Choix("Oui, je perçois l'ARE", {"percoit_are": True},
-                  ("oui", "are", "allocation", "indemnise", "chomage")),
-            Choix("Non", {"percoit_are": False}, ("non", "pas indemnise", "aucune")),
+                  ("oui", "are", "allocation", "indemnise", "chomage"), resume="percevant l'ARE"),
+            Choix("Non", {"percoit_are": False}, ("non", "pas indemnise", "aucune"),
+                  resume="sans ARE"),
         ),
     ),
     "statut_professionnel_conjoint": Question(
@@ -201,15 +218,17 @@ QUESTIONS: dict[str, Question] = {
         ),
         choix=(
             Choix("Salarié(e)", {"statut_professionnel_conjoint": StatutProfessionnel.salarie.value},
-                  ("salarie", "salariee", "cdi", "cdd", "travaille")),
+                  ("salarie", "salariee", "cdi", "cdd", "travaille"), resume="conjoint(e) salarié(e)"),
             Choix("Étudiant(e)", {"statut_professionnel_conjoint": StatutProfessionnel.etudiant.value},
-                  ("etudiant", "etudiante", "etudie")),
+                  ("etudiant", "etudiante", "etudie"), resume="conjoint(e) étudiant(e)"),
             Choix("Demandeur d'emploi",
                   {"statut_professionnel_conjoint": StatutProfessionnel.demandeur_emploi.value},
-                  ("demandeur", "chomage", "chomeur", "sans emploi")),
+                  ("demandeur", "chomage", "chomeur", "sans emploi"),
+                  resume="conjoint(e) demandeur d'emploi"),
             Choix("Indépendant(e)",
                   {"statut_professionnel_conjoint": StatutProfessionnel.independant.value},
-                  ("independant", "independante", "auto entrepreneur", "freelance")),
+                  ("independant", "independante", "auto entrepreneur", "freelance"),
+                  resume="conjoint(e) indépendant(e)"),
         ),
     ),
 }
@@ -304,6 +323,60 @@ def options(champ: str) -> list[str]:
 def enregistrer(reponses: dict, champ: str, choix: Optional[Choix]) -> dict:
     """Ajoute une réponse (ou une question passée, `choix=None`) sans muter l'entrée."""
     return {**reponses, champ: (choix.profil if choix else None)}
+
+
+def depuis_profil(profil: Optional[dict]) -> dict:
+    """Les réponses que le profil DÉJÀ ENREGISTRÉ du compte permet de ne pas redemander.
+
+    Rend le même dictionnaire que l'entretien produirait si le citoyen avait cliqué
+    lui-même ces réponses. C'est ce qui permet de PRÉ-REMPLIR l'entretien plutôt que
+    de le court-circuiter : `prochain_champ` fait ensuite son travail habituel, et ne
+    demande que ce qui manque. Un profil complet ne pose aucune question, un profil à
+    moitié rempli n'en pose que deux ou trois.
+
+    UN CHAMP N'EST REPRIS QUE S'IL CORRESPOND EXACTEMENT À UN CHOIX de la question.
+    Deux conséquences voulues :
+
+    - la valeur écrite dans le profil déclaré appartient forcément au vocabulaire de
+      l'entretien, donc rien d'étranger ne peut arriver jusqu'aux règles de checklist ;
+    - une question à deux champs (le foyer dit la situation maritale ET les enfants)
+      n'est reprise que si le profil répond aux DEUX. Répondre à moitié à sa place
+      reviendrait à décider pour lui de la moitié manquante.
+
+    Limite assumée : un profil qui dit `marie` ou `pacse` ne correspond à aucun choix
+    (l'entretien n'écrit que `concubinage`, voir la question « foyer »). Ces personnes
+    se voient donc encore poser la question du foyer — c'est-à-dire exactement le
+    comportement d'aujourd'hui, sans perte. Le corriger demanderait d'élargir le
+    vocabulaire de l'entretien, ce qui est un autre sujet."""
+    if not isinstance(profil, dict) or not profil:
+        return {}
+    reponses: dict = {}
+    for champ, question in QUESTIONS.items():
+        for choix in question.choix:
+            if all(profil.get(cle) == valeur for cle, valeur in choix.profil.items()):
+                reponses[champ] = choix.profil
+                break
+    return reponses
+
+
+def resume_profil(reponses: dict) -> list[str]:
+    """Ce qu'on s'apprête à retenir, en clair, pour le faire confirmer.
+
+    L'assistant ne se sert JAMAIS d'un profil enregistré sans le relire au citoyen :
+    un dossier peut dater, et une liste de pièces fausse établie sur une situation
+    périmée est indétectable pour celui qui la reçoit. Tout ce qui est repris est donc
+    montré — d'où un récapitulatif construit à partir des mêmes choix que ceux qui
+    seront réellement utilisés, et non d'une reformulation parallèle."""
+    resumes: list[str] = []
+    for champ, valeur in reponses.items():
+        question = QUESTIONS.get(champ)
+        if question is None or not isinstance(valeur, dict):
+            continue
+        for choix in question.choix:
+            if choix.profil == valeur:
+                resumes.append(choix.resume or choix.libelle)
+                break
+    return resumes
 
 
 def profil_declare(reponses: dict) -> dict:
