@@ -5,13 +5,24 @@ conçu pour être importé et initialisé UNE SEULE FOIS au démarrage de l'app
 (construire les index est coûteux), puis interrogé plusieurs fois.
 
 Résilience : la recherche sémantique (Qdrant + modèle d'embeddings
-sentence-transformers) exige de télécharger un modèle au premier démarrage. Si ce
-téléchargement échoue ou traîne (pas de réseau, incompatibilité de librairie,
-environnement hors-ligne), le pipeline NE DOIT PAS rester bloqué ni tomber en
-panne : il bascule sur une recherche BM25 seule (lexicale, pur Python, aucun
-téléchargement) qui suffit à fournir des réponses citées. La génération (Mistral)
-reste identique dans les deux cas. C'est ce qui garantit que l'assistant répond
-toujours, même sans la couche sémantique.
+sentence-transformers) exige de charger torch et un modèle, et parfois de le
+télécharger au premier démarrage. Si cela échoue ou traîne (pas de réseau,
+incompatibilité de librairie, environnement hors-ligne), le pipeline NE DOIT PAS
+rester bloqué ni tomber en panne : il démarre sur une recherche BM25 seule
+(lexicale, pur Python, aucun téléchargement) qui suffit à fournir des réponses
+citées. La génération (Mistral) reste identique dans les deux cas. C'est ce qui
+garantit que l'assistant répond toujours, même sans la couche sémantique.
+
+LE DÉLAI BORNE L'ATTENTE, PAS LA DISPONIBILITÉ. Nuance apprise en production :
+la construction était ABANDONNÉE au délai — le thread continuait pourtant, la
+couche sémantique finissait de se charger, et son résultat était jeté. Le process
+restait en BM25 seul pour toute sa vie, alors que le modèle était en mémoire.
+Sur une machine Windows où le seul `import sentence_transformers` prend une
+vingtaine de secondes (torch et ses milliers de fichiers), suivi de 13 s pour
+construire le modèle, le délai de 25 s était dépassé À CHAQUE démarrage, modèle
+déjà en cache et embeddings déjà générés : la moitié sémantique de la recherche
+hybride n'était jamais servie. La construction se poursuit donc en arrière-plan
+et le pipeline bascule tout seul en hybride dès qu'elle aboutit.
 """
 import os
 import threading
@@ -23,11 +34,11 @@ from . import qdrant_index
 from .hybrid_search import reciprocal_rank_fusion
 from .llm_client import call_llm_structured, historique_de_confiance
 
-# La recherche sémantique est activée par défaut mais bornée : si l'index n'est
-# pas prêt dans ce délai (typiquement le téléchargement du modèle d'embeddings au
-# tout premier démarrage), on démarre en BM25 seul plutôt que de bloquer. Réglable
-# par variable d'environnement pour les déploiements où le modèle est déjà en
-# cache (délai plus court) ou volontairement désactivé (CHATBOT_SEMANTIC=0).
+# La recherche sémantique est activée par défaut. Le délai ci-dessous dit combien de
+# temps le DÉMARRAGE l'attend avant de servir en BM25 seul — il ne décide pas si elle
+# sera disponible : la construction se poursuit et le pipeline s'y raccroche dès
+# qu'elle aboutit (voir `_try_build_semantic`). L'augmenter ne fait donc que retarder
+# la mise en service ; `CHATBOT_SEMANTIC=0` est le seul réglage qui la désactive.
 _SEMANTIC_ENABLED = os.environ.get("CHATBOT_SEMANTIC", "1").lower() not in ("0", "false", "no")
 _SEMANTIC_TIMEOUT_S = float(os.environ.get("CHATBOT_SEMANTIC_TIMEOUT_S", "25"))
 
@@ -91,9 +102,15 @@ class RagPipeline:
             self._try_build_semantic()
 
         # `warn` et non `info` quand la couche sémantique manque : l'assistant répond
-        # toujours, mais moins bien, et durablement. C'est exactement le genre de panne
-        # qui se remarque à la qualité des réponses des semaines plus tard si personne
-        # ne l'a signalée au moment où elle s'est produite.
+        # toujours, mais moins bien. C'est exactement le genre de panne qui se remarque
+        # à la qualité des réponses des semaines plus tard si personne ne l'a signalée
+        # au moment où elle s'est produite.
+        #
+        # Ce mode est celui de l'INSTANT du démarrage, plus forcément celui du process :
+        # une construction encore en cours peut le faire passer en hybride quelques
+        # secondes après cette ligne (« recherche sémantique disponible » le dira). Le
+        # mode qui fait foi à un instant donné est celui de `orchestrator.mode_recherche`,
+        # rendu à chaque tour et sur `/api/health`.
         contexte = {
             "mode": "hybride" if self.semantic_available else "bm25_seul",
             "chunks": len(self.chunks),
@@ -105,45 +122,76 @@ class RagPipeline:
             logger.warn("chatbot: pipeline RAG prêt en mode dégradé (BM25 seul)", contexte)
 
     def _try_build_semantic(self):
-        """Construit l'index sémantique avec un délai maximal.
+        """Lance la construction sémantique et attend au plus `_SEMANTIC_TIMEOUT_S`.
 
-        Le chargement du modèle d'embeddings peut se bloquer indéfiniment (premier
-        téléchargement sans réseau, client HTTP fermé, etc.). On l'exécute donc
-        dans un thread borné : s'il n'aboutit pas à temps, on continue en BM25
-        seul. Le thread restant est daemon — il mourra avec le process."""
-        result: dict = {}
+        Le chargement peut être long, voire ne jamais aboutir (premier téléchargement
+        sans réseau, client HTTP fermé). Il tourne donc dans un thread, et le démarrage
+        ne l'attend qu'un temps borné.
 
-        def build():
+        Passé ce délai on N'ABANDONNE PAS : le thread poursuit et publiera lui-même son
+        résultat. C'est la différence avec la version précédente, qui jetait un travail
+        déjà presque terminé et condamnait le process au BM25 seul (voir l'en-tête du
+        module). Le thread est daemon : il mourra avec le process, jamais après."""
+        debut = time.perf_counter()
+
+        def construire():
             try:
-                result["value"] = qdrant_index.build_index()
+                client, modele = qdrant_index.build_index()
             except Exception as exc:  # noqa: BLE001 — capturé pour dégrader proprement
-                result["error"] = exc
+                logger.warn(
+                    "chatbot: index sémantique indisponible, recherche BM25 seule",
+                    {"error": str(exc)},
+                )
+                return
+            self._publier_semantique(client, modele, debut)
 
-        worker = threading.Thread(target=build, name="rag-semantic-build", daemon=True)
+        worker = threading.Thread(target=construire, name="rag-semantic-build", daemon=True)
         worker.start()
         worker.join(_SEMANTIC_TIMEOUT_S)
 
         if worker.is_alive():
             logger.warn(
-                "chatbot: index sémantique non prêt dans le délai, bascule sur BM25 seul",
+                "chatbot: index sémantique pas prêt dans le délai, démarrage en BM25 seul "
+                "— la construction se poursuit et basculera en hybride dès qu'elle aboutit",
                 {"delai_s": _SEMANTIC_TIMEOUT_S},
             )
-            return
-        if "value" in result:
-            self.qdrant_client, self.embedding_model = result["value"]
-            self.semantic_available = True
-        else:
-            logger.warn(
-                "chatbot: index sémantique indisponible, bascule sur BM25 seul",
-                {"error": str(result.get("error"))},
-            )
+
+    def _publier_semantique(self, client, modele, debut: float) -> None:
+        """Rend la couche sémantique visible aux requêtes en cours.
+
+        LE DRAPEAU EN DERNIER, comme pour les singletons du moteur : `retrieve` lit
+        `semantic_available` d'abord et ne touche au client et au modèle qu'ensuite.
+        Publier le drapeau avant eux ouvrirait une fenêtre — courte, mais servie par un
+        pool de quarante threads — où un tour verrait « hybride » et un client encore
+        vide. Dans cet ordre, un tour voit soit l'ancien mode, soit le nouveau, jamais
+        un état intermédiaire ; aucun verrou n'est donc nécessaire.
+
+        Peut être appelé APRÈS le délai de démarrage : c'est précisément ce qui permet
+        au pipeline de passer de lui-même en hybride, sans redémarrage."""
+        self.qdrant_client = client
+        self.embedding_model = modele
+        self.semantic_available = True
+        logger.info(
+            "chatbot: recherche sémantique disponible",
+            {
+                "mode": "hybride",
+                # Une durée supérieure au délai dit, à elle seule, que la bascule a eu
+                # lieu après le démarrage : inutile d'un second champ pour le répéter.
+                "duree_ms": round((time.perf_counter() - debut) * 1000),
+                "delai_demarrage_s": _SEMANTIC_TIMEOUT_S,
+            },
+        )
 
     def retrieve(self, query, top_k=3, category="demarche"):
         """category: une catégorie (str) ou une liste de catégories (ex: ["demarche", "legislation"]) -
         voir orchestrator.CATEGORIES_BY_ROLE pour le filtrage selon le rôle (citoyen/agent)."""
         bm25_results = bm25_index.search(query, self.bm25, self.chunks, top_k=10, category=category)
 
-        # BM25 seul : on renvoie directement les meilleurs résultats lexicaux.
+        # BM25 seul : on renvoie directement les meilleurs résultats lexicaux. Le drapeau
+        # est relu à CHAQUE tour, et c'est voulu : il peut passer à vrai en cours de vie
+        # du process, quand une construction sémantique lente finit par aboutir
+        # (`_publier_semantique`). Le tour suivant part alors en hybride, sans rien avoir
+        # à redémarrer.
         if not self.semantic_available:
             return bm25_results[:top_k]
 
