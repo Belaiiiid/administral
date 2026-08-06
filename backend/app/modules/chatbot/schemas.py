@@ -137,10 +137,14 @@ class PendingClarificationSchema(CamelModel):
         "rag_general", "documents_necessaires", "estimation", "fondement_juridique"
     ]
     #: Étape du dialogue quand la question vient du CODE et non du LLM : la date d'une
-    #: décision contestée se demande en deux temps (oui/non, puis la date elle-même).
+    #: décision contestée se demande en deux temps (oui/non, puis la date elle-même),
+    #: et le profil déjà enregistré d'un citoyen connecté se fait confirmer avant d'être
+    #: utilisé (`profil_confirmation`, voir `orchestrator.documents_necessaires_node`).
     #: Bornée comme `intent`, pour la même raison — elle vient du client et pilote le
     #: comportement du nœud.
-    step: Literal["date_choix", "date_valeur", "date_valeur_2"] | None = None
+    step: Literal[
+        "date_choix", "date_valeur", "date_valeur_2", "profil_confirmation"
+    ] | None = None
 
 
 class ChatbotContextSchema(CamelModel):
