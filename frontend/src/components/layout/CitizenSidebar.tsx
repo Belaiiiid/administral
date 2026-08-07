@@ -49,14 +49,16 @@ export function CitizenSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <Link
         to={ROUTES.home}
         onClick={onNavigate}
-        className="mb-6 flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-200 ease-standard hover:bg-brand-soft"
+        className="mb-6 ml-2 flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-200 ease-standard hover:bg-brand-soft"
       >
         <img src={logo} alt="" aria-hidden="true" className="size-10 shrink-0 object-contain" />
         <span className="leading-tight">
           <span className="block font-display text-base font-extrabold tracking-tight text-ink">
             ADMINISTRAL
           </span>
-          <span className="block text-label-sm text-muted-foreground">Portail citoyen</span>
+          {/* Même signature que l'en-tête : sur desktop, ce rail est le seul
+              endroit où la marque apparaît, les deux ne doivent pas diverger. */}
+          <span className="block text-label-sm text-muted-foreground">République 5.0</span>
         </span>
       </Link>
 

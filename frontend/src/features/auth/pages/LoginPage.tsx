@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
+import { AUTH_CHECKBOX, AUTH_FIELD } from '@/features/auth/authStyles';
 import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
 import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import Turnstile from '@/components/shared/Turnstile';
@@ -121,7 +122,7 @@ export default function LoginPage() {
     <Card className="rounded-2xl border-none bg-surface-lowest shadow-soft-hover">
       <CardContent className="p-8 pb-6 sm:p-10 sm:pb-7 short:p-6 short:pb-5 short:sm:p-7">
         <div className="mb-8 flex flex-col items-center text-center short:mb-5">
-          <span className="mb-4 flex size-20 items-center justify-center rounded-2xl bg-surface-lowest shadow-soft ring-1 ring-primary-fixed short:mb-3 short:size-14 shorter:size-12">
+          <span className="mb-4 flex size-24 items-center justify-center rounded-2xl bg-surface-lowest shadow-soft ring-1 ring-primary-fixed short:mb-3 short:size-16 shorter:size-14">
             <img
               src="/logo.png"
               alt={APP_CONFIG.name}
@@ -193,7 +194,7 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
-            className="h-12 rounded-2xl border-primary-fixed bg-surface text-body-md"
+            className={AUTH_FIELD}
           />
 
           <Input
@@ -207,7 +208,7 @@ export default function LoginPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            className="h-12 rounded-2xl border-primary-fixed bg-surface text-body-md"
+            className={AUTH_FIELD}
             endAdornment={
                 <button
                   type="button"
@@ -228,7 +229,7 @@ export default function LoginPage() {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Checkbox id="remember" />
+              <Checkbox id="remember" className={AUTH_CHECKBOX} />
               <Label htmlFor="remember" className="cursor-pointer text-body-sm font-normal">
                 Se souvenir de moi
               </Label>
@@ -269,14 +270,16 @@ export default function LoginPage() {
           <span aria-hidden="true" className="h-px flex-1 bg-primary-fixed" />
         </div>
 
-        <FranceConnectButton className="h-12 rounded-2xl" />
-        <p className="mt-4 text-center short:mt-3">
+        <FranceConnectButton variant="muted" className="h-12 rounded-xl" />
+        {/* 26px demandés de part et d'autre de ces deux lignes — valeur exacte,
+            hors échelle Tailwind, d'où la notation entre crochets. */}
+        <p className="mt-[26px] text-center">
           <Link to="/franceconnect" className="text-body-sm text-on-surface-variant hover:underline">
             Qu’est-ce que FranceConnect ?
           </Link>
         </p>
 
-        <div className="mt-6 text-center opacity-70 short:mt-4">
+        <div className="mt-[26px] text-center opacity-70">
           <p className="text-label-sm text-on-surface-variant">
             Vous n’avez pas de compte ?{' '}
             <Link to={ROUTES.register} className="text-ai hover:underline">
@@ -285,17 +288,22 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* `PartnerLogos` rather than two hand-written `<img>`: it already
+        {/* `PartnerLogos` rather than two hand-written image tags: it already
             pairs Talan with Mistral and falls back to a text wordmark if an
             asset is missing. `wordmark` selects /mistral-logo.svg. */}
-        <div className="mt-5 flex items-center justify-center gap-4 opacity-70 short:mt-3">
-          <span className="text-label-sm leading-none text-on-surface-variant">Powered by</span>
-          {/* `object-contain` + a shared height letterboxes each mark inside the
-              same box, so Talan's wordmark and Mistral's square sit on one
-              optical baseline instead of being centred on their own bounds. */}
+        <div className="mt-[26px] flex items-center justify-center gap-3 opacity-70">
+          <span className="text-label-sm leading-none text-on-surface-variant">Propulsé par</span>
+          {/* Même hauteur de boîte pour les deux marques (20px).
+              Le décalage de 3px : le PNG Talan porte sa signature « Positive
+              innovation » sous le mot-symbole, qui n'occupe donc que le haut du
+              fichier — son centre optique remonte d'environ 15% de la hauteur
+              de boîte, soit 3px ici. Sans ce rattrapage, « TALAN » flotte
+              au-dessus de la marque Mistral alors que les boîtes, elles, sont
+              bien centrées. */}
           <PartnerLogos
-            className="items-center gap-5"
+            className="items-center gap-4"
             logoClassName="h-5 w-auto object-contain"
+            talanClassName="translate-y-[3px]"
             mistralMark="wordmark"
           />
         </div>

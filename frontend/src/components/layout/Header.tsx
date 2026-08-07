@@ -88,7 +88,7 @@ export function Header() {
         <div className="hidden items-center gap-4 sm:flex">
           <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">
             <img src="/mistral-logo.svg" alt="" aria-hidden="true" className="h-3.5 w-auto" />
-            Powered by Mistral
+            Propulsé par Mistral
           </span>
           <span aria-hidden="true" className="h-4 w-px bg-border" />
           <span className="flex items-center gap-1.5 text-label-sm text-on-surface-variant">

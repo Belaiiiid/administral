@@ -19,7 +19,7 @@ export function FocusLayout() {
       <SkipLink />
 
       <header className="sticky top-0 z-30 flex h-header items-center border-b border-border bg-surface-lowest px-margin-mobile md:px-gutter">
-        <Link to={ROUTES.portal} className="flex items-center gap-2.5">
+        <Link to={ROUTES.portal} className="ml-2 flex items-center gap-2.5">
           <img src={administralLogo} alt="Administral" className="size-9 shrink-0 object-contain" />
           <span className="text-headline-md text-primary">ADMINISTRAL</span>
         </Link>

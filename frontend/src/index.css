@@ -252,6 +252,29 @@
     --primary: var(--admtl-action);
   }
 
+  /*
+   * Palette de l'écran de connexion.
+   *
+   * Déclarée en jetons plutôt qu'en `bg-[#FAFBFC]` répétés dans le JSX : la
+   * charte interdit la couleur en dur dans les composants (PRODUCT.md), et ces
+   * teintes forment un petit système cohérent — champ, bordure, survol, navy de
+   * focus — qu'on veut pouvoir retoucher d'un seul endroit.
+   *
+   * Scopé à `.login-scope` : ce gris légèrement plus chaud que `--surface` ne
+   * doit pas déteindre sur le reste du portail.
+   */
+  .login-scope {
+    --login-field: #fafbfc;
+    --login-border: #e3e5ea;
+    --login-border-hover: #c7cbd3;
+    --login-navy: #142850;
+    --login-focus-ring: 0 0 0 3px rgb(20 40 80 / 0.08);
+    --login-check-border: #c7cbd3;
+    --login-muted-surface: #f5f6f8;
+    --login-muted-text: #6b7280;
+    --login-muted-mark: #dadde3;
+  }
+
   /* Uppercase eyebrow label — section kickers across the Administral redesign. */
   .eyebrow {
     font-family: var(--font-display);

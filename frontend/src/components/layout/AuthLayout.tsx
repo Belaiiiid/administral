@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
 import { APP_CONFIG } from '@/app/config/app';
@@ -16,14 +17,56 @@ import { VoiceAssistantProvider } from '@/features/voice/components/VoiceAssista
  * Voice providers are included so the assistant can help users fill in
  * their credentials (email only — password is masked and never read aloud).
  *
- * Login is the exception: its card carries its own header (CAF mark, heading,
- * tagline) to match the reference design, so this shell's header is skipped
- * for that one route rather than doubling up. The other entry pages —
- * register, forgotten/reset password, e-mail verification — are unchanged.
+ * Connexion et inscription font exception : leur carte porte son propre en-tête
+ * (marque, titre) pour coller au design de référence, donc l'en-tête de cette
+ * coquille est sauté sur ces deux routes plutôt que doublé. Les autres pages
+ * d'entrée — mot de passe oublié/réinitialisé, confirmation d'e-mail — sont
+ * inchangées.
  */
 export function AuthLayout() {
   const { pathname } = useLocation();
   const isLogin = pathname === ROUTES.login;
+  const isRegister = pathname === ROUTES.register;
+  /**
+   * Connexion et inscription partagent la même carte : palette `.login-scope`,
+   * bouton retour en pastille, en-tête porté par la carte, et le même verrou de
+   * défilement.
+   */
+  const isSignCard = isLogin || isRegister;
+
+  /*
+   * Verrou de défilement demandé pour /login et /register : `html` et `body` à
+   * 100vh, `overflow: hidden`. Posé en effet plutôt qu'en CSS global parce que
+   * les deux éléments sont hors de l'arbre React — et retiré au démontage,
+   * sinon toute page visitée ensuite hériterait du verrou.
+   *
+   * Contrepartie assumée : au-delà d'un certain zoom, ou sur une fenêtre très
+   * basse, le bas de la carte est coupé sans moyen d'y accéder. Les variantes
+   * `short:` / `shorter:` des deux cartes repoussent ce seuil en rognant les
+   * blancs, jamais le contenu. Voir la note au commanditaire.
+   */
+  useEffect(() => {
+    if (!isSignCard) return;
+    const { documentElement: html, body } = document;
+    const previous = {
+      htmlHeight: html.style.height,
+      htmlOverflow: html.style.overflow,
+      bodyHeight: body.style.height,
+      bodyOverflow: body.style.overflow,
+    };
+
+    html.style.height = '100vh';
+    html.style.overflow = 'hidden';
+    body.style.height = '100vh';
+    body.style.overflow = 'hidden';
+
+    return () => {
+      html.style.height = previous.htmlHeight;
+      html.style.overflow = previous.htmlOverflow;
+      body.style.height = previous.bodyHeight;
+      body.style.overflow = previous.bodyOverflow;
+    };
+  }, [isSignCard]);
 
   return (
     <VoicePageProvider>
@@ -31,15 +74,14 @@ export function AuthLayout() {
         {/* `relative` anchors the absolutely-positioned back button below. */}
         <div
           className={cn(
-            'relative flex min-h-screen flex-col px-margin-mobile py-12',
-            // Sign-in has to fit the screen with no scrollbar in either axis:
-            // it is one short form, and a scrollbar on it reads as breakage.
-            // `min-h-screen` is kept rather than `h-screen` + `overflow-hidden`
-            // so a zoomed-in or very short viewport degrades to scrolling
-            // instead of clipping the submit button out of reach.
-            isLogin
-              ? 'overflow-x-hidden bg-surface-low short:py-6 shorter:py-3'
-              : 'bg-background',
+            'relative flex flex-col px-margin-mobile py-12',
+            // Fond et palette communs aux deux écrans à carte.
+            isSignCard ? 'login-scope bg-surface-low' : 'bg-background',
+            // Connexion et inscription tiennent dans la fenêtre, sans défilement
+            // possible : `h-screen` + `overflow-hidden`, en écho au verrou posé
+            // sur `html`/`body` ci-dessus. Les autres pages d'entrée gardent
+            // `min-h-screen` et défilent normalement.
+            isSignCard ? 'h-screen overflow-hidden short:py-6 shorter:py-3' : 'min-h-screen',
           )}
         >
           <SkipLink />
@@ -50,18 +92,27 @@ export function AuthLayout() {
             of it. Leaving here goes back to wherever they came from, or to the
             public landing page for someone who opened /login directly.
           */}
-          <CitizenBackButton
-            fallbackTo={ROUTES.home}
-            className="absolute left-4 top-6 md:left-8 md:top-8"
-          />
+          {/* La pastille elle-même est portée par `CitizenBackButton` : il ne
+              reste ici que le positionnement. `fixed` et non `absolute` sur les
+              deux écrans à carte — le conteneur n'y défile plus, les deux se
+              valent visuellement, mais `fixed` tient la promesse « 24px du bord
+              de l'écran » quelle que soit la mise en page autour. */}
+          {isSignCard ? (
+            <CitizenBackButton fallbackTo={ROUTES.home} className="fixed left-6 top-6 z-20" />
+          ) : (
+            <CitizenBackButton
+              fallbackTo={ROUTES.home}
+              className="absolute left-4 top-6 md:left-8 md:top-8"
+            />
+          )}
 
           <div
             className={cn(
               'mx-auto flex w-full flex-1 flex-col justify-center',
-              isLogin ? 'max-w-[470px]' : 'max-w-[520px]',
+              isSignCard ? 'max-w-[470px]' : 'max-w-[520px]',
             )}
           >
-            {!isLogin && (
+            {!isSignCard && (
               <div className="mb-8 flex flex-col items-center gap-3 text-center">
                 <Link to={ROUTES.home} className="flex items-center gap-3 rounded-lg">
                   <img src={administralLogo} alt="Administral" className="h-14 w-14 shrink-0 object-contain" />
@@ -82,11 +133,12 @@ export function AuthLayout() {
             </main>
           </div>
 
-          {/* Dropped on the login screen for a cleaner card. Kept on every
-              other entry page: « Mentions légales » and the accessibility
-              statement are legally required on a French public service site,
-              so they must stay reachable somewhere in the entry journey. */}
-          {!isLogin && (
+          {/* Retirés de la connexion et de l'inscription : la fenêtre y est
+              verrouillée, la carte doit tenir seule. Gardés sur les autres pages
+              d'entrée — « Mentions légales » et la déclaration d'accessibilité
+              sont obligatoires sur un service public français, elles restent
+              joignables depuis là et depuis le pied de page de l'accueil. */}
+          {!isSignCard && (
             <nav aria-label="Liens utiles" className="mt-8">
               <ul className="flex flex-wrap justify-center gap-6">
                 <li>

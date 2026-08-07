@@ -2,8 +2,10 @@ import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { APP_CONFIG } from '@/app/config/app';
 import { ROUTES } from '@/app/router/paths';
-import { FranceConnectButton } from '@/features/auth/components/FranceConnectButton';
+import { AUTH_CHECKBOX, AUTH_FIELD } from '@/features/auth/authStyles';
+import { PartnerLogos } from '@/components/layout/PartnerLogos';
 import Turnstile from '@/components/shared/Turnstile';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -111,13 +113,13 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <Card>
-        <CardContent className="p-6 sm:p-8">
+      <Card className="rounded-2xl border-none bg-surface-lowest shadow-soft-hover">
+        <CardContent className="p-8 pb-6 sm:p-10 sm:pb-7">
           <div className="text-center">
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-success-surface">
               <Mail className="size-7 text-success" aria-hidden="true" />
             </div>
-            <h1 className="mb-2 text-headline-md text-on-surface">Compte créé !</h1>
+            <h1 className="mb-2 text-headline-lg text-primary">Compte créé !</h1>
             <p className="mb-6 text-body-sm text-on-surface-variant">
               Votre compte a été créé avec succès.
             </p>
@@ -128,14 +130,19 @@ export default function RegisterPage() {
               <strong>{email}</strong>.
             </AlertDescription>
           </Alert>
-          <div className="rounded-lg bg-surface-low p-4">
+          <div className="rounded-xl bg-[var(--login-field)] p-4">
             <p className="text-body-sm text-on-surface-variant">
               Pour accéder à l'ensemble de vos services, confirmez votre adresse
               e-mail en cliquant sur le lien que nous venons de vous envoyer.
               Pensez à vérifier vos courriers indésirables.
             </p>
           </div>
-          <Button asChild block size="lg" className="mt-6">
+          <Button
+            asChild
+            block
+            size="lg"
+            className="mt-6 h-12 rounded-2xl bg-marianne text-body-lg font-semibold hover:bg-primary"
+          >
             <Link to={ROUTES.login}>Se connecter</Link>
           </Button>
         </CardContent>
@@ -144,21 +151,29 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card>
-      <CardContent className="p-6 sm:p-8">
-        <div className="mb-8 text-center">
-          <h1 className="text-headline-md text-on-surface">Créer un espace personnel</h1>
-          <p className="mt-1 text-body-sm text-on-surface-variant">
+    // Même carte que l'écran de connexion : coins à 16px, pas de bordure, ombre
+    // douce. Les champs, la case à cocher et le bouton principal reprennent les
+    // mêmes tokens `.login-scope`, posés par `AuthLayout`, jusqu'au rembourrage
+    // bas plus court que le haut : le bloc partenaires qui ferme la carte porte
+    // déjà son propre blanc.
+    //
+    // Les variantes `short:` (max-height 820px) et `shorter:` (680px) rognent
+    // les blancs — jamais le contenu — pour que la carte tienne dans une fenêtre
+    // basse, la page étant verrouillée en hauteur par `AuthLayout`.
+    <Card className="rounded-2xl border-none bg-surface-lowest shadow-soft-hover">
+      <CardContent className="p-8 pb-6 sm:p-10 sm:pb-7 short:p-6 short:pb-5 short:sm:p-7">
+        <div className="mb-8 flex flex-col items-center text-center short:mb-5">
+          <span className="mb-4 flex size-24 items-center justify-center rounded-2xl bg-surface-lowest shadow-soft ring-1 ring-primary-fixed short:mb-3 short:size-16 shorter:size-14">
+            <img
+              src="/logo.png"
+              alt={APP_CONFIG.name}
+              className="size-full rounded-2xl object-contain"
+            />
+          </span>
+          <h1 className="text-headline-lg text-primary">Créer un espace personnel</h1>
+          <p className="mt-2 text-body-sm text-on-surface-variant">
             Un seul compte pour accéder à l'ensemble de vos services publics.
           </p>
-        </div>
-
-        <FranceConnectButton />
-
-        <div className="my-8 flex items-center gap-4">
-          <span aria-hidden="true" className="h-px flex-1 bg-border" />
-          <span className="text-label-sm text-on-surface-variant">OU</span>
-          <span aria-hidden="true" className="h-px flex-1 bg-border" />
         </div>
 
         {error && (
@@ -167,62 +182,65 @@ export default function RegisterPage() {
           </Alert>
         )}
 
-        <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="firstName">Prénom</Label>
-              <Input
-                id="firstName"
-                name="firstName"
-                autoComplete="given-name"
-                startIcon={<User />}
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                placeholder="Jean"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="lastName">Nom</Label>
-              <Input
-                id="lastName"
-                name="lastName"
-                autoComplete="family-name"
-                startIcon={<User />}
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                placeholder="Dupont"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="register-email">Adresse e-mail</Label>
+        <form className="flex flex-col gap-4 shorter:gap-3" onSubmit={handleSubmit} noValidate>
+          {/* Placeholder-only fields, comme à la connexion. Le `<Label>` visible
+              disparaît, donc chaque champ porte un `aria-label` — un placeholder
+              seul ne fait pas un nom accessible, et il s'efface dès la première
+              frappe. */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
-              id="register-email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="nom@exemple.fr"
-              startIcon={<Mail />}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="firstName"
+              name="firstName"
+              autoComplete="given-name"
+              aria-label="Prénom"
+              placeholder="Prénom"
+              startIcon={<User />}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
               required
+              className={AUTH_FIELD}
+            />
+            <Input
+              id="lastName"
+              name="lastName"
+              autoComplete="family-name"
+              aria-label="Nom"
+              placeholder="Nom"
+              startIcon={<User />}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              className={AUTH_FIELD}
             />
           </div>
 
+          <Input
+            id="register-email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            aria-label="Adresse e-mail"
+            placeholder="Adresse e-mail"
+            startIcon={<Mail />}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className={AUTH_FIELD}
+          />
+
           <div className="flex flex-col gap-2">
-            <Label htmlFor="register-password">Mot de passe</Label>
             <Input
               id="register-password"
               type={showPassword ? 'text' : 'password'}
               name="password"
               autoComplete="new-password"
+              aria-label="Mot de passe"
+              placeholder="Mot de passe"
               startIcon={<Lock />}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className={AUTH_FIELD}
               aria-describedby={tooShort ? 'password-error' : 'password-hint'}
               endAdornment={
                 <button
@@ -242,7 +260,7 @@ export default function RegisterPage() {
               }
             />
             {password.length > 0 && (
-              <div className="mt-1">
+              <div>
                 <div className="flex gap-1">
                   {[1, 2, 3].map((bar) => (
                     <div
@@ -251,14 +269,16 @@ export default function RegisterPage() {
                         'h-1 flex-1 rounded-full transition-colors',
                         bar <= STRENGTH_BARS[strength]
                           ? STRENGTH_COLORS[strength]
-                          : 'bg-border',
+                          : 'bg-[var(--login-border)]',
                       )}
                     />
                   ))}
                 </div>
                 <p
                   className={cn(
-                    'mt-1 text-body-sm',
+                    // `pl-4` : les textes d'aide s'alignent sur le rembourrage
+                    // interne du champ, pas sur son bord.
+                    'mt-1 pl-4 text-body-sm',
                     strength === 'weak' && 'text-destructive',
                     strength === 'medium' && 'text-warning',
                     strength === 'strong' && 'text-success',
@@ -269,12 +289,12 @@ export default function RegisterPage() {
               </div>
             )}
             {tooShort && (
-              <p id="password-error" className="text-body-sm text-destructive">
+              <p id="password-error" className="pl-4 text-body-sm text-destructive">
                 {MIN_PASSWORD_LENGTH} caractères minimum.
               </p>
             )}
             {!tooShort && password.length === 0 && (
-              <p id="password-hint" className="text-body-sm text-on-surface-variant">
+              <p id="password-hint" className="pl-4 text-label-sm text-on-surface-variant">
                 {MIN_PASSWORD_LENGTH} caractères minimum, dont une majuscule, un
                 chiffre et un caractère spécial.
               </p>
@@ -282,55 +302,77 @@ export default function RegisterPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmation">Confirmer le mot de passe</Label>
             <Input
               id="confirmation"
               type={showPassword ? 'text' : 'password'}
               name="confirmation"
               autoComplete="new-password"
+              aria-label="Confirmer le mot de passe"
+              placeholder="Confirmer le mot de passe"
               startIcon={<Lock />}
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
               required
+              className={AUTH_FIELD}
               aria-describedby={mismatch ? 'confirmation-error' : undefined}
             />
             {mismatch && (
-              <p id="confirmation-error" className="text-body-sm text-destructive">
+              <p id="confirmation-error" className="pl-4 text-body-sm text-destructive">
                 Les deux mots de passe ne correspondent pas.
               </p>
             )}
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-2">
             <Checkbox
               id="cgu"
-              className="mt-0.5"
+              className={cn(AUTH_CHECKBOX, 'mt-0.5 shrink-0')}
               checked={cguAccepted}
               onCheckedChange={(checked) => setCguAccepted(checked === true)}
             />
-            <Label htmlFor="cgu" className="cursor-pointer font-normal leading-normal">
+            <Label htmlFor="cgu" className="cursor-pointer text-label-sm font-normal leading-normal">
               J'accepte les conditions générales d'utilisation et la politique de
               protection des données personnelles.
             </Label>
           </div>
 
+          {/* Renders nothing without `VITE_TURNSTILE_SITE_KEY`. It still gates
+              the submit button in any environment that configures a site key. */}
           <Turnstile
             onVerify={(token) => setTurnstileToken(token)}
             onExpire={() => setTurnstileToken(null)}
           />
 
-          <Button type="submit" block size="lg" disabled={!canSubmit}>
+          <Button
+            type="submit"
+            block
+            size="lg"
+            disabled={!canSubmit}
+            className="mt-1 h-12 rounded-2xl bg-marianne text-body-lg font-semibold hover:bg-primary"
+          >
             {isLoggingIn ? 'Création du compte…' : 'Créer mon compte'}
           </Button>
         </form>
 
-        <div className="mt-8 border-t border-border pt-6 text-center">
-          <p className="text-body-sm text-on-surface-variant">
-            Vous avez déjà un compte ?{' '}
-            <Link to={ROUTES.login} className="font-medium text-primary hover:underline">
-              Se connecter
-            </Link>
-          </p>
+        {/* `PartnerLogos` plutôt que deux balises image écrites à la main : il
+            apparie déjà Talan et Mistral et retombe sur un mot-symbole texte si
+            un fichier manque. `wordmark` sélectionne /mistral-logo.svg.
+
+            Détaché du bouton par 40px : la mention partenaire n'appartient pas
+            au formulaire, l'écart doit se lire comme une rupture et non comme
+            l'interligne suivant. Resserré sur une fenêtre basse, la carte devant
+            tenir sans défilement. */}
+        <div className="mt-10 flex items-center justify-center gap-3 opacity-70 short:mt-6">
+          <span className="text-label-sm leading-none text-on-surface-variant">Propulsé par</span>
+          {/* Décalage de 3px sur Talan : le PNG porte sa signature « Positive
+              innovation » sous le mot-symbole, son centre optique remonte donc
+              d'environ 15% de la hauteur de boîte. */}
+          <PartnerLogos
+            className="items-center gap-4"
+            logoClassName="h-5 w-auto object-contain"
+            talanClassName="translate-y-[3px]"
+            mistralMark="wordmark"
+          />
         </div>
       </CardContent>
     </Card>

@@ -80,11 +80,18 @@ export function CitizenHeader({ variant = 'full', onOpenMenu }: CitizenHeaderPro
           des administrations, qui est bien son accueil. */}
       <Link
         to={ROUTES.home}
-        className={cn('flex items-center gap-2.5', variant === 'full' && 'lg:hidden')}
+        // `ml-2` : la marque respire un peu plus loin du bord que les 16px de
+        // rembourrage de l'en-tête, comme sur les autres barres.
+        className={cn('ml-2 flex items-center gap-2.5', variant === 'full' && 'lg:hidden')}
       >
         <img src={logo} alt="Administral" className="size-9 shrink-0 object-contain" />
-        <span className="hidden font-display text-base font-extrabold tracking-tight text-ink sm:block">
-          ADMINISTRAL
+        {/* Mot-symbole sur deux lignes, comme l'en-tête public : la signature
+            qualifie la marque, elle ne doit pas se lire comme un lien de plus. */}
+        <span className="hidden leading-tight sm:block">
+          <span className="block font-display text-base font-extrabold tracking-tight text-ink">
+            ADMINISTRAL
+          </span>
+          <span className="mt-0.5 block text-label-sm text-muted-foreground">République 5.0</span>
         </span>
       </Link>
 

@@ -55,7 +55,9 @@ export function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-surface-low px-4 py-6">
-      <div className="mb-4 flex items-center justify-between gap-2 px-2">
+      {/* `pl-4` plutôt que `px-2` : la marque est décalée à droite, le bouton de
+          fermeture reste, lui, collé au bord du rail. */}
+      <div className="mb-4 flex items-center justify-between gap-2 pl-4 pr-2">
         {/* One rail, two areas — the subtitle is what tells them apart. */}
         <Logo subtitle={isAgentPath(pathname) ? 'Espace agent' : undefined} />
         {inDrawer && (
